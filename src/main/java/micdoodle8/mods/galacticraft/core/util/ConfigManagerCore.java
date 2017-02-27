@@ -40,6 +40,10 @@ public class ConfigManagerCore
     public static boolean hardMode;
     public static boolean quickMode;
 	public static boolean challengeMode;
+	public static boolean challengeRecipes;
+	public static boolean challengeMobDropsAndSpawning;
+	public static boolean challengeSpawnHandling;
+	public static boolean challengeAsteroidPopulation;
     public static boolean disableRocketsToOverworld;
     public static boolean disableSpaceStationCreation;
     public static boolean spaceStationsRequirePermission;
@@ -48,6 +52,7 @@ public class ConfigManagerCore
     public static boolean enableDebug;
     public static boolean enableSealerEdgeChecks;
     public static boolean disableLander;
+    public static boolean recipesRequireGCAdvancedMetals = true;
 //    public static int mapfactor;
 //    public static int mapsize;
     
@@ -72,7 +77,8 @@ public class ConfigManagerCore
 
     // CLIENT / VISUAL FX
     public static boolean moreStars;
-    public static boolean disableSpaceshipParticles;  
+    public static boolean disableSpaceshipParticles; 
+    public static boolean disableVehicleCameraChanges;
     public static boolean oxygenIndicatorLeft;
     public static boolean oxygenIndicatorBottom;
     public static boolean overrideCapes;
@@ -254,6 +260,12 @@ public class ConfigManagerCore
             prop.comment = "If you have FPS problems, setting this to true will help if rocket particles are in your sights";
             prop.setLanguageKey("gc.configgui.disableSpaceshipParticles");
             disableSpaceshipParticles = prop.getBoolean(false);
+            propOrder.add(prop.getName());
+
+            prop = config.get(Constants.CONFIG_CATEGORY_GENERAL, "Disable Vehicle Third-Person and Zoom", false);
+            prop.comment = "If you're using this mod in virtual reality, or if you don't want the camera changes when entering a Galacticraft vehicle, set this to true.";
+            prop.setLanguageKey("gc.configgui.disableVehicleCameraChanges");
+            disableVehicleCameraChanges = prop.getBoolean(false);
             propOrder.add(prop.getName());
 
             prop = config.get(Constants.CONFIG_CATEGORY_GENERAL, "Minimap Left", false);
@@ -465,6 +477,32 @@ public class ConfigManagerCore
             challengeMode = prop.getBoolean(false);
             if (!GalacticraftCore.isPlanetsLoaded) challengeMode = false;
             propOrder.add(prop.getName());
+            
+            prop = config.get(Constants.CONFIG_CATEGORY_GENERAL, "Adventure Game Mode Recipes", false);
+            prop.comment = "Set this to true to just enable the compressor recipes from Adventure Mode (regardless of whether the game mode is enabled).";
+            prop.setLanguageKey("gc.configgui.asteroidsRecipes");
+            challengeRecipes = prop.getBoolean(false);
+            propOrder.add(prop.getName());
+            
+            prop = config.get(Constants.CONFIG_CATEGORY_GENERAL, "Adventure Game Mode Mob Drops and Spawning", false);
+            prop.comment = "Set this to true to just enable the mob drops and mob spawning additions from Adventure Mode (regardless of whether the game mode is enabled).";
+            prop.setLanguageKey("gc.configgui.asteroidsMobDropsAndSpawning");
+            challengeMobDropsAndSpawning = prop.getBoolean(false);
+            propOrder.add(prop.getName());
+            
+            prop = config.get(Constants.CONFIG_CATEGORY_GENERAL, "Adventure Game Mode Spawn Handling", false);
+            prop.comment = "Set this to true to just enable players spawning in entry pods in the asteroids dimension like they would in Adventure Mode (regardless of whether the game mode is enabled, but only effective if Galacticraft Planets is installed).";
+            prop.setLanguageKey("gc.configgui.asteroidsSpawnHandling");
+            challengeSpawnHandling = prop.getBoolean(false);
+            if (!GalacticraftCore.isPlanetsLoaded) challengeSpawnHandling = false;
+            propOrder.add(prop.getName());
+            
+            prop = config.get(Constants.CONFIG_CATEGORY_GENERAL, "Adventure Game Mode Asteroid Population", false);
+            prop.comment = "Set this to true to just enable trees being placed in all hollow asteroids in the asteroids dimension like they would in Adventure Mode (regardless of whether the game mode is enabled, but only effective if Galacticraft Planets is installed).";
+            prop.setLanguageKey("gc.configgui.asteroidsAsteroidPopulation");
+            challengeAsteroidPopulation = prop.getBoolean(false);
+            if (!GalacticraftCore.isPlanetsLoaded) challengeAsteroidPopulation = false;
+            propOrder.add(prop.getName());
 
             prop = config.get(Constants.CONFIG_CATEGORY_GENERAL, "Enable Sealed edge checks", true);
             prop.comment = "If this is enabled, areas sealed by Oxygen Sealers will run a seal check when the player breaks or places a block (or on block updates).  This should be enabled for a 100% accurate sealed status, but can be disabled on servers for performance reasons.";
@@ -484,6 +522,12 @@ public class ConfigManagerCore
             otherModsSilicon = prop.getString();
             propOrder.add(prop.getName());
 
+            prop = config.get(Constants.CONFIG_CATEGORY_GENERAL, "Force the use of Galacticraft's own Meteoric Iron, Desh, Titanium etc in recipes (not their OreDict equivalents)", true);
+            prop.comment = "Should normally be true. If you set this to false, in a modpack with other mods with the same metals, players may be able to craft advanced GC items without travelling to Moon, Mars, Asteroids etc.";
+            prop.setLanguageKey("gc.configgui.disableOreDictSpaceMetals").setRequiresMcRestart(true);
+            recipesRequireGCAdvancedMetals = prop.getBoolean(true);
+            propOrder.add(prop.getName());          
+            
             prop = config.get(Constants.CONFIG_CATEGORY_GENERAL, "Open Galaxy Map", "KEY_M");
             prop.comment = "Leave 'KEY_' value, adding the intended keyboard character to replace the letter. Values 0-9 and A-Z are accepted";
             prop.setLanguageKey("gc.configgui.overrideMap").setRequiresMcRestart(true);
@@ -748,12 +792,14 @@ public class ConfigManagerCore
     	modeFlags += ConfigManagerCore.quickMode ? 2 : 0;
     	modeFlags += ConfigManagerCore.challengeMode ? 4 : 0;
     	modeFlags += ConfigManagerCore.disableSpaceStationCreation ? 8 : 0;
+    	modeFlags += ConfigManagerCore.recipesRequireGCAdvancedMetals ? 16 : 0;
     	returnList.add(modeFlags);
     	returnList.add(ConfigManagerCore.dungeonBossHealthMod);
     	returnList.add(ConfigManagerCore.suffocationDamage);
     	returnList.add(ConfigManagerCore.suffocationCooldown);
     	returnList.add(ConfigManagerCore.rocketFuelFactor);
     	returnList.add(ConfigManagerCore.otherModsSilicon);
+    	returnList.add(ConfigManagerCore.challengeRecipes);
     	EnergyConfigHandler.serverConfigOverride(returnList);
     	
     	returnList.add(ConfigManagerCore.detectableIDs.clone());  	
@@ -770,11 +816,13 @@ public class ConfigManagerCore
     	ConfigManagerCore.quickMode = (modeFlag & 2) != 0;
     	ConfigManagerCore.challengeMode = (modeFlag & 4) != 0;
     	ConfigManagerCore.disableSpaceStationCreation = (modeFlag & 8) != 0;
+    	ConfigManagerCore.recipesRequireGCAdvancedMetals = (modeFlag & 16) != 0;
     	ConfigManagerCore.dungeonBossHealthMod = (Double) configs.get(1);
     	ConfigManagerCore.suffocationDamage = (Integer) configs.get(2);
     	ConfigManagerCore.suffocationCooldown = (Integer) configs.get(3);
     	ConfigManagerCore.rocketFuelFactor = (Integer) configs.get(4);
     	ConfigManagerCore.otherModsSilicon = (String) configs.get(5);
+    	ConfigManagerCore.challengeRecipes = (Boolean) configs.get(6);
     	
     	EnergyConfigHandler.setConfigOverride((Float) configs.get(6), (Float) configs.get(7), (Float) configs.get(8), (Float) configs.get(9), (Integer) configs.get(10));
     	
