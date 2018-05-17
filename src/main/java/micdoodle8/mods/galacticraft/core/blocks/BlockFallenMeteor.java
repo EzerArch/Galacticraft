@@ -18,9 +18,11 @@ import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
 import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.BlockPos;
 import net.minecraft.util.EnumParticleTypes;
+import net.minecraft.util.MathHelper;
 import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
 
@@ -32,7 +34,7 @@ public class BlockFallenMeteor extends Block implements ITileEntityProvider, ISh
     {
         super(Material.rock);
         this.setBlockBounds(0.175F, 0.0F, 0.175F, 0.825F, 0.75F, 0.825F);
-        this.setHardness(50.0F);
+        this.setHardness(40.0F);
         this.setStepSound(Block.soundTypeStone);
         this.setUnlocalizedName(assetName);
     }
@@ -58,7 +60,7 @@ public class BlockFallenMeteor extends Block implements ITileEntityProvider, ISh
     @Override
     public int quantityDroppedWithBonus(int par1, Random par2Random)
     {
-        return 1;
+        return 1 + (int) (par2Random.nextFloat() + 0.75F);
     }
 
     @Override
@@ -107,6 +109,18 @@ public class BlockFallenMeteor extends Block implements ITileEntityProvider, ISh
 
                 livingEntity.knockBack(livingEntity, 1, var9, var7);
             }
+        }
+    }
+
+    @Override
+    public void onBlockPlacedBy(World world, BlockPos pos, IBlockState state, EntityLivingBase placer, ItemStack itemStack)
+    {
+        world.setBlockState(pos, this.getDefaultState(), 3);
+        TileEntity tile = world.getTileEntity(pos);
+
+        if (tile instanceof TileEntityFallenMeteor)
+        {
+            ((TileEntityFallenMeteor) tile).setHeatLevel(0);
         }
     }
 
@@ -201,6 +215,45 @@ public class BlockFallenMeteor extends Block implements ITileEntityProvider, ISh
     }
 
     @Override
+    public float getPlayerRelativeBlockHardness(EntityPlayer player, World world, BlockPos pos)
+    {
+        float hardness = this.getBlockHardness(world, pos);
+        if (hardness < 0.0F)
+        {
+            return 0.0F;
+        }
+
+        IBlockState state = world.getBlockState(pos);
+        int power = canHarvestBlock(this, player, state);
+        if (power > 0)
+        {
+            return power * player.getBreakSpeed(state, pos) / hardness / 30F;
+        }
+        else
+        {
+            return player.getBreakSpeed(state, pos) / hardness / 30F;
+        }
+    }
+
+    public int canHarvestBlock(Block block, EntityPlayer player, IBlockState state)
+    {
+        ItemStack stack = player.inventory.getCurrentItem();
+        String tool = block.getHarvestTool(state);
+        if (stack == null || tool == null)
+        {
+            return player.canHarvestBlock(block) ? 1 : 0;
+        }
+
+        int toolLevel = stack.getItem().getHarvestLevel(stack, tool) - block.getHarvestLevel(state) + 1;
+        if (toolLevel < 1)
+        {
+            return player.canHarvestBlock(block) ? 1 : 0;
+        }
+
+        return toolLevel;
+    }
+
+    @Override
     public String getShiftDescription(int meta)
     {
         return GCCoreUtil.translate(this.getUnlocalizedName() + ".description");
@@ -216,5 +269,15 @@ public class BlockFallenMeteor extends Block implements ITileEntityProvider, ISh
     public EnumSortCategoryBlock getCategory(int meta)
     {
         return EnumSortCategoryBlock.GENERAL;
+    }
+
+    @Override
+    public int getExpDrop(IBlockAccess world, BlockPos pos, int fortune)
+    {
+        IBlockState state = world.getBlockState(pos);
+        if (state.getBlock() != this) return 0;
+        
+        Random rand = world instanceof World ? ((World)world).rand : new Random();
+        return MathHelper.getRandomIntegerInRange(rand, 3, 7);
     }
 }

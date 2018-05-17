@@ -2,23 +2,27 @@ package micdoodle8.mods.galacticraft.core.client.render.entities;
 
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
+
 import micdoodle8.mods.galacticraft.core.Constants;
+import micdoodle8.mods.galacticraft.core.client.model.OBJLoaderGC;
 import micdoodle8.mods.galacticraft.core.entities.EntityBuggy;
 import micdoodle8.mods.galacticraft.core.util.ClientUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
+import net.minecraft.client.renderer.culling.ICamera;
 import net.minecraft.client.renderer.entity.Render;
 import net.minecraft.client.renderer.entity.RenderManager;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.renderer.texture.TextureMap;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
+import net.minecraft.util.AxisAlignedBB;
 import net.minecraft.util.ResourceLocation;
-import net.minecraftforge.client.model.ModelLoaderRegistry;
+import net.minecraftforge.client.model.IModel;
 import net.minecraftforge.client.model.obj.OBJModel;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
+
 import org.lwjgl.opengl.GL11;
 
 @SideOnly(Side.CLIENT)
@@ -26,10 +30,10 @@ public class RenderBuggy extends Render<EntityBuggy>
 {
     private OBJModel.OBJBakedModel mainModel;
     private OBJModel.OBJBakedModel radarDish;
-    private OBJModel.OBJBakedModel wheelBackLeft;
-    private OBJModel.OBJBakedModel wheelBackRight;
-    private OBJModel.OBJBakedModel wheelFrontLeft;
-    private OBJModel.OBJBakedModel wheelFrontRight;
+    private OBJModel.OBJBakedModel wheelLeftCover;
+    private OBJModel.OBJBakedModel wheelRight;
+    private OBJModel.OBJBakedModel wheelLeft;
+    private OBJModel.OBJBakedModel wheelRightCover;
     private OBJModel.OBJBakedModel cargoLeft;
     private OBJModel.OBJBakedModel cargoMid;
     private OBJModel.OBJBakedModel cargoRight;
@@ -40,16 +44,15 @@ public class RenderBuggy extends Render<EntityBuggy>
         {
             try
             {
-                OBJModel model = (OBJModel) ModelLoaderRegistry.getModel(new ResourceLocation(Constants.ASSET_PREFIX, "buggy.obj"));
-                model = (OBJModel) model.process(ImmutableMap.of("flip-v", "true"));
-
+                IModel model = OBJLoaderGC.instance.loadModel(new ResourceLocation(Constants.ASSET_PREFIX, "buggy.obj"));
                 Function<ResourceLocation, TextureAtlasSprite> spriteFunction = location -> Minecraft.getMinecraft().getTextureMapBlocks().getAtlasSprite(location.toString());
+
                 mainModel = (OBJModel.OBJBakedModel) model.bake(new OBJModel.OBJState(ImmutableList.of("MainBody"), false), DefaultVertexFormats.ITEM, spriteFunction);
                 radarDish = (OBJModel.OBJBakedModel) model.bake(new OBJModel.OBJState(ImmutableList.of("RadarDish_Dish"), false), DefaultVertexFormats.ITEM, spriteFunction);
-                wheelBackLeft = (OBJModel.OBJBakedModel) model.bake(new OBJModel.OBJState(ImmutableList.of("Wheel_Back_Left"), false), DefaultVertexFormats.ITEM, spriteFunction);
-                wheelBackRight = (OBJModel.OBJBakedModel) model.bake(new OBJModel.OBJState(ImmutableList.of("Wheel_Back_Right"), false), DefaultVertexFormats.ITEM, spriteFunction);
-                wheelFrontLeft = (OBJModel.OBJBakedModel) model.bake(new OBJModel.OBJState(ImmutableList.of("Wheel_Front_Left"), false), DefaultVertexFormats.ITEM, spriteFunction);
-                wheelFrontRight = (OBJModel.OBJBakedModel) model.bake(new OBJModel.OBJState(ImmutableList.of("Wheel_Front_Right"), false), DefaultVertexFormats.ITEM, spriteFunction);
+                wheelLeftCover = (OBJModel.OBJBakedModel) model.bake(new OBJModel.OBJState(ImmutableList.of("Wheel_Left_Cover"), false), DefaultVertexFormats.ITEM, spriteFunction);
+                wheelRight = (OBJModel.OBJBakedModel) model.bake(new OBJModel.OBJState(ImmutableList.of("Wheel_Right"), false), DefaultVertexFormats.ITEM, spriteFunction);
+                wheelLeft = (OBJModel.OBJBakedModel) model.bake(new OBJModel.OBJState(ImmutableList.of("Wheel_Left"), false), DefaultVertexFormats.ITEM, spriteFunction);
+                wheelRightCover = (OBJModel.OBJBakedModel) model.bake(new OBJModel.OBJState(ImmutableList.of("Wheel_Right_Cover"), false), DefaultVertexFormats.ITEM, spriteFunction);
                 cargoLeft = (OBJModel.OBJBakedModel) model.bake(new OBJModel.OBJState(ImmutableList.of("CargoLeft"), false), DefaultVertexFormats.ITEM, spriteFunction);
                 cargoMid = (OBJModel.OBJBakedModel) model.bake(new OBJModel.OBJState(ImmutableList.of("CargoMid"), false), DefaultVertexFormats.ITEM, spriteFunction);
                 cargoRight = (OBJModel.OBJBakedModel) model.bake(new OBJModel.OBJState(ImmutableList.of("CargoRight"), false), DefaultVertexFormats.ITEM, spriteFunction);
@@ -102,18 +105,39 @@ public class RenderBuggy extends Render<EntityBuggy>
 
         // Front wheels
         GL11.glPushMatrix();
+        float dZ = -2.727F;
+        float dY = 0.976F;
+        float dX = 1.25F;
+        GL11.glTranslatef(dX, dY, dZ);
         GL11.glRotatef(entity.wheelRotationZ, 0, 1, 0);
+        ClientUtil.drawBakedModel(wheelRightCover);
         GL11.glRotatef(rotation, 1, 0, 0);
-        ClientUtil.drawBakedModel(wheelFrontRight);
-        ClientUtil.drawBakedModel(wheelFrontLeft);
+        ClientUtil.drawBakedModel(wheelRight);
+        GL11.glPopMatrix();
+
+        GL11.glPushMatrix();
+        GL11.glTranslatef(-dX, dY, dZ);
+        GL11.glRotatef(entity.wheelRotationZ, 0, 1, 0);
+        ClientUtil.drawBakedModel(wheelLeftCover);
+        GL11.glRotatef(rotation, 1, 0, 0);
+        ClientUtil.drawBakedModel(wheelLeft);
         GL11.glPopMatrix();
 
         // Back wheels
         GL11.glPushMatrix();
+        dX = 1.9F;
+        dZ = -dZ;
+        GL11.glTranslatef(dX, dY, dZ);
         GL11.glRotatef(-entity.wheelRotationZ, 0, 1, 0);
         GL11.glRotatef(rotation, 1, 0, 0);
-        ClientUtil.drawBakedModel(wheelBackRight);
-        ClientUtil.drawBakedModel(wheelBackLeft);
+        ClientUtil.drawBakedModel(wheelRight);
+        GL11.glPopMatrix();
+
+        GL11.glPushMatrix();
+        GL11.glTranslatef(-dX, dY, dZ);
+        GL11.glRotatef(-entity.wheelRotationZ, 0, 1, 0);
+        GL11.glRotatef(rotation, 1, 0, 0);
+        ClientUtil.drawBakedModel(wheelLeft);
         GL11.glPopMatrix();
 
         ClientUtil.drawBakedModel(mainModel);
@@ -144,5 +168,12 @@ public class RenderBuggy extends Render<EntityBuggy>
 
         GL11.glPopMatrix();
         RenderHelper.enableStandardItemLighting();
+    }
+    
+    @Override
+    public boolean shouldRender(EntityBuggy buggy, ICamera camera, double camX, double camY, double camZ)
+    {
+        AxisAlignedBB axisalignedbb = buggy.getEntityBoundingBox().expand(2D, 1D, 2D);
+        return buggy.isInRangeToRender3d(camX, camY, camZ) && camera.isBoundingBoxInFrustum(axisalignedbb);
     }
 }

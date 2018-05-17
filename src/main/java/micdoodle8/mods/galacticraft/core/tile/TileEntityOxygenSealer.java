@@ -1,34 +1,41 @@
 package micdoodle8.mods.galacticraft.core.tile;
 
 import micdoodle8.mods.galacticraft.api.item.IItemOxygenSupply;
+import micdoodle8.mods.galacticraft.api.tile.ITileClientUpdates;
 import micdoodle8.mods.galacticraft.api.vector.BlockVec3;
 import micdoodle8.mods.galacticraft.core.GCItems;
+import micdoodle8.mods.galacticraft.core.GalacticraftCore;
 import micdoodle8.mods.galacticraft.core.blocks.BlockOxygenSealer;
 import micdoodle8.mods.galacticraft.core.energy.item.ItemElectricBase;
 import micdoodle8.mods.galacticraft.core.fluid.OxygenPressureProtocol;
 import micdoodle8.mods.galacticraft.core.fluid.ThreadFindSeal;
+import micdoodle8.mods.galacticraft.core.inventory.IInventoryDefaults;
+import micdoodle8.mods.galacticraft.core.network.PacketSimple;
+import micdoodle8.mods.galacticraft.core.network.PacketSimple.EnumSimplePacket;
 import micdoodle8.mods.galacticraft.core.energy.tile.EnergyStorageTile;
 import micdoodle8.mods.galacticraft.core.util.FluidUtil;
 import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
 import micdoodle8.mods.miccore.Annotations.NetworkedField;
 import net.minecraft.block.Block;
+import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.inventory.IInventory;
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.inventory.ISidedInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
+import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.BlockPos;
 import net.minecraft.util.EnumFacing;
-import net.minecraft.util.IChatComponent;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.List;
 
-public class TileEntityOxygenSealer extends TileEntityOxygen implements IInventory, ISidedInventory
+public class TileEntityOxygenSealer extends TileEntityOxygen implements IInventoryDefaults, ISidedInventory, ITileClientUpdates
 {
     @NetworkedField(targetSide = Side.CLIENT)
     public boolean sealed;
@@ -49,8 +56,9 @@ public class TileEntityOxygenSealer extends TileEntityOxygen implements IInvento
     public static int countEntities = 0;
     private static int countTemp = 0;
     private static boolean sealerCheckedThisTick = false;
-    public static ArrayList<TileEntityOxygenSealer> loadedTiles = new ArrayList();
+    public static ArrayList<TileEntityOxygenSealer> loadedTiles = new ArrayList<>();
     private static final int UNSEALED_OXYGENPERTICK = 12;
+    public List<BlockVec3> leaksClient;
 
 
     public TileEntityOxygenSealer()
@@ -63,9 +71,8 @@ public class TileEntityOxygenSealer extends TileEntityOxygen implements IInvento
     }
 
     @Override
-    public void validate()
+    public void onLoad()
     {
-        super.validate();
         if (!this.worldObj.isRemote)
         {
             if (!TileEntityOxygenSealer.loadedTiles.contains(this))
@@ -73,6 +80,10 @@ public class TileEntityOxygenSealer extends TileEntityOxygen implements IInvento
                 TileEntityOxygenSealer.loadedTiles.add(this);
             }
             this.stopSealThreadCooldown = 126 + countEntities;
+        }
+        else
+        {
+            this.clientOnLoad();
         }
     }
 
@@ -169,6 +180,11 @@ public class TileEntityOxygenSealer extends TileEntityOxygen implements IInvento
             TileEntityOxygenSealer.countTemp++;
 
             this.active = this.getOxygenStored() >= 1 && this.hasEnoughEnergyToRun && !this.disabled;
+            if (this.disabled != this.lastDisabled)
+            {
+                this.lastDisabled = this.disabled;
+                if (!this.disabled) this.stopSealThreadCooldown = this.threadCooldownTotal * 3 / 5;
+            }
 
             //TODO: if multithreaded, this codeblock should not run if the current threadSeal is flagged looping
             if (this.stopSealThreadCooldown > 0)
@@ -181,9 +197,9 @@ public class TileEntityOxygenSealer extends TileEntityOxygen implements IInvento
                 this.threadCooldownTotal = this.stopSealThreadCooldown = 75 + TileEntityOxygenSealer.countEntities;
                 if (this.active || this.sealed)
                 {
-                TileEntityOxygenSealer.sealerCheckedThisTick = true;
-                OxygenPressureProtocol.updateSealerStatus(this);
-            }
+                    TileEntityOxygenSealer.sealerCheckedThisTick = true;
+                    OxygenPressureProtocol.updateSealerStatus(this);
+                }
             }
 
             //TODO: if multithreaded, this.threadSeal needs to be atomic
@@ -196,11 +212,14 @@ public class TileEntityOxygenSealer extends TileEntityOxygen implements IInvento
             	else
             	{
             		this.calculatingSealed = false;
-                this.sealed = this.active && this.threadSeal.sealedFinal.get();
+            		this.sealed = this.threadSeal.sealedFinal.get();
             	}
             }
+            else
+            {
+                this.calculatingSealed = true;  //Give an initial 'Check pending' in GUI when first placed
+            }
 
-            this.lastDisabled = this.disabled;
             this.lastSealed = this.sealed;
         }
     }
@@ -340,16 +359,6 @@ public class TileEntityOxygenSealer extends TileEntityOxygen implements IInvento
         return this.worldObj.getTileEntity(this.getPos()) == this && par1EntityPlayer.getDistanceSq(this.getPos().getX() + 0.5D, this.getPos().getY() + 0.5D, this.getPos().getZ() + 0.5D) <= 64.0D;
     }
 
-    @Override
-    public void openInventory(EntityPlayer player)
-    {
-    }
-
-    @Override
-    public void closeInventory(EntityPlayer player)
-    {
-    }
-
     // ISidedInventory Implementation:
 
     @Override
@@ -366,7 +375,7 @@ public class TileEntityOxygenSealer extends TileEntityOxygen implements IInvento
             switch (slotID)
             {
             case 0:
-                return itemstack.getItem() instanceof ItemElectricBase && ((ItemElectricBase) itemstack.getItem()).getElectricityStored(itemstack) > 0;
+                return ItemElectricBase.isElectricItemCharged(itemstack);
             case 1:
                 return itemstack.getItemDamage() < itemstack.getItem().getMaxDamage();
             case 2:
@@ -384,7 +393,7 @@ public class TileEntityOxygenSealer extends TileEntityOxygen implements IInvento
         switch (slotID)
         {
         case 0:
-            return itemstack.getItem() instanceof ItemElectricBase && ((ItemElectricBase) itemstack.getItem()).getElectricityStored(itemstack) <= 0;
+            return ItemElectricBase.isElectricItemEmpty(itemstack);
         case 1:
             return FluidUtil.isEmptyContainer(itemstack);
         default:
@@ -429,7 +438,12 @@ public class TileEntityOxygenSealer extends TileEntityOxygen implements IInvento
     @Override
     public EnumFacing getFront()
     {
-        return this.worldObj.getBlockState(getPos()).getValue(BlockOxygenSealer.FACING);
+        IBlockState state = this.worldObj.getBlockState(getPos()); 
+        if (state.getBlock() instanceof BlockOxygenSealer)
+        {
+            return state.getValue(BlockOxygenSealer.FACING);
+        }
+        return EnumFacing.NORTH;
     }
 
     @Override
@@ -460,36 +474,6 @@ public class TileEntityOxygenSealer extends TileEntityOxygen implements IInvento
     public EnumSet<EnumFacing> getOxygenOutputDirections()
     {
         return EnumSet.noneOf(EnumFacing.class);
-    }
-
-    @Override
-    public int getField(int id)
-    {
-        return 0;
-    }
-
-    @Override
-    public void setField(int id, int value)
-    {
-
-    }
-
-    @Override
-    public int getFieldCount()
-    {
-        return 0;
-    }
-
-    @Override
-    public void clear()
-    {
-
-    }
-
-    @Override
-    public IChatComponent getDisplayName()
-    {
-        return null;
     }
 
     public static HashMap<BlockVec3, TileEntityOxygenSealer> getSealersAround(World world, BlockPos pos, int rSquared)
@@ -526,5 +510,57 @@ public class TileEntityOxygenSealer extends TileEntityOxygen implements IInvento
         }
 
         return ret;
+    }
+
+    @Override
+    public void sendUpdateToClient(EntityPlayerMP player)
+    {
+        if (this.sealed || this.threadSeal == null || this.threadSeal.leakTrace == null || this.threadSeal.leakTrace.isEmpty())
+        {
+            return;
+        }
+        Integer[] data = new Integer[this.threadSeal.leakTrace.size()];
+        int index = 0;
+        for (BlockVec3 vec : this.threadSeal.leakTrace)
+        {
+            int dx = vec.x - this.pos.getX() + 128;
+            int dz = vec.z - this.pos.getZ() + 128;
+            int dy = vec.y;
+            if (dx < 0 || dx > 255 || dz < 0 || dz > 255)
+                continue;
+            
+            int composite = dz + ((dy + (dx << 8)) << 8);
+            data[index++] = composite;
+        }
+        GalacticraftCore.packetPipeline.sendTo(new PacketSimple(EnumSimplePacket.C_LEAK_DATA, GCCoreUtil.getDimensionID(player.worldObj), new Object[] { ((TileEntity)this).getPos(), data }), player);
+    }
+
+    @Override
+    public void buildDataPacket(int[] data)
+    {
+        //unused
+    }
+
+    @Override
+    public void updateClient(List<Object> data)
+    {
+        this.leaksClient = new ArrayList<>();
+        if (data.size() > 1)
+        {
+            for (int i = 1; i < data.size(); i ++)
+            {
+                int comp = (Integer) data.get(i);
+                int dx = (comp >> 16) - 128;
+                int dy = (comp >> 8) & 255;
+                int dz = (comp & 255) - 128;
+                this.leaksClient.add(new BlockVec3(this.pos.getX() + dx, dy, this.pos.getZ() + dz));
+            }
+        }
+    }
+
+    public List<BlockVec3> getLeakTraceClient()
+    {
+        this.clientOnLoad();
+        return this.leaksClient;
     }
 }

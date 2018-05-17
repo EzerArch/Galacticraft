@@ -1,6 +1,7 @@
 package micdoodle8.mods.galacticraft.core.world.gen;
 
 import micdoodle8.mods.galacticraft.api.prefab.world.gen.MapGenBaseMeta;
+import micdoodle8.mods.galacticraft.api.world.ChunkProviderBase;
 import micdoodle8.mods.galacticraft.core.GCBlocks;
 import micdoodle8.mods.galacticraft.core.blocks.BlockBasicMoon;
 import micdoodle8.mods.galacticraft.core.perlin.NoiseModule;
@@ -15,23 +16,21 @@ import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.EnumCreatureType;
 import net.minecraft.init.Blocks;
 import net.minecraft.util.BlockPos;
-import net.minecraft.util.IProgressUpdate;
 import net.minecraft.world.ChunkCoordIntPair;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.BiomeGenBase;
 import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.chunk.ChunkPrimer;
 import net.minecraft.world.chunk.IChunkProvider;
-import net.minecraft.world.gen.ChunkProviderGenerate;
 
 import java.util.List;
 import java.util.Random;
 
-public class ChunkProviderMoon extends ChunkProviderGenerate
+public class ChunkProviderMoon extends ChunkProviderBase
 {
-    private final IBlockState BLOCK_TOP = GCBlocks.blockMoon.getDefaultState().withProperty(BlockBasicMoon.BASIC_TYPE_MOON, BlockBasicMoon.EnumBlockBasicMoon.MOON_TURF);
-    private final IBlockState BLOCK_FILL = GCBlocks.blockMoon.getDefaultState().withProperty(BlockBasicMoon.BASIC_TYPE_MOON, BlockBasicMoon.EnumBlockBasicMoon.MOON_DIRT);
-    private final IBlockState BLOCK_LOWER = GCBlocks.blockMoon.getDefaultState().withProperty(BlockBasicMoon.BASIC_TYPE_MOON, BlockBasicMoon.EnumBlockBasicMoon.MOON_STONE);
+    public static final IBlockState BLOCK_TOP = GCBlocks.blockMoon.getDefaultState().withProperty(BlockBasicMoon.BASIC_TYPE_MOON, BlockBasicMoon.EnumBlockBasicMoon.MOON_TURF);
+    public static final IBlockState BLOCK_FILL = GCBlocks.blockMoon.getDefaultState().withProperty(BlockBasicMoon.BASIC_TYPE_MOON, BlockBasicMoon.EnumBlockBasicMoon.MOON_DIRT);
+    public static final IBlockState BLOCK_LOWER = GCBlocks.blockMoon.getDefaultState().withProperty(BlockBasicMoon.BASIC_TYPE_MOON, BlockBasicMoon.EnumBlockBasicMoon.MOON_STONE);
 
     private final Random rand;
 
@@ -59,7 +58,6 @@ public class ChunkProviderMoon extends ChunkProviderGenerate
 
     public ChunkProviderMoon(World par1World, long par2, boolean par4)
     {
-        super(par1World, par2, par4, "");
         this.worldObj = par1World;
         this.rand = new Random(par2);
         this.noiseGen1 = new Gradient(this.rand.nextLong(), 4, 0.25F);
@@ -68,7 +66,6 @@ public class ChunkProviderMoon extends ChunkProviderGenerate
         this.noiseGen4 = new Gradient(this.rand.nextLong(), 1, 0.25F);
     }
 
-    @Override
     public void setBlocksInChunk(int chunkX, int chunkZ, ChunkPrimer primer)
     {
         this.noiseGen1.setFrequency(0.0125F);
@@ -111,7 +108,6 @@ public class ChunkProviderMoon extends ChunkProviderGenerate
         }
     }
 
-    @Override
     public void replaceBlocksForBiome(int par1, int par2, ChunkPrimer primer, BiomeGenBase[] par4ArrayOfBiomeGenBase)
     {
         final int var5 = 20;
@@ -182,9 +178,8 @@ public class ChunkProviderMoon extends ChunkProviderGenerate
         this.rand.setSeed((long) x * 341873128712L + (long) z * 132897987541L);
         ChunkPrimer chunkprimer = new ChunkPrimer();
         this.setBlocksInChunk(x, z, chunkprimer);
-        this.biomesForGeneration = this.worldObj.getWorldChunkManager().loadBlockGeneratorData(this.biomesForGeneration, x * 16, z * 16, 16, 16);
         this.createCraters(x, z, chunkprimer);
-        this.replaceBlocksForBiome(x, z, chunkprimer, this.biomesForGeneration);
+        this.replaceBlocksForBiome(x, z, chunkprimer, null);
 
         this.caveGenerator.generate(this, this.worldObj, x, z, chunkprimer);
 
@@ -193,10 +188,10 @@ public class ChunkProviderMoon extends ChunkProviderGenerate
 
         Chunk chunk = new Chunk(this.worldObj, chunkprimer, x, z);
         byte[] abyte = chunk.getBiomeArray();
-
+        byte id = (byte) BiomeGenBaseMoon.moonFlat.biomeID;
         for (int i = 0; i < abyte.length; ++i)
         {
-            abyte[i] = (byte) this.biomesForGeneration[i].biomeID;
+            abyte[i] = id;
         }
 
         chunk.generateSkylightMap();
@@ -259,24 +254,6 @@ public class ChunkProviderMoon extends ChunkProviderGenerate
         }
     }
 
-    @Override
-    public boolean chunkExists(int par1, int par2)
-    {
-        return true;
-    }
-
-    @Override
-    public boolean unloadQueuedChunks()
-    {
-        return false;
-    }
-
-    @Override
-    public int getLoadedChunkCount()
-    {
-        return 0;
-    }
-
     private int getIndex(int x, int y, int z)
     {
         return (x * 16 + z) * 256 + y;
@@ -315,24 +292,11 @@ public class ChunkProviderMoon extends ChunkProviderGenerate
     }
 
     @Override
-    public boolean saveChunks(boolean par1, IProgressUpdate par2IProgressUpdate)
-    {
-        return true;
-    }
-
-    @Override
-    public boolean canSave()
-    {
-        return true;
-    }
-
-    @Override
     public String makeString()
     {
         return "MoonLevelSource";
     }
 
-    @SuppressWarnings({ "unchecked", "rawtypes" })
     @Override
     public List<BiomeGenBase.SpawnListEntry> getPossibleCreatures(EnumCreatureType creatureType, BlockPos pos)
     {

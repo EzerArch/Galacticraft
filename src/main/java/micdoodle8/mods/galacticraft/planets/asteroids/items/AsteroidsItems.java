@@ -3,6 +3,7 @@ package micdoodle8.mods.galacticraft.planets.asteroids.items;
 import micdoodle8.mods.galacticraft.core.Constants;
 import micdoodle8.mods.galacticraft.core.GCItems;
 import micdoodle8.mods.galacticraft.core.GalacticraftCore;
+import micdoodle8.mods.galacticraft.core.items.ItemCanisterGeneric;
 import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
 import micdoodle8.mods.galacticraft.core.wrappers.PartialCanister;
 import micdoodle8.mods.galacticraft.planets.GalacticraftPlanets;
@@ -10,7 +11,6 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemArmor;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.common.util.EnumHelper;
-import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraftforge.fml.common.registry.GameRegistry;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.oredict.OreDictionary;
@@ -38,9 +38,10 @@ public class AsteroidsItems
     public static Item titaniumSpade;
     public static Item titaniumHoe;
     public static Item titaniumSword;
+    public static Item strangeSeed;
 
-    public static Item.ToolMaterial TOOL_TITANIUM = EnumHelper.addToolMaterial("titanium", 3, 520, 8.0F, 3.0F, 10);
-    public static ItemArmor.ArmorMaterial ARMOR_TITANIUM = EnumHelper.addArmorMaterial("titanium", "", 26, new int[] { 5, 10, 7, 5 }, 10);
+    public static Item.ToolMaterial TOOL_TITANIUM = EnumHelper.addToolMaterial("titanium", 4, 760, 14.0F, 3.0F, 16);
+    public static ItemArmor.ArmorMaterial ARMOR_TITANIUM = EnumHelper.addArmorMaterial("titanium", "", 26, new int[] { 5, 10, 7, 5 }, 20);
 
     public static void initItems()
     {
@@ -65,13 +66,15 @@ public class AsteroidsItems
         AsteroidsItems.titaniumSpade = new ItemSpadeAsteroids("titanium_shovel");
         AsteroidsItems.titaniumHoe = new ItemHoeAsteroids("titanium_hoe");
         AsteroidsItems.titaniumSword = new ItemSwordAsteroids("titanium_sword");
+        AsteroidsItems.strangeSeed = new ItemStrangeSeed("strange_seed");
 
         AsteroidsItems.registerItems();
 
         OreDictionary.registerOre("compressedTitanium", new ItemStack(AsteroidsItems.basicItem, 1, 6));
-        OreDictionary.registerOre("ingotTitanium", new ItemStack(AsteroidsItems.basicItem, 1, 5));
+        OreDictionary.registerOre("ingotTitanium", new ItemStack(AsteroidsItems.basicItem, 1, 0));
         OreDictionary.registerOre("shardTitanium", new ItemStack(AsteroidsItems.basicItem, 1, 4));
         OreDictionary.registerOre("shardIron", new ItemStack(AsteroidsItems.basicItem, 1, 3));
+        OreDictionary.registerOre("dustTitanium", new ItemStack(AsteroidsItems.basicItem, 1, 9));
 
         AsteroidsItems.registerHarvestLevels();
 
@@ -110,6 +113,13 @@ public class AsteroidsItems
         registerItem(AsteroidsItems.titaniumSpade);
         registerItem(AsteroidsItems.titaniumHoe);
         registerItem(AsteroidsItems.titaniumSword);
+        registerItem(AsteroidsItems.strangeSeed);
+        
+        ARMOR_TITANIUM.customCraftingMaterial = AsteroidsItems.basicItem;
+        
+        GCItems.canisterTypes.add((ItemCanisterGeneric) AsteroidsItems.canisterLOX);
+        GCItems.canisterTypes.add((ItemCanisterGeneric) AsteroidsItems.methaneCanister);
+        GCItems.canisterTypes.add((ItemCanisterGeneric) AsteroidsItems.canisterLN2);
     }
 
     public static void registerItem(Item item)
@@ -118,7 +128,7 @@ public class AsteroidsItems
         GCCoreUtil.registerGalacticraftItem(name, item);
         GameRegistry.registerItem(item, item.getUnlocalizedName().substring(5));
         GalacticraftPlanets.proxy.postRegisterItem(item);
-        if (FMLCommonHandler.instance().getEffectiveSide() == Side.CLIENT)
+        if (GCCoreUtil.getEffectiveSide() == Side.CLIENT)
         {
             GCItems.registerSorted(item);
         }

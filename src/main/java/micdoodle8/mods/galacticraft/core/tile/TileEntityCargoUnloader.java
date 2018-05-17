@@ -10,13 +10,13 @@ import micdoodle8.mods.galacticraft.core.energy.item.ItemElectricBase;
 import micdoodle8.mods.galacticraft.core.energy.tile.TileBaseElectricBlockWithInventory;
 import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
 import micdoodle8.mods.miccore.Annotations.NetworkedField;
+import net.minecraft.block.state.IBlockState;
 import net.minecraft.inventory.ISidedInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.BlockPos;
 import net.minecraft.util.EnumFacing;
-import net.minecraft.util.IChatComponent;
 import net.minecraft.world.IBlockAccess;
 import net.minecraftforge.fml.relauncher.Side;
 
@@ -62,7 +62,7 @@ public class TileEntityCargoUnloader extends TileBaseElectricBlockWithInventory 
 
                     this.targetEmpty = state == EnumCargoLoadingState.EMPTY;
 
-                    if (this.ticks % 15 == 0 && state == EnumCargoLoadingState.SUCCESS && !this.disabled && this.hasEnoughEnergyToRun)
+                    if (this.ticks % (this.poweredByTierGC > 1 ? 9 : 15) == 0 && state == EnumCargoLoadingState.SUCCESS && !this.disabled && this.hasEnoughEnergyToRun)
                     {
                         this.addCargo(this.attachedFuelable.removeCargo(true).resultStack, true);
                     }
@@ -85,9 +85,10 @@ public class TileEntityCargoUnloader extends TileBaseElectricBlockWithInventory 
     {
         boolean foundFuelable = false;
 
-        for (final EnumFacing dir : EnumFacing.values())
+        BlockVec3 thisVec = new BlockVec3(this);
+        for (final EnumFacing dir : EnumFacing.VALUES)
         {
-            final TileEntity pad = new BlockVec3(this).getTileEntityOnSide(this.worldObj, dir);
+            final TileEntity pad = thisVec.getTileEntityOnSide(this.worldObj, dir);
 
             if (pad != null && pad instanceof TileEntityMulti)
             {
@@ -148,12 +149,6 @@ public class TileEntityCargoUnloader extends TileBaseElectricBlockWithInventory 
     }
 
     @Override
-    public IChatComponent getDisplayName()
-    {
-        return null;
-    }
-
-    @Override
     public String getName()
     {
         return GCCoreUtil.translate("container.cargounloader.name");
@@ -180,7 +175,7 @@ public class TileEntityCargoUnloader extends TileBaseElectricBlockWithInventory 
         {
             if (slotID == 0)
             {
-                return ItemElectricBase.isElectricItem(itemstack.getItem());
+                return ItemElectricBase.isElectricItemEmpty(itemstack);
             }
             else
             {
@@ -310,7 +305,12 @@ public class TileEntityCargoUnloader extends TileBaseElectricBlockWithInventory 
     @Override
     public EnumFacing getFront()
     {
-        return this.worldObj.getBlockState(getPos()).getValue(BlockCargoLoader.FACING);
+        IBlockState state = this.worldObj.getBlockState(getPos()); 
+        if (state.getBlock() instanceof BlockCargoLoader)
+        {
+            return (state.getValue(BlockCargoLoader.FACING));
+        }
+        return EnumFacing.NORTH;
     }
 
     @Override

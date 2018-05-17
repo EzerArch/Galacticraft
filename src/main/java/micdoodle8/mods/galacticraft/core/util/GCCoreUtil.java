@@ -1,5 +1,6 @@
 package micdoodle8.mods.galacticraft.core.util;
 
+import micdoodle8.mods.galacticraft.core.Constants;
 import micdoodle8.mods.galacticraft.core.GalacticraftCore;
 import micdoodle8.mods.galacticraft.core.entities.EntityLanderBase;
 import micdoodle8.mods.galacticraft.core.inventory.ContainerBuggy;
@@ -12,21 +13,30 @@ import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.resources.Language;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityList;
+import net.minecraft.entity.item.EntityItem;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.launchwrapper.Launch;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.BlockPos;
+import net.minecraft.util.MathHelper;
 import net.minecraft.util.StatCollector;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldProvider;
+import net.minecraft.world.WorldServer;
 import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraftforge.fml.common.registry.EntityRegistry;
 import net.minecraftforge.fml.common.registry.LanguageRegistry;
 import net.minecraftforge.fml.relauncher.Side;
 
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Random;
 
 public class GCCoreUtil
 {
@@ -108,7 +118,7 @@ public class GCCoreUtil
 
     public static void registerGalacticraftNonMobEntity(Class<? extends Entity> var0, String var1, int trackingDistance, int updateFreq, boolean sendVel)
     {
-        if (FMLCommonHandler.instance().getEffectiveSide() == Side.CLIENT)
+        if (GCCoreUtil.getEffectiveSide() == Side.CLIENT)
         {
             LanguageRegistry.instance().addStringLocalization("entity.galacticraftcore." + var1 + ".name", "en_US", GCCoreUtil.translate("entity." + var1 + ".name"));
             LanguageRegistry.instance().addStringLocalization("entity.GalacticraftCore." + var1 + ".name", GCCoreUtil.translate("entity." + var1 + ".name"));
@@ -216,6 +226,61 @@ public class GCCoreUtil
         return provider.getDimensionId();
     }
 
+    public static int getDimensionID(TileEntity tileEntity)
+    {
+        return tileEntity.getWorld().provider.getDimensionId();
+    }
+
+    /*
+     * This may be called from a different thread e.g. MapUtil
+     * If on a different thread, FMLCommonHandler.instance().getMinecraftServerInstance()
+     * can return null on LAN servers.
+     */
+    public static WorldServer[] getWorldServerList()
+    {
+        return MinecraftServer.getServer().worldServers;
+    }
+    
+    public static WorldServer[] getWorldServerList(World world)
+    {
+        if (world instanceof WorldServer)
+        {
+            return ((WorldServer)world).getMinecraftServer().worldServers;
+        }
+        return GCCoreUtil.getWorldServerList();
+    }
+    
+    public static void sendToAllDimensions(EnumSimplePacket packetType, Object[] data)
+    {
+        for (WorldServer world : GCCoreUtil.getWorldServerList())
+        {
+            int id = getDimensionID(world);
+            GalacticraftCore.packetPipeline.sendToDimension(new PacketSimple(packetType, id, data), id);
+        }
+    }
+
+    public static void sendToAllAround(PacketSimple packet, World world, int dimID, BlockPos pos, double radius)
+    {
+        double x = pos.getX() + 0.5D;
+        double y = pos.getY() + 0.5D;
+        double z = pos.getZ() + 0.5D;
+        double r2 = radius * radius;
+        for (EntityPlayer playerMP : world.playerEntities)
+        {
+            if (playerMP.dimension == dimID)
+            {
+                final double dx = x - playerMP.posX;
+                final double dy = y - playerMP.posY;
+                final double dz = z - playerMP.posZ;
+
+                if (dx * dx + dy * dy + dz * dz < r2)
+                {
+                    GalacticraftCore.packetPipeline.sendTo(packet, (EntityPlayerMP) playerMP);
+                }
+            }
+        }
+    }
+
 //    public static void sortBlock(Block block, int meta, StackSorted beforeStack)
 //    {
 //        StackSorted newStack = new StackSorted(Item.getItemFromBlock(block), meta);
@@ -279,4 +344,107 @@ public class GCCoreUtil
 //            }
 //        }
 //    }
+    
+    /**
+     * Call this to obtain a seeded random which will be the SAME on
+     * client and server.  This means EntityItems won't jump position, for example.
+     */
+    public static Random getRandom(BlockPos pos)
+    {
+        long blockSeed = ((pos.getY() << 28) + pos.getX() + 30000000 << 28) + pos.getZ() + 30000000;  
+        return new Random(blockSeed);
+    }
+    
+    /**
+     * Returns the angle of the compass (0 - 360 degrees) needed to reach the given position offset
+     */
+    public static float getAngleForRelativePosition(double nearestX, double nearestZ)
+    {
+        return ((float) MathHelper.atan2(nearestX, -nearestZ) * Constants.RADIANS_TO_DEGREES + 360F) % 360F;
+    }
+
+    /**
+     * Custom getEffectiveSide method, covering more cases than FMLCommonHandler
+     */
+    public static Side getEffectiveSide()
+    {
+        if (FMLCommonHandler.instance().getEffectiveSide() == Side.SERVER || Thread.currentThread().getName().startsWith("Netty Epoll Server IO"))
+        {
+            return Side.SERVER;
+        }
+
+        return Side.CLIENT;
+    }
+    
+    public static List<BlockPos> getPositionsAdjoining(BlockPos pos)
+    {
+        LinkedList<BlockPos> result = new LinkedList<>();
+        int x = pos.getX();
+        int y = pos.getY();
+        int z = pos.getZ();
+        if (y > 0) result.add(new BlockPos(x, y - 1, z));
+        if (y < 255) result.add(new BlockPos(x, y + 1, z));
+        result.add(new BlockPos(x, y, z - 1));
+        result.add(new BlockPos(x, y, z + 1));
+        result.add(new BlockPos(x - 1, y, z));
+        result.add(new BlockPos(x + 1, y, z));
+        return result;
+    }
+    
+    public static void getPositionsAdjoining(int x, int y, int z, List<BlockPos> result)
+    {
+        result.clear();
+        if (y > 0) result.add(new BlockPos(x, y - 1, z));
+        if (y < 255) result.add(new BlockPos(x, y + 1, z));
+        result.add(new BlockPos(x, y, z - 1));
+        result.add(new BlockPos(x, y, z + 1));
+        result.add(new BlockPos(x - 1, y, z));
+        result.add(new BlockPos(x + 1, y, z));
+    }
+    
+    public static void getPositionsAdjoiningLoaded(int x, int y, int z, List<BlockPos> result, World world)
+    {
+        result.clear();
+        if (y > 0) result.add(new BlockPos(x, y - 1, z));
+        if (y < 255) result.add(new BlockPos(x, y + 1, z));
+        BlockPos pos = new BlockPos(x, y, z - 1);
+        if ((z & 15) > 0 || world.isBlockLoaded(pos, false)) result.add(pos);
+        pos = new BlockPos(x, y, z + 1);
+        if ((z & 15) < 15 || world.isBlockLoaded(pos, false)) result.add(pos);
+        pos = new BlockPos(x - 1, y, z);
+        if ((x & 15) > 0 || world.isBlockLoaded(pos, false)) result.add(pos);
+        pos = new BlockPos(x + 1, y, z);
+        if ((x & 15) < 15 || world.isBlockLoaded(pos, false)) result.add(pos);
+    }
+    
+    public static void getPositionsAdjoining(BlockPos pos, List<BlockPos> result)
+    {
+        result.clear();
+        int x = pos.getX();
+        int y = pos.getY();
+        int z = pos.getZ();
+        if (y > 0) result.add(new BlockPos(x, y - 1, z));
+        if (y < 255) result.add(new BlockPos(x, y + 1, z));
+        result.add(new BlockPos(x, y, z - 1));
+        result.add(new BlockPos(x, y, z + 1));
+        result.add(new BlockPos(x - 1, y, z));
+        result.add(new BlockPos(x + 1, y, z));
+    }
+    
+    public static void spawnItem(World world, BlockPos pos, ItemStack stack)
+    {
+        int spawnCount = stack.stackSize;
+        for (int i = 0; i < spawnCount; i++)
+        {
+            float var = 0.7F;
+            double dx = world.rand.nextFloat() * var + (1.0F - var) * 0.5D;
+            double dy = world.rand.nextFloat() * var + (1.0F - var) * 0.5D;
+            double dz = world.rand.nextFloat() * var + (1.0F - var) * 0.5D;
+            EntityItem entityitem = new EntityItem(world, pos.getX() + dx, pos.getY() + dy, pos.getZ() + dz, new ItemStack(stack.getItem(), 1, stack.getItemDamage()));
+    
+            entityitem.setPickupDelay(10);
+    
+            world.spawnEntityInWorld(entityitem);
+        }
+    }
 }

@@ -10,6 +10,7 @@ import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.WorldClient;
 import net.minecraft.client.renderer.GLAllocation;
+import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.WorldRenderer;
@@ -19,15 +20,14 @@ import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.Vec3;
 import net.minecraftforge.client.IRenderHandler;
 import net.minecraftforge.fml.client.FMLClientHandler;
-import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GL12;
 
+import org.lwjgl.opengl.GL11;
 import java.util.Random;
 
 public class SkyProviderMoon extends IRenderHandler
 {
     private static final ResourceLocation overworldTexture = new ResourceLocation(Constants.ASSET_PREFIX, "textures/gui/celestialbodies/earth.png");
-    private static final ResourceLocation sunTexture = new ResourceLocation("textures/environment/sun.png");
+    private static final ResourceLocation sunTexture = new ResourceLocation(Constants.ASSET_PREFIX, "textures/gui/planets/orbitalsun.png");
 
     public int starGLCallList = GLAllocation.generateDisplayLists(3);
     public int glSkyList;
@@ -99,7 +99,7 @@ public class SkyProviderMoon extends IRenderHandler
         }
 
         GL11.glDisable(GL11.GL_TEXTURE_2D);
-        GL11.glDisable(GL12.GL_RESCALE_NORMAL);
+        GlStateManager.disableRescaleNormal();
         GL11.glColor3f(1F, 1F, 1F);
         final Tessellator var23 = Tessellator.getInstance();
         GL11.glDepthMask(false);
@@ -187,14 +187,16 @@ public class SkyProviderMoon extends IRenderHandler
         }
         else
         {
+            // Overworld texture is 48x48 in a 64x64 .png file
             FMLClientHandler.instance().getClient().renderEngine.bindTexture(SkyProviderMoon.overworldTexture);
         }
+
         world.getMoonPhase();
         worldRenderer.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX);
-        worldRenderer.pos(-var12, -100.0D, var12).tex(0, 1).endVertex();
-        worldRenderer.pos(var12, -100.0D, var12).tex(1, 1).endVertex();
-        worldRenderer.pos(var12, -100.0D, -var12).tex(1, 0).endVertex();
-        worldRenderer.pos(-var12, -100.0D, -var12).tex(0, 0).endVertex();
+        worldRenderer.pos(-var12, -100.0D, var12).tex(0D, 1.0D).endVertex();
+        worldRenderer.pos(var12, -100.0D, var12).tex(1.0D, 1.0D).endVertex();
+        worldRenderer.pos(var12, -100.0D, -var12).tex(1.0D, 0D).endVertex();
+        worldRenderer.pos(-var12, -100.0D, -var12).tex(0D, 0D).endVertex();
         var23.draw();
 
         GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
@@ -245,10 +247,10 @@ public class SkyProviderMoon extends IRenderHandler
         GL11.glTranslatef(0.0F, -((float) (var25 - 16.0D)), 0.0F);
         GL11.glCallList(this.glSkyList2);
         GL11.glPopMatrix();
+        GlStateManager.enableRescaleNormal();
         GL11.glEnable(GL11.GL_TEXTURE_2D);
         GL11.glDepthMask(true);
         GL11.glEnable(GL11.GL_COLOR_MATERIAL);
-        GL11.glDisable(GL11.GL_FOG);
         GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
         GL11.glDisable(GL11.GL_BLEND);
     }
@@ -314,7 +316,7 @@ public class SkyProviderMoon extends IRenderHandler
     public float getSkyBrightness(float par1)
     {
         final float var2 = FMLClientHandler.instance().getClient().theWorld.getCelestialAngle(par1);
-        float var3 = 1.0F - (MathHelper.sin(var2 * (float) Math.PI * 2.0F) * 2.0F + 0.25F);
+        float var3 = 1.0F - (MathHelper.sin(var2 * Constants.twoPI) * 2.0F + 0.25F);
 
         if (var3 < 0.0F)
         {

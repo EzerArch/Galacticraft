@@ -5,6 +5,7 @@ import micdoodle8.mods.galacticraft.core.util.ConfigManagerCore;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.WorldClient;
 import net.minecraft.client.renderer.GLAllocation;
+import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.WorldRenderer;
@@ -14,9 +15,8 @@ import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.Vec3;
 import net.minecraftforge.client.IRenderHandler;
 import net.minecraftforge.fml.client.FMLClientHandler;
-import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GL12;
 
+import org.lwjgl.opengl.GL11;
 import java.util.Random;
 
 public class SkyProviderOrbit extends IRenderHandler
@@ -30,7 +30,7 @@ public class SkyProviderOrbit extends IRenderHandler
     private final ResourceLocation planetToRender;
     private final boolean renderMoon;
     private final boolean renderSun;
-    private float spinAngle = 0;
+    public float spinAngle = 0;
     public float spinDeltaPerTick = 0;
     private float prevPartialTicks = 0;
     private long prevTick;
@@ -100,7 +100,7 @@ public class SkyProviderOrbit extends IRenderHandler
         }
 
         GL11.glDisable(GL11.GL_TEXTURE_2D);
-        GL11.glDisable(GL12.GL_RESCALE_NORMAL);
+        GlStateManager.disableRescaleNormal();
         final Vec3 var2 = this.minecraft.theWorld.getSkyColor(this.minecraft.getRenderViewEntity(), partialTicks);
         float var3 = (float) var2.xCoord;
         float var4 = (float) var2.yCoord;
@@ -164,7 +164,7 @@ public class SkyProviderOrbit extends IRenderHandler
 
             for (int var27 = 0; var27 <= var26; ++var27)
             {
-                var13 = var27 * (float) Math.PI * 2.0F / var26;
+                var13 = var27 * Constants.twoPI / var26;
                 final float var14 = MathHelper.sin(var13);
                 final float var15 = MathHelper.cos(var13);
                 worldRenderer.pos(var14 * 120.0F, var15 * 120.0F, -var15 * 40.0F * var24[3]).color(var24[0], var24[1], var24[2], 0.0F).endVertex();
@@ -291,10 +291,10 @@ public class SkyProviderOrbit extends IRenderHandler
             GL11.glColor4f(Math.min(alpha, 1.0F), Math.min(alpha, 1.0F), Math.min(alpha, 1.0F), Math.min(alpha, 1.0F));
             WorldRenderer worldRenderer = var23.getWorldRenderer();
             worldRenderer.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX);
-            worldRenderer.pos(-var10, 0, var10).tex(0.0F, 1.0F).endVertex();
-            worldRenderer.pos(var10, 0, var10).tex(1.0F, 1.0F).endVertex();
-            worldRenderer.pos(var10, 0, -var10).tex(1.0F, 0.0F).endVertex();
-            worldRenderer.pos(-var10, 0, -var10).tex(0.0F, 0.0F).endVertex();
+            worldRenderer.pos(-var10, 0, var10).tex(0D, 1.0).endVertex();
+            worldRenderer.pos(var10, 0, var10).tex(1.0, 1.0).endVertex();
+            worldRenderer.pos(var10, 0, -var10).tex(1.0, 0D).endVertex();
+            worldRenderer.pos(-var10, 0, -var10).tex(0D, 0D).endVertex();
             var23.draw();
             GL11.glPopMatrix();
         }
@@ -363,6 +363,7 @@ public class SkyProviderOrbit extends IRenderHandler
 		GL11.glTranslatef(0.0F, -((float) (var25 - 16.0D)), 0.0F);
 		GL11.glPopMatrix();
 		*/
+        GlStateManager.enableRescaleNormal();
         GL11.glEnable(GL11.GL_TEXTURE_2D);
         GL11.glEnable(GL11.GL_COLOR_MATERIAL);
         GL11.glDepthMask(true);

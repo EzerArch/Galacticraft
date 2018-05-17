@@ -10,7 +10,6 @@ import micdoodle8.mods.galacticraft.planets.asteroids.items.ItemBlockWalkway;
 import net.minecraft.block.Block;
 import net.minecraft.item.ItemBlock;
 import net.minecraft.item.ItemStack;
-import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraftforge.fml.common.registry.GameRegistry;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.oredict.OreDictionary;
@@ -27,6 +26,7 @@ public class AsteroidBlocks
     public static Block blockDenseIce;
     public static Block blockMinerBase;
     public static Block minerBaseFull;
+    public static Block spaceWart;
 
     public static void initBlocks()
     {
@@ -39,9 +39,7 @@ public class AsteroidBlocks
         AsteroidBlocks.blockDenseIce = new BlockIceAsteroids("dense_ice");
         AsteroidBlocks.blockMinerBase = new BlockMinerBase("miner_base");
         AsteroidBlocks.minerBaseFull = new BlockMinerBaseFull("miner_base_full");
-
-        GCBlocks.hiddenBlocks.add(AsteroidBlocks.fakeTelepad);
-        GCBlocks.hiddenBlocks.add(AsteroidBlocks.minerBaseFull);
+        AsteroidBlocks.spaceWart = new BlockSpaceWart("spacewart");
     }
 
     public static void registerBlock(Block block, Class<? extends ItemBlock> itemClass)
@@ -49,7 +47,7 @@ public class AsteroidBlocks
         String name = block.getUnlocalizedName().substring(5);
         GCCoreUtil.registerGalacticraftBlock(name, block);
         GameRegistry.registerBlock(block, itemClass, name);
-        if (FMLCommonHandler.instance().getEffectiveSide() == Side.CLIENT)
+        if (GCCoreUtil.getEffectiveSide() == Side.CLIENT)
         {
             GCBlocks.registerSorted(block);
         }
@@ -62,10 +60,11 @@ public class AsteroidBlocks
         registerBlock(AsteroidBlocks.beamReflector, ItemBlockDesc.class);
         registerBlock(AsteroidBlocks.beamReceiver, ItemBlockDesc.class);
         registerBlock(AsteroidBlocks.shortRangeTelepad, ItemBlockShortRangeTelepad.class);
-        registerBlock(AsteroidBlocks.fakeTelepad, ItemBlockGC.class);
+        registerBlock(AsteroidBlocks.fakeTelepad, null);
         registerBlock(AsteroidBlocks.blockDenseIce, ItemBlockGC.class);
         registerBlock(AsteroidBlocks.blockMinerBase, ItemBlockDesc.class);
-        registerBlock(AsteroidBlocks.minerBaseFull, ItemBlockDesc.class);
+        registerBlock(AsteroidBlocks.minerBaseFull, null);
+        registerBlock(AsteroidBlocks.spaceWart, null);
     }
 
     private static void setHarvestLevel(Block block, String toolClass, int level, int meta)
@@ -95,5 +94,7 @@ public class AsteroidBlocks
         OreDictionary.registerOre("oreNaturalAluminum", new ItemStack(AsteroidBlocks.blockBasic, 1, 3));
         OreDictionary.registerOre("oreIlmenite", new ItemStack(AsteroidBlocks.blockBasic, 1, 4));
         OreDictionary.registerOre("oreIron", new ItemStack(AsteroidBlocks.blockBasic, 1, 5));
+
+        OreDictionary.registerOre("blockTitanium", new ItemStack(AsteroidBlocks.blockBasic, 1, 7));
     }
 }

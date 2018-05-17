@@ -8,6 +8,8 @@ import micdoodle8.mods.galacticraft.api.entity.IWorldTransferCallback;
 import micdoodle8.mods.galacticraft.api.galaxies.GalaxyRegistry;
 import micdoodle8.mods.galacticraft.api.galaxies.Planet;
 import micdoodle8.mods.galacticraft.api.vector.BlockVec3;
+import micdoodle8.mods.galacticraft.api.vector.Vector3;
+import micdoodle8.mods.galacticraft.api.world.IExitHeight;
 import micdoodle8.mods.galacticraft.api.world.IGalacticraftWorldProvider;
 import micdoodle8.mods.galacticraft.core.GalacticraftCore;
 import micdoodle8.mods.galacticraft.core.entities.player.GCPlayerStats;
@@ -19,29 +21,38 @@ import micdoodle8.mods.galacticraft.core.util.WorldUtil;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.inventory.IInventory;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.BlockPos;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldProvider;
 import net.minecraft.world.WorldServer;
-import net.minecraftforge.fml.common.FMLCommonHandler;
-
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Iterator;
 
 /**
  * Do not include this prefab class in your released mod download.
  */
-public abstract class EntityTieredRocket extends EntityAutoRocket implements IRocketType, IDockable, IInventory, IWorldTransferCallback, ICameraZoomEntity
+public abstract class EntityTieredRocket extends EntityAutoRocket implements IRocketType, IDockable, IWorldTransferCallback, ICameraZoomEntity
 {
     public EnumRocketType rocketType;
     public float rumble;
     public int launchCooldown;
-    private ArrayList<BlockVec3> preGenList = new ArrayList();
+    private ArrayList<BlockVec3> preGenList = new ArrayList<>();
     private Iterator<BlockVec3> preGenIterator = null;
     static boolean preGenInProgress = false;
+    static Field marsConfigAllDimsAllowed;
+
+    static {
+        try
+        {
+            Class<?> marsConfig = Class.forName("micdoodle8.mods.galacticraft.planets.mars.ConfigManagerMars");
+            marsConfigAllDimsAllowed = marsConfig.getField("launchControllerAllDims");
+        } catch (Exception ignore)
+        {
+        }
+    }
     
     public EntityTieredRocket(World par1World)
     {
@@ -79,14 +90,14 @@ public abstract class EntityTieredRocket extends EntityAutoRocket implements IRo
         //If the server is at less than 20tps then maybe some of the outermost chunks won't be pre-generated but that's probably OK
         if (this.destinationFrequency == -1 && !EntityTieredRocket.preGenInProgress)
         {
-            ArrayList<Integer> toPreGen = new ArrayList();
+            ArrayList<Integer> toPreGen = new ArrayList<>();
             for (Planet planet : GalaxyRegistry.getRegisteredPlanets().values())
             {
                 if (planet.getDimensionID() == this.dimension)
                 {
                     continue;
                 }
-                if (planet.getReachable() && planet.getTierRequirement() <= this.getRocketTier())
+                if (planet.getReachable() && planet.getTierRequirement() <= this.getRocketTier() && !planet.getUnlocalizedName().equals("planet.asteroids"))
                 {
                     toPreGen.add(planet.getDimensionID());
                 }
@@ -102,13 +113,13 @@ public abstract class EntityTieredRocket extends EntityAutoRocket implements IRo
                         GCLog.info("Starting terrain pregen for dimension " + dimID + " at " + (cx * 16 + 8) + ", " + (cz * 16 + 8));
                     }
                 }
-                for (int r = 1; r < 12; r++)
+                for (int r = 1; r < 12; r++)  //concentric squares with radius r
                 {
                     int xmin = cx - r;
                     int xmax = cx + r;
                     int zmin = cz - r;
                     int zmax = cz + r;
-                    for (int i = -r; i < r; i++)
+                    for (int i = -r; i < r; i++)  //stop before i == r to avoid doing corners twice
                     {
                         for (Integer dimID : toPreGen)
                         {
@@ -143,7 +154,7 @@ public abstract class EntityTieredRocket extends EntityAutoRocket implements IRo
                         Entity e = this.riddenByEntity;
                         e.mountEntity(null);
                         e.mountEntity(this);
-                        if (ConfigManagerCore.enableDebug) GCLog.info("Remounting player in rocket.");
+                        GCLog.debug("Remounting player in rocket.");
                     }
 
                     this.setWaitForPlayer(false);
@@ -163,11 +174,6 @@ public abstract class EntityTieredRocket extends EntityAutoRocket implements IRo
 
         super.onUpdate();
 
-        if (this.landing)
-        {
-            this.rotationPitch = this.rotationYaw = 0;
-        }
-
         if (!this.worldObj.isRemote)
         {
             if (this.launchCooldown > 0)
@@ -179,17 +185,17 @@ public abstract class EntityTieredRocket extends EntityAutoRocket implements IRo
             {
                 if (this.preGenIterator.hasNext())
                 {
-                    MinecraftServer mcserver = FMLCommonHandler.instance().getMinecraftServerInstance();
-                    //mcserver can be null if client switches to a LAN server
-                    if (mcserver != null)
+                    MinecraftServer mcserver;
+                    if (this.worldObj instanceof WorldServer)
                     {
+                        mcserver = ((WorldServer) this.worldObj).getMinecraftServer();
 	                	BlockVec3 coords = this.preGenIterator.next();
 	                    World w = mcserver.worldServerForDimension(coords.y);
                         if (w != null)
                         {
                             w.getChunkFromChunkCoords(coords.x, coords.z);
                             //Pregen a second chunk if still on launchpad (low strain on server)
-                            if (this.launchPhase != EnumLaunchPhase.LAUNCHED.ordinal() && this.preGenIterator.hasNext())
+                            if (this.launchPhase < EnumLaunchPhase.LAUNCHED.ordinal() && this.preGenIterator.hasNext())
                             {
                                 coords = this.preGenIterator.next();
                                 w = mcserver.worldServerForDimension(coords.y);
@@ -222,7 +228,7 @@ public abstract class EntityTieredRocket extends EntityAutoRocket implements IRo
             this.riddenByEntity.posZ += rumbleAmount;
         }
 
-        if (this.launchPhase == EnumLaunchPhase.IGNITED.ordinal() || this.launchPhase == EnumLaunchPhase.LAUNCHED.ordinal())
+        if (this.launchPhase >= EnumLaunchPhase.IGNITED.ordinal())
         {
             this.performHurtAnimation();
 
@@ -253,10 +259,14 @@ public abstract class EntityTieredRocket extends EntityAutoRocket implements IRo
     @Override
     public void getNetworkedData(ArrayList<Object> list)
     {
+        if (this.worldObj.isRemote)
+        {
+            return;
+        }
         list.add(this.rocketType != null ? this.rocketType.getIndex() : 0);
         super.getNetworkedData(list);
 
-        boolean sendPosUpdates = this.ticks < 25 || this.launchPhase != EnumLaunchPhase.LAUNCHED.ordinal() || this.landing;
+        boolean sendPosUpdates = this.ticks < 25 || this.launchPhase < EnumLaunchPhase.LAUNCHED.ordinal();
         list.add(sendPosUpdates);
 
         if (sendPosUpdates)
@@ -300,12 +310,13 @@ public abstract class EntityTieredRocket extends EntityAutoRocket implements IRo
                     	}
                     	else
                     		//No rocket flight to non-Galacticraft dimensions other than the Overworld allowed unless config
-                    		if (this.targetDimension > 1 || this.targetDimension < -1)
+                    		if ((this.targetDimension > 1 || this.targetDimension < -1) && marsConfigAllDimsAllowed != null)
                     		{
                     			try {
-                    				Class<?> marsConfig = Class.forName("micdoodle8.mods.galacticraft.planets.mars.ConfigManagerMars");
-                    				if (marsConfig.getField("launchControllerAllDims").getBoolean(null))
+                    				if (marsConfigAllDimsAllowed.getBoolean(null))
+                    				{
                     					dimensionAllowed = true;
+                    				}
                     			} catch (Exception e) { e.printStackTrace(); }
                     		}
 
@@ -321,7 +332,7 @@ public abstract class EntityTieredRocket extends EntityAutoRocket implements IRo
                     		    if (e instanceof EntityAutoRocket)
                     		    {
                     		        e.setPosition(this.targetVec.getX() + 0.5F, this.targetVec.getY() + 800, this.targetVec.getZ() + 0.5f);
-                    		        ((EntityAutoRocket)e).landing = true;
+                    		        ((EntityAutoRocket)e).setLaunchPhase(EnumLaunchPhase.LANDING);
                     		        ((EntityAutoRocket)e).setWaitForPlayer(false);
                     		    }
                     		    else
@@ -340,12 +351,17 @@ public abstract class EntityTieredRocket extends EntityAutoRocket implements IRo
                 {
                 	//Same dimension controlled rocket flight
                 	this.setPosition(this.targetVec.getX() + 0.5F, this.targetVec.getY() + 800, this.targetVec.getZ() + 0.5F);
+                    //Stop any lateral motion, otherwise it will update to an incorrect x,z position first tick after spawning above target
+                    this.motionX = this.motionZ = 0.0D;
+                    //Small upward motion initially, to keep clear of own flame trail from launch
+                    this.motionY = 0.1D;
                     if (this.riddenByEntity != null)
                     {
+                        WorldUtil.forceMoveEntityToPos(this.riddenByEntity, (WorldServer) this.worldObj, new Vector3(this.targetVec.getX() + 0.5F, this.targetVec.getY() + 800, this.targetVec.getZ() + 0.5F), false);
                         this.setWaitForPlayer(true);
-                        if (ConfigManagerCore.enableDebug) GCLog.info("Rocket repositioned, waiting for player");
+                        GCLog.debug("Rocket repositioned, waiting for player");
                     }
-                    this.landing = true;
+                    this.setLaunchPhase(EnumLaunchPhase.LANDING);
                     //Do not destroy the rocket, we still need it!
                     return;
                 }
@@ -354,13 +370,14 @@ public abstract class EntityTieredRocket extends EntityAutoRocket implements IRo
             {
                 //Launch controlled launch but no valid target frequency = rocket loss [INVESTIGATE]
             	GCLog.info("Error: the launch controlled rocket failed to find a valid landing spot when it reached space.");
-            	this.setDead();
+            	this.fuelTank.drain(Integer.MAX_VALUE, true);
+            	this.posY = Math.max(255, (this.worldObj.provider instanceof IExitHeight ? ((IExitHeight) this.worldObj.provider).getYCoordinateToTeleport() : 1200) - 200);
                 return;
             }
         }
 
         //Not launch controlled
-        if (this.riddenByEntity != null && !this.worldObj.isRemote)
+        if (!this.worldObj.isRemote)
         {
             if (this.riddenByEntity instanceof EntityPlayerMP)
             {
@@ -370,10 +387,12 @@ public abstract class EntityTieredRocket extends EntityAutoRocket implements IRo
                 GCPlayerStats stats = GCPlayerStats.get(player);
                 WorldUtil.toCelestialSelection(player, stats, this.getRocketTier());
             }
+
+            //Destroy any rocket which reached the top of the atmosphere and is not controlled by a Launch Controller
+            this.setDead();
         }
         
-        //Destroy any rocket which reached the top of the atmosphere and is not controlled by a Launch Controller
-        this.setDead();
+        //Client side, non-launch controlled, do nothing - no reason why it can't continue flying until the GUICelestialSelection activates
     }
 
     @Override
@@ -408,7 +427,7 @@ public abstract class EntityTieredRocket extends EntityAutoRocket implements IRo
     @Override
     public boolean interactFirst(EntityPlayer par1EntityPlayer)
     {
-        if (this.launchPhase == EnumLaunchPhase.LAUNCHED.ordinal())
+        if (this.launchPhase >= EnumLaunchPhase.LAUNCHED.ordinal())
         {
             return false;
         }
@@ -478,7 +497,7 @@ public abstract class EntityTieredRocket extends EntityAutoRocket implements IRo
         if (this.targetVec != null)
         {
             this.setPosition(this.targetVec.getX() + 0.5F, this.targetVec.getY() + 800, this.targetVec.getZ() + 0.5F);
-            this.landing = true;
+            this.setLaunchPhase(EnumLaunchPhase.LANDING);
             this.setWaitForPlayer(true);
             this.motionX = this.motionY = this.motionZ = 0.0D;
         }
@@ -497,6 +516,7 @@ public abstract class EntityTieredRocket extends EntityAutoRocket implements IRo
         }
     }
 
+    @Override
     public float getRotateOffset()
     {
         return -1.5F;

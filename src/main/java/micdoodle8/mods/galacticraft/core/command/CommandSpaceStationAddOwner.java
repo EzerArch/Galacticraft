@@ -95,7 +95,7 @@ public class CommandSpaceStationAddOwner extends CommandBase
 
                     if (playerToAdd != null)
                     {
-                        playerToAdd.addChatMessage(new ChatComponentText(GCCoreUtil.translateWithFormat("gui.spacestation.added", playerBase.getGameProfile().getName())));
+                        playerToAdd.addChatMessage(new ChatComponentText(GCCoreUtil.translateWithFormat("gui.spacestation.added", PlayerUtil.getName(playerBase))));
                     }
                 }
             }
@@ -117,7 +117,7 @@ public class CommandSpaceStationAddOwner extends CommandBase
     }
 
     @Override
-    public List addTabCompletionOptions(ICommandSender sender, String[] args, BlockPos pos)
+    public List<String> addTabCompletionOptions(ICommandSender sender, String[] args, BlockPos pos)
     {
         return args.length == 1 ? getListOfStringsMatchingLastWord(args, this.getPlayers()) : null;
     }

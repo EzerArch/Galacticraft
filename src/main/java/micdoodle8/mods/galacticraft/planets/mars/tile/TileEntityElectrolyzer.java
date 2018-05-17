@@ -22,6 +22,7 @@ import micdoodle8.mods.galacticraft.planets.asteroids.items.ItemAtmosphericValve
 import micdoodle8.mods.galacticraft.planets.mars.blocks.BlockMachineMarsT2;
 import micdoodle8.mods.miccore.Annotations;
 import micdoodle8.mods.miccore.Annotations.NetworkedField;
+import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Items;
 import net.minecraft.inventory.ISidedInventory;
 import net.minecraft.item.Item;
@@ -29,7 +30,6 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
-import net.minecraft.util.IChatComponent;
 import net.minecraftforge.fluids.*;
 import net.minecraftforge.fml.relauncher.Side;
 
@@ -62,19 +62,10 @@ public class TileEntityElectrolyzer extends TileBaseElectricBlockWithInventory i
 
         if (!this.worldObj.isRemote)
         {
-            if (this.containingItems[1] != null)
+            final FluidStack liquid = FluidUtil.getFluidContained(this.containingItems[1]);
+            if (FluidUtil.isFluidStrict(liquid, FluidRegistry.WATER.getName()))
             {
-                final FluidStack liquid = FluidContainerRegistry.getFluidForFilledItem(this.containingItems[1]);
-
-                if (liquid != null && liquid.getFluid().getName().equals(FluidRegistry.WATER.getName()))
-                {
-                    if (this.waterTank.getFluid() == null || this.waterTank.getFluid().amount + liquid.amount <= this.waterTank.getCapacity())
-                    {
-                        this.waterTank.fill(liquid, true);
-
-                        this.containingItems[1] = FluidUtil.getUsedContainer(this.containingItems[1]);
-                    }
-                }
+                FluidUtil.loadFromContainer(waterTank, FluidRegistry.WATER, containingItems, 1, liquid.amount);
             }
 
             //Only drain with atmospheric valve
@@ -86,7 +77,7 @@ public class TileEntityElectrolyzer extends TileBaseElectricBlockWithInventory i
                 //50% extra speed boost for Tier 2 machine if powered by Tier 2 power
                 if (this.tierGC == 2)
                 {
-                    this.processTimeRequired = (this.poweredByTierGC == 2) ? 2 : 3;
+                    this.processTimeRequired = Math.max(1, 4 - this.poweredByTierGC);
                 }
 
                 if (this.processTicks == 0)
@@ -260,7 +251,7 @@ public class TileEntityElectrolyzer extends TileBaseElectricBlockWithInventory i
             switch (slotID)
             {
             case 0:
-                return ItemElectricBase.isElectricItem(itemstack.getItem());
+                return ItemElectricBase.isElectricItemCharged(itemstack);
             case 1:
                 return itemstack.getItem() == Items.water_bucket;
             default:
@@ -278,7 +269,7 @@ public class TileEntityElectrolyzer extends TileBaseElectricBlockWithInventory i
             switch (slotID)
             {
             case 0:
-                return itemstack.getItem() instanceof ItemElectricBase && ((ItemElectricBase) itemstack.getItem()).getElectricityStored(itemstack) <= 0;
+                return ItemElectricBase.isElectricItemEmpty(itemstack);
             case 1:
                 return itemstack.getItem() == Items.bucket;
             default:
@@ -380,7 +371,7 @@ public class TileEntityElectrolyzer extends TileBaseElectricBlockWithInventory i
         if (from == this.getFront().rotateY())
         {
             //Can fill with water
-            return fluid != null && fluid.getName().equals(FluidRegistry.WATER.getName());
+            return fluid == null || fluid.getName().equals(FluidRegistry.WATER.getName());
         }
 
         return false;
@@ -736,14 +727,13 @@ public class TileEntityElectrolyzer extends TileBaseElectricBlockWithInventory i
     }
 
     @Override
-    public IChatComponent getDisplayName()
-    {
-        return null;
-    }
-
-    @Override
     public EnumFacing getFront()
     {
-        return this.worldObj.getBlockState(getPos()).getValue(BlockMachineMarsT2.FACING);
+        IBlockState state = this.worldObj.getBlockState(getPos()); 
+        if (state.getBlock() instanceof BlockMachineMarsT2)
+        {
+            return state.getValue(BlockMachineMarsT2.FACING);
+        }
+        return EnumFacing.NORTH;
     }
 }

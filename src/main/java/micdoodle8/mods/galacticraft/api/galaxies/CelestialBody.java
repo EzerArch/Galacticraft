@@ -1,13 +1,21 @@
 package micdoodle8.mods.galacticraft.api.galaxies;
 
-import micdoodle8.mods.galacticraft.api.world.IAtmosphericGas;
+import micdoodle8.mods.galacticraft.api.world.AtmosphereInfo;
+import micdoodle8.mods.galacticraft.api.world.IGalacticraftWorldProvider;
+import micdoodle8.mods.galacticraft.api.world.IMobSpawnBiome;
+import micdoodle8.mods.galacticraft.api.world.EnumAtmosphericGas;
+import net.minecraft.block.Block;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.StatCollector;
 import net.minecraft.world.WorldProvider;
+import net.minecraft.world.biome.BiomeGenBase;
+import net.minecraft.world.biome.BiomeGenBase.SpawnListEntry;
+
 import org.apache.commons.lang3.builder.EqualsBuilder;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 
@@ -27,7 +35,9 @@ public abstract class CelestialBody implements Comparable<CelestialBody>
     protected boolean forceStaticLoad = true;
     protected int tierRequired = 0;
 
-    public ArrayList<IAtmosphericGas> atmosphere = new ArrayList<>();
+    public AtmosphereInfo atmosphere = new AtmosphereInfo(false, false, false, 0.0F, 0.0F, 1.0F);
+    protected LinkedList<BiomeGenBase> biomeInfo;
+    protected LinkedList<SpawnListEntry> mobInfo;
 
     protected ResourceLocation celestialBodyIcon;
 
@@ -157,6 +167,12 @@ public abstract class CelestialBody implements Comparable<CelestialBody>
         return this;
     }
 
+    public CelestialBody setAtmosphere(AtmosphereInfo atmos)
+    {
+        this.atmosphere = atmos;
+        return this;
+    }
+
     public CelestialBody setDimensionInfo(int dimID, Class<? extends WorldProvider> providerClass)
     {
         return this.setDimensionInfo(dimID, providerClass, true);
@@ -175,7 +191,7 @@ public abstract class CelestialBody implements Comparable<CelestialBody>
     {
         return this.autoRegisterDimension;
     }
-
+    
     public int getDimensionID()
     {
         return this.dimensionID;
@@ -196,9 +212,9 @@ public abstract class CelestialBody implements Comparable<CelestialBody>
      * Do not include trace gases (anything less than 0.25%)
      * (Do not use for stars!)
      */
-    public CelestialBody atmosphereComponent(IAtmosphericGas gas)
+    public CelestialBody atmosphereComponent(EnumAtmosphericGas gas)
     {
-        this.atmosphere.add(gas);
+        this.atmosphere.composition.add(gas);
         return this;
     }
 
@@ -298,4 +314,51 @@ public abstract class CelestialBody implements Comparable<CelestialBody>
 	{
 		this.isReachable = false;
 	}
+	
+    public void setBiomeInfo(BiomeGenBase ...  biome)
+    {
+        if (this.biomeInfo == null)
+        {
+            this.biomeInfo = new LinkedList<BiomeGenBase>();
+        }
+        this.biomeInfo.addAll(Arrays.asList(biome));
+    }
+
+    public void addMobInfo(SpawnListEntry entry)
+    {
+        if (this.mobInfo == null)
+        {
+            this.mobInfo = new LinkedList<SpawnListEntry>();
+        }
+        this.mobInfo.add(entry);
+    }
+
+    public void initialiseMobSpawns()
+    {
+        if (this.biomeInfo != null && this.mobInfo != null)
+        {
+            for (BiomeGenBase biome : this.biomeInfo)
+            {
+                if (biome instanceof IMobSpawnBiome)
+                {
+                    ((IMobSpawnBiome)biome).initialiseMobLists(this.mobInfo);
+                }
+            }
+        }
+    }
+
+    public List<Block> getSurfaceBlocks()
+    {
+        if (this.providerClass != null && IGalacticraftWorldProvider.class.isAssignableFrom(this.providerClass))
+        {
+            try
+            {
+                return ((IGalacticraftWorldProvider)this.providerClass.newInstance()).getSurfaceBlocks();
+            } catch (Exception e)
+            {
+                e.printStackTrace();
+            }
+        }
+        return null;
+    }
 }

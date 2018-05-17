@@ -51,14 +51,19 @@ public class ItemParaChute extends Item implements ISortableItem
     }
 
     @Override
+    public boolean isItemTool(ItemStack stack)
+    {
+        return false;
+    }
+
+    @Override
     public CreativeTabs getCreativeTab()
     {
         return GalacticraftCore.galacticraftItemsTab;
     }
 
-    @SuppressWarnings({ "unchecked", "rawtypes" })
     @Override
-    public void getSubItems(Item par1, CreativeTabs par2CreativeTabs, List par3List)
+    public void getSubItems(Item par1, CreativeTabs par2CreativeTabs, List<ItemStack> par3List)
     {
         for (int i = 0; i < ItemParaChute.names.length; i++)
         {

@@ -34,7 +34,7 @@ import java.util.List;
 
 public class BlockWalkway extends BlockTransmitter implements ITileEntityProvider, IShiftDescription, ISortableBlock
 {
-    public static final PropertyEnum WALKWAY_TYPE = PropertyEnum.create("type", EnumWalkwayType.class);
+    public static final PropertyEnum<EnumWalkwayType> WALKWAY_TYPE = PropertyEnum.create("type", EnumWalkwayType.class);
     private Vector3 minVector = new Vector3(0.0, 0.32, 0.0);
     private Vector3 maxVector = new Vector3(1.0, 1.0, 1.0);
 
@@ -160,10 +160,10 @@ public class BlockWalkway extends BlockTransmitter implements ITileEntityProvide
     {
         TileEntity tileEntity = worldIn.getTileEntity(pos);
         TileEntity[] connectable = new TileEntity[6];
+        IBlockState state = worldIn.getBlockState(pos);
 
-        if (tileEntity != null)
+        if (tileEntity != null && state.getBlock() instanceof BlockWalkway)
         {
-            IBlockState state = worldIn.getBlockState(pos);
             if (this.getNetworkType(state) != null)
             {
                 switch (this.getNetworkType(state))
@@ -195,7 +195,7 @@ public class BlockWalkway extends BlockTransmitter implements ITileEntityProvide
         }
     }
 
-    private void addCollisionBox(World worldIn, BlockPos pos, AxisAlignedBB aabb, List list)
+    private void addCollisionBox(World worldIn, BlockPos pos, AxisAlignedBB aabb, List<AxisAlignedBB> list)
     {
         AxisAlignedBB mask1 = this.getCollisionBoundingBox(worldIn, pos, worldIn.getBlockState(pos));
 
@@ -205,9 +205,8 @@ public class BlockWalkway extends BlockTransmitter implements ITileEntityProvide
         }
     }
 
-    @SuppressWarnings("rawtypes")
     @Override
-    public void addCollisionBoxesToList(World worldIn, BlockPos pos, IBlockState state, AxisAlignedBB mask, List list, Entity collidingEntity)
+    public void addCollisionBoxesToList(World worldIn, BlockPos pos, IBlockState state, AxisAlignedBB mask, List<AxisAlignedBB> list, Entity collidingEntity)
     {
         TileEntity tileEntity = worldIn.getTileEntity(pos);
         TileEntity[] connectable = new TileEntity[6];
@@ -306,9 +305,9 @@ public class BlockWalkway extends BlockTransmitter implements ITileEntityProvide
     @Override
     public IBlockState getActualState(IBlockState state, IBlockAccess worldIn, BlockPos pos)
     {
-        Object[] connectable = new Object[EnumFacing.values().length];
+        Object[] connectable = new Object[EnumFacing.VALUES.length];
 
-        for (EnumFacing direction : EnumFacing.values())
+        for (EnumFacing direction : EnumFacing.VALUES)
         {
             if (direction == EnumFacing.UP || (direction == EnumFacing.DOWN && state.getValue(WALKWAY_TYPE) == EnumWalkwayType.WALKWAY))
             {
@@ -362,6 +361,12 @@ public class BlockWalkway extends BlockTransmitter implements ITileEntityProvide
         list.add(new ItemStack(itemIn, 1, 0));
         list.add(new ItemStack(itemIn, 1, 1));
         list.add(new ItemStack(itemIn, 1, 2));
+    }
+
+    @Override
+    public int damageDropped(IBlockState state)
+    {
+        return this.getMetaFromState(state);
     }
 
     @Override

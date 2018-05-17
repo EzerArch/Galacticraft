@@ -1,36 +1,33 @@
 package micdoodle8.mods.galacticraft.core.tile;
 
 import micdoodle8.mods.galacticraft.api.recipe.CompressorRecipes;
+import micdoodle8.mods.galacticraft.api.recipe.ShapedRecipesGC;
+import micdoodle8.mods.galacticraft.api.recipe.ShapelessOreRecipeGC;
 import micdoodle8.mods.galacticraft.core.blocks.BlockMachine2;
 import micdoodle8.mods.galacticraft.core.energy.item.ItemElectricBase;
 import micdoodle8.mods.galacticraft.core.energy.tile.TileBaseElectricBlock;
+import micdoodle8.mods.galacticraft.core.inventory.IInventoryDefaults;
 import micdoodle8.mods.galacticraft.core.inventory.PersistantInventoryCrafting;
-import micdoodle8.mods.galacticraft.core.network.IPacketReceiver;
 import micdoodle8.mods.galacticraft.core.util.ConfigManagerCore;
 import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
 import micdoodle8.mods.miccore.Annotations.NetworkedField;
-import net.minecraft.entity.item.EntityItem;
+import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Items;
-import net.minecraft.inventory.IInventory;
 import net.minecraft.inventory.ISidedInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.crafting.IRecipe;
-import net.minecraft.item.crafting.ShapedRecipes;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.EnumFacing;
-import net.minecraft.util.IChatComponent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.oredict.OreDictionary;
-import net.minecraftforge.oredict.ShapelessOreRecipe;
-
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 
-public class TileEntityElectricIngotCompressor extends TileBaseElectricBlock implements IInventory, ISidedInventory, IPacketReceiver
+public class TileEntityElectricIngotCompressor extends TileBaseElectricBlock implements IInventoryDefaults, ISidedInventory, IMachineSides
 {
     public static final int PROCESS_TIME_REQUIRED_BASE = 200;
     @NetworkedField(targetSide = Side.CLIENT)
@@ -91,22 +88,7 @@ public class TileEntityElectricIngotCompressor extends TileBaseElectricBlock imp
             }
         }
 
-        if (this.ticks >= Long.MAX_VALUE)
-        {
-            this.ticks = 0;
-        }
-
         this.ticks++;
-    }
-
-    @Override
-    public void openInventory(EntityPlayer player)
-    {
-    }
-
-    @Override
-    public void closeInventory(EntityPlayer player)
-    {
     }
 
     private boolean canCompress()
@@ -124,9 +106,15 @@ public class TileEntityElectricIngotCompressor extends TileBaseElectricBlock imp
         {
             return false;
         }
-        int result = this.containingItems[1] == null ? 0 : this.containingItems[1].stackSize + itemstack.stackSize;
-        int result2 = this.containingItems[2] == null ? 0 : this.containingItems[2].stackSize + itemstack.stackSize;
-        return result <= this.getInventoryStackLimit() && result <= itemstack.getMaxStackSize() && result2 <= this.getInventoryStackLimit() && result2 <= itemstack.getMaxStackSize();
+        int contents1 = this.containingItems[1] == null ? 0 : this.containingItems[1].stackSize;
+        int contents2 = this.containingItems[2] == null ? 0 : this.containingItems[2].stackSize;
+        int result = itemstack.stackSize;
+        if (ConfigManagerCore.quickMode && itemstack.getItem().getUnlocalizedName(itemstack).contains("compressed"))
+        {
+            result += result;
+        }
+        result += (contents2 < contents1) ? contents2 : contents1;
+        return result <= this.getInventoryStackLimit() && result <= itemstack.getMaxStackSize();
     }
 
     public void updateInput()
@@ -170,21 +158,11 @@ public class TileEntityElectricIngotCompressor extends TileBaseElectricBlock imp
             }
             else if (this.containingItems[slot].isItemEqual(resultItemStack))
             {
-                if (this.containingItems[slot].stackSize + resultItemStack.stackSize > 64)
+                if (this.containingItems[slot].stackSize + resultItemStack.stackSize > resultItemStack.getMaxStackSize())
                 {
-                    for (int i = 0; i < this.containingItems[slot].stackSize + resultItemStack.stackSize - 64; i++)
-                    {
-                        float var = 0.7F;
-                        double dx = this.worldObj.rand.nextFloat() * var + (1.0F - var) * 0.5D;
-                        double dy = this.worldObj.rand.nextFloat() * var + (1.0F - var) * 0.5D;
-                        double dz = this.worldObj.rand.nextFloat() * var + (1.0F - var) * 0.5D;
-                        EntityItem entityitem = new EntityItem(this.worldObj, this.getPos().getX() + dx, this.getPos().getY() + dy, this.getPos().getZ() + dz, new ItemStack(resultItemStack.getItem(), 1, resultItemStack.getItemDamage()));
-
-                        entityitem.setPickupDelay(10);
-
-                        this.worldObj.spawnEntityInWorld(entityitem);
-                    }
-                    this.containingItems[slot].stackSize = 64;
+                    resultItemStack.stackSize = this.containingItems[slot].stackSize + resultItemStack.stackSize - resultItemStack.getMaxStackSize();
+                    GCCoreUtil.spawnItem(this.worldObj, this.getPos(), resultItemStack);
+                    this.containingItems[slot].stackSize = resultItemStack.getMaxStackSize();
                 }
                 else
                 {
@@ -230,7 +208,7 @@ public class TileEntityElectricIngotCompressor extends TileBaseElectricBlock imp
                 this.compressingCraftMatrix.setInventorySlotContents(var5 - this.containingItems.length, ItemStack.loadItemStackFromNBT(var4));
             }
         }
-
+        this.readMachineSidesFromNBT(par1NBTTagCompound);  //Needed by IMachineSides
         this.updateInput();
     }
 
@@ -263,8 +241,9 @@ public class TileEntityElectricIngotCompressor extends TileBaseElectricBlock imp
                 var2.appendTag(var4);
             }
         }
-
         par1NBTTagCompound.setTag("Items", var2);
+
+        this.addMachineSidesToNBT(par1NBTTagCompound);  //Needed by IMachineSides
     }
 
     @Override
@@ -412,16 +391,16 @@ public class TileEntityElectricIngotCompressor extends TileBaseElectricBlock imp
     {
         for (IRecipe recipe : CompressorRecipes.getRecipeList())
         {
-            if (recipe instanceof ShapedRecipes)
+            if (recipe instanceof ShapedRecipesGC)
             {
-                if (id >= ((ShapedRecipes) recipe).recipeItems.length) continue;
-            	ItemStack itemstack1 = ((ShapedRecipes) recipe).recipeItems[id];
+                if (id >= ((ShapedRecipesGC) recipe).recipeItems.length) continue;
+            	ItemStack itemstack1 = ((ShapedRecipesGC) recipe).recipeItems[id];
                 if (stack.getItem() == itemstack1.getItem() && (itemstack1.getItemDamage() == 32767 || stack.getItemDamage() == itemstack1.getItemDamage()))
                 {
-                	for (int i = 0; i < ((ShapedRecipes) recipe).recipeItems.length; i++)
+                	for (int i = 0; i < ((ShapedRecipesGC) recipe).recipeItems.length; i++)
                 	{
                 		if (i == id) continue;
-                        ItemStack itemstack2 = ((ShapedRecipes) recipe).recipeItems[i];
+                        ItemStack itemstack2 = ((ShapedRecipesGC) recipe).recipeItems[i];
                         if (stack.getItem() == itemstack2.getItem() && (itemstack2.getItemDamage() == 32767 || stack.getItemDamage() == itemstack2.getItemDamage()))
                         {
                         	ItemStack is3 = this.getStackInSlot(id + 3);
@@ -432,10 +411,9 @@ public class TileEntityElectricIngotCompressor extends TileBaseElectricBlock imp
                 	return true;
                 }
             }
-            else if (recipe instanceof ShapelessOreRecipe)
+            else if (recipe instanceof ShapelessOreRecipeGC)
             {
-                @SuppressWarnings("unchecked")
-                ArrayList<Object> required = new ArrayList<Object>(((ShapelessOreRecipe) recipe).getInput());
+                ArrayList<Object> required = new ArrayList<Object>(((ShapelessOreRecipeGC) recipe).getInput());
                 
                 Iterator<Object> req = required.iterator();
 
@@ -495,7 +473,7 @@ public class TileEntityElectricIngotCompressor extends TileBaseElectricBlock imp
             return new int[] { 1, 2 };
         }
         int[] slots = new int[] { 0, 3, 4, 5, 6, 7, 8, 9, 10, 11 };
-        ArrayList<Integer> removeSlots = new ArrayList();
+        ArrayList<Integer> removeSlots = new ArrayList<>();
 
         for (int i = 3; i < 12; i++)
         {
@@ -569,42 +547,6 @@ public class TileEntityElectricIngotCompressor extends TileBaseElectricBlock imp
     }
 
     @Override
-    public int getField(int id)
-    {
-        return 0;
-    }
-
-    @Override
-    public void setField(int id, int value)
-    {
-
-    }
-
-    @Override
-    public int getFieldCount()
-    {
-        return 0;
-    }
-
-    @Override
-    public void clear()
-    {
-
-    }
-
-    @Override
-    public boolean hasCustomName()
-    {
-        return false;
-    }
-
-    @Override
-    public IChatComponent getDisplayName()
-    {
-        return null;
-    }
-
-    @Override
     public boolean shouldUseEnergy()
     {
         return this.processTicks > 0;
@@ -613,13 +555,31 @@ public class TileEntityElectricIngotCompressor extends TileBaseElectricBlock imp
     @Override
     public EnumFacing getFront()
     {
-        return this.worldObj.getBlockState(getPos()).getValue(BlockMachine2.FACING);
+        IBlockState state = this.worldObj.getBlockState(getPos()); 
+        if (state.getBlock() instanceof BlockMachine2)
+        {
+            return state.getValue(BlockMachine2.FACING);
+        }
+        return EnumFacing.NORTH;
     }
 
     @Override
     public EnumFacing getElectricInputDirection()
     {
-        return getFront().rotateY();
+        switch (this.getSide(MachineSide.ELECTRIC_IN))
+        {
+        case RIGHT:
+            return getFront().rotateYCCW();
+        case REAR:
+            return getFront().getOpposite();
+        case TOP:
+            return EnumFacing.UP;
+        case BOTTOM:
+            return EnumFacing.DOWN;
+        case LEFT:
+        default:
+            return getFront().rotateY();
+        }
     }
 
     @Override
@@ -627,4 +587,51 @@ public class TileEntityElectricIngotCompressor extends TileBaseElectricBlock imp
     {
         return this.getStackInSlot(0);
     }
+
+    //------------------
+    //Added these methods and field to implement IMachineSides properly 
+    //------------------
+    @Override
+    public MachineSide[] listConfigurableSides()
+    {
+        return new MachineSide[] { MachineSide.ELECTRIC_IN };
+    }
+
+    @Override
+    public Face[] listDefaultFaces()
+    {
+        return new Face[] { Face.LEFT };
+    }
+    
+    private MachineSidePack[] machineSides;
+
+    @Override
+    public MachineSidePack[] getAllMachineSides()
+    {
+        if (this.machineSides == null)
+        {
+            this.initialiseSides();
+        }
+
+        return this.machineSides;
+    }
+
+    @Override
+    public void setupMachineSides(int length)
+    {
+        this.machineSides = new MachineSidePack[length];
+    }
+    
+    @Override
+    public void onLoad()
+    {
+        this.clientOnLoad();
+    }
+    
+    @Override
+    public IMachineSidesProperties getConfigurationType()
+    {
+        return BlockMachine2.MACHINESIDES_RENDERTYPE;
+    }
+    //------------------END OF IMachineSides implementation
 }

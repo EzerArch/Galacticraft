@@ -33,9 +33,9 @@ public class BlockBrightLamp extends BlockAdvanced implements IShiftDescription,
         super(Material.glass);
         this.setDefaultState(this.blockState.getBaseState().withProperty(FACING, EnumFacing.UP));  //.withProperty(ACTIVE, true));
         this.setHardness(0.1F);
-        this.setStepSound(Block.soundTypeWood);
+        this.setStepSound(Block.soundTypeMetal);
         this.setUnlocalizedName(assetName);
-        this.setLightLevel(1.0F);
+        this.setLightLevel(0.9F);
     }
 
     @Override
@@ -59,6 +59,12 @@ public class BlockBrightLamp extends BlockAdvanced implements IShiftDescription,
     }
 
     @Override
+    public int getLightOpacity(IBlockAccess world, BlockPos pos)
+    {
+        return 1;
+    }
+    
+    @Override
     public AxisAlignedBB getCollisionBoundingBox(World worldIn, BlockPos pos, IBlockState state)
     {
         double boundsMin = 0.2D;
@@ -81,7 +87,7 @@ public class BlockBrightLamp extends BlockAdvanced implements IShiftDescription,
     @Override
     public boolean canPlaceBlockAt(World worldIn, BlockPos pos)
     {
-        for (EnumFacing side : EnumFacing.values())
+        for (EnumFacing side : EnumFacing.VALUES)
         {
             BlockPos offsetPos = pos.offset(side);
             IBlockState state = worldIn.getBlockState(offsetPos);
@@ -96,7 +102,7 @@ public class BlockBrightLamp extends BlockAdvanced implements IShiftDescription,
     @Override
     public IBlockState onBlockPlaced(World worldIn, BlockPos pos, EnumFacing facing, float hitX, float hitY, float hitZ, int meta, EntityLivingBase placer)
     {
-        EnumFacing opposite = EnumFacing.values()[facing.getIndex() ^ 1];
+        EnumFacing opposite = facing.getOpposite();
         BlockPos offsetPos = pos.offset(opposite);
         IBlockState state = worldIn.getBlockState(offsetPos);
         if (state.getBlock().isSideSolid(worldIn, offsetPos, facing))
@@ -208,12 +214,6 @@ public class BlockBrightLamp extends BlockAdvanced implements IShiftDescription,
     public IBlockState getStateFromMeta(int meta)
     {
         EnumFacing enumfacing = EnumFacing.getFront(meta);
-
-        if (enumfacing.getAxis() == EnumFacing.Axis.Y)
-        {
-            enumfacing = EnumFacing.NORTH;
-        }
-
         return this.getDefaultState().withProperty(FACING, enumfacing);
     }
 

@@ -1,11 +1,7 @@
 package micdoodle8.mods.galacticraft.planets.asteroids.world.gen;
 
-import micdoodle8.mods.galacticraft.core.entities.EntityEvolvedCreeper;
-import micdoodle8.mods.galacticraft.core.entities.EntityEvolvedSkeleton;
-import micdoodle8.mods.galacticraft.core.entities.EntityEvolvedSpider;
-import micdoodle8.mods.galacticraft.core.entities.EntityEvolvedZombie;
+import micdoodle8.mods.galacticraft.core.entities.*;
 import micdoodle8.mods.galacticraft.core.util.ConfigManagerCore;
-import net.minecraft.entity.monster.EntityEnderman;
 import net.minecraft.world.biome.BiomeGenBase;
 import net.minecraftforge.common.BiomeDictionary;
 
@@ -13,14 +9,13 @@ public class BiomeGenBaseAsteroids extends BiomeGenBase
 {
     public static final BiomeGenBase asteroid = new BiomeGenBaseAsteroids(ConfigManagerCore.biomeIDbase + 2).setBiomeName("Asteroids");
 
-    @SuppressWarnings("unchecked")
     private BiomeGenBaseAsteroids(int var1)
     {
         super(var1);
         this.spawnableWaterCreatureList.clear();
         this.spawnableCreatureList.clear();
         this.spawnableCaveCreatureList.clear();
-        this.resetMonsterListByMode(ConfigManagerCore.challengeMode || ConfigManagerCore.challengeMobDropsAndSpawning);
+        this.resetMonsterListByMode(ConfigManagerCore.challengeMobDropsAndSpawning);
         this.rainfall = 0F;
         if (!ConfigManagerCore.disableBiomeTypeRegistrations)
         {
@@ -35,7 +30,7 @@ public class BiomeGenBaseAsteroids extends BiomeGenBase
         this.spawnableMonsterList.add(new SpawnListEntry(EntityEvolvedSpider.class, 2000, 1, 2));
         this.spawnableMonsterList.add(new SpawnListEntry(EntityEvolvedSkeleton.class, 1500, 1, 1));
         this.spawnableMonsterList.add(new SpawnListEntry(EntityEvolvedCreeper.class, 2000, 1, 1));
-        if (challengeMode) this.spawnableMonsterList.add(new SpawnListEntry(EntityEnderman.class, 250, 1, 1));
+        if (challengeMode) this.spawnableMonsterList.add(new SpawnListEntry(EntityEvolvedEnderman.class, 250, 1, 1));
     }
 
     @Override

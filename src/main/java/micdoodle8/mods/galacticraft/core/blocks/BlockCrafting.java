@@ -1,8 +1,10 @@
 package micdoodle8.mods.galacticraft.core.blocks;
 
 import micdoodle8.mods.galacticraft.core.GalacticraftCore;
+import micdoodle8.mods.galacticraft.core.items.IShiftDescription;
 import micdoodle8.mods.galacticraft.core.tile.TileEntityCrafting;
 import micdoodle8.mods.galacticraft.core.util.EnumSortCategoryBlock;
+import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
 import net.minecraft.block.ITileEntityProvider;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.properties.IProperty;
@@ -19,7 +21,7 @@ import net.minecraft.util.EnumFacing;
 import net.minecraft.util.MathHelper;
 import net.minecraft.world.World;
 
-public class BlockCrafting extends BlockAdvancedTile implements ITileEntityProvider, ISortableBlock
+public class BlockCrafting extends BlockAdvancedTile implements ITileEntityProvider, ISortableBlock, IShiftDescription
 {
     public static final PropertyDirection FACING = PropertyDirection.create("facing");
 
@@ -38,24 +40,9 @@ public class BlockCrafting extends BlockAdvancedTile implements ITileEntityProvi
     @Override
     public boolean onBlockActivated(World worldIn, BlockPos pos, IBlockState state, EntityPlayer playerIn, EnumFacing side, float hitX, float hitY, float hitZ)
     {
-        if (this.isUsableWrench(playerIn, playerIn.inventory.getCurrentItem(), pos))
+        if (this.useWrench(worldIn, pos, playerIn, side, hitX, hitY, hitZ))
         {
-            this.damageWrench(playerIn, playerIn.inventory.getCurrentItem(), pos);
-
-            if (playerIn.isSneaking())
-            {
-                if (this.onSneakUseWrench(worldIn, pos, playerIn, side, hitX, hitY, hitZ))
-                {
-                    playerIn.swingItem();
-                    return true;
-                }
-            }
-
-            if (this.onUseWrench(worldIn, pos, playerIn, side, hitX, hitY, hitZ))
-            {
-                playerIn.swingItem();
-                return true;
-            }
+            return true;
         }
 
         if (playerIn.isSneaking())
@@ -76,24 +63,7 @@ public class BlockCrafting extends BlockAdvancedTile implements ITileEntityProvi
     @Override
     public boolean onUseWrench(World world, BlockPos pos, EntityPlayer entityPlayer, EnumFacing side, float hitX, float hitY, float hitZ)
     {
-        int metadata = this.getMetaFromState(world.getBlockState(pos));
-        int metaDir = ((metadata & 7) + 1) % 6;
-        //DOWN->UP->NORTH->*EAST*->*SOUTH*->WEST
-        //0->1 1->2 2->5 3->4 4->0 5->3 
-        if (metaDir == 3) //after north
-        {
-            metaDir = 5;
-        }
-        else if (metaDir == 0)
-        {
-            metaDir = 3;
-        }
-        else if (metaDir == 5)
-        {
-            metaDir = 0;
-        }
-            
-        world.setBlockState(pos, this.getStateFromMeta(metaDir), 3);
+        this.rotate6Ways(world, pos);
         return true;
     }
 
@@ -109,7 +79,7 @@ public class BlockCrafting extends BlockAdvancedTile implements ITileEntityProvi
         worldIn.setBlockState(pos, state.withProperty(FACING, getFacingFromEntity(worldIn, pos, placer)), 2);
     }
 
-    private static EnumFacing getFacingFromEntity(World worldIn, BlockPos clickedBlock, EntityLivingBase entityIn)
+    public static EnumFacing getFacingFromEntity(World worldIn, BlockPos clickedBlock, EntityLivingBase entityIn)
     {
         if (MathHelper.abs((float)entityIn.posX - (float)clickedBlock.getX()) < 3.0F && MathHelper.abs((float)entityIn.posZ - (float)clickedBlock.getZ()) < 3.0F)
         {
@@ -133,6 +103,18 @@ public class BlockCrafting extends BlockAdvancedTile implements ITileEntityProvi
     public EnumSortCategoryBlock getCategory(int meta)
     {
         return EnumSortCategoryBlock.GENERAL;
+    }
+    
+    @Override
+    public String getShiftDescription(int meta)
+    {
+        return GCCoreUtil.translate(this.getUnlocalizedName() + ".description");
+    }
+
+    @Override
+    public boolean showDescription(int meta)
+    {
+        return true;
     }
 
     @Override

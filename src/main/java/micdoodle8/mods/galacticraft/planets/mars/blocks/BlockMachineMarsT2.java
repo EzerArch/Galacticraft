@@ -35,18 +35,18 @@ import java.util.Random;
 
 public class BlockMachineMarsT2 extends BlockTileGC implements IShiftDescription, ISortableBlock
 {
-    public static final int GAS_LIQUEFIER = 0;
-    public static final int METHANE_SYNTHESIZER = 4;
-    public static final int ELECTROLYZER = 8;
+    public static final int GAS_LIQUEFIER_META = 0;
+    public static final int METHANE_SYNTHESIZER_META = 4;
+    public static final int ELECTROLYZER_META = 8;
 
     public static final PropertyDirection FACING = PropertyDirection.create("facing", EnumFacing.Plane.HORIZONTAL);
-    public static final PropertyEnum TYPE = PropertyEnum.create("type", EnumMachineType.class);
+    public static final PropertyEnum<EnumMachineType> TYPE = PropertyEnum.create("type", EnumMachineType.class);
 
     public enum EnumMachineType implements IStringSerializable
     {
-        GAS_LIQUEFIER(0, "gas_liquefier"),
-        METHANE_SYNTHESIZER(1, "methane_synthesizer"),
-        ELECTROLYZER(2, "electrolyzer");
+        GAS_LIQUEFIER(GAS_LIQUEFIER_META, "gas_liquefier"),
+        METHANE_SYNTHESIZER(METHANE_SYNTHESIZER_META, "methane_synthesizer"),
+        ELECTROLYZER(ELECTROLYZER_META, "electrolyzer");
 
         private final int meta;
         private final String name;
@@ -60,11 +60,6 @@ public class BlockMachineMarsT2 extends BlockTileGC implements IShiftDescription
         public int getMeta()
         {
             return this.meta;
-        }
-
-        public static EnumMachineType byMetadata(int meta)
-        {
-            return values()[meta];
         }
 
         @Override
@@ -201,17 +196,8 @@ public class BlockMachineMarsT2 extends BlockTileGC implements IShiftDescription
     @Override
     public boolean onUseWrench(World world, BlockPos pos, EntityPlayer entityPlayer, EnumFacing side, float hitX, float hitY, float hitZ)
     {
-        int metadata = getMetaFromState(world.getBlockState(pos));
-        int change = world.getBlockState(pos).getValue(FACING).rotateY().getHorizontalIndex();
-
-        world.setBlockState(pos, this.getStateFromMeta(metadata - (metadata % 4) + change), 3);
-
-        TileEntity te = world.getTileEntity(pos);
-        if (te instanceof TileBaseUniversalElectrical)
-        {
-            ((TileBaseUniversalElectrical) te).updateFacing();
-        }
-
+        IBlockState state = world.getBlockState(pos);
+        TileBaseUniversalElectrical.onUseWrenchBlock(state, world, pos, state.getValue(FACING));
         return true;
     }
 
@@ -231,15 +217,15 @@ public class BlockMachineMarsT2 extends BlockTileGC implements IShiftDescription
         int metadata = state.getBlock().getMetaFromState(state);
         metadata &= 12;
 
-        if (metadata == BlockMachineMarsT2.GAS_LIQUEFIER)
+        if (metadata == BlockMachineMarsT2.GAS_LIQUEFIER_META)
         {
             return new TileEntityGasLiquefier();
         }
-        else if (metadata == BlockMachineMarsT2.METHANE_SYNTHESIZER)
+        else if (metadata == BlockMachineMarsT2.METHANE_SYNTHESIZER_META)
         {
             return new TileEntityMethaneSynthesizer();
         }
-        else if (metadata == BlockMachineMarsT2.ELECTROLYZER)
+        else if (metadata == BlockMachineMarsT2.ELECTROLYZER_META)
         {
             return new TileEntityElectrolyzer();
         }
@@ -247,13 +233,12 @@ public class BlockMachineMarsT2 extends BlockTileGC implements IShiftDescription
         return null;
     }
 
-    @SuppressWarnings({ "unchecked", "rawtypes" })
     @Override
-    public void getSubBlocks(Item par1, CreativeTabs par2CreativeTabs, List par3List)
+    public void getSubBlocks(Item par1, CreativeTabs par2CreativeTabs, List<ItemStack> par3List)
     {
-        par3List.add(new ItemStack(this, 1, BlockMachineMarsT2.GAS_LIQUEFIER));
-        par3List.add(new ItemStack(this, 1, BlockMachineMarsT2.METHANE_SYNTHESIZER));
-        par3List.add(new ItemStack(this, 1, BlockMachineMarsT2.ELECTROLYZER));
+        par3List.add(new ItemStack(this, 1, BlockMachineMarsT2.GAS_LIQUEFIER_META));
+        par3List.add(new ItemStack(this, 1, BlockMachineMarsT2.METHANE_SYNTHESIZER_META));
+        par3List.add(new ItemStack(this, 1, BlockMachineMarsT2.ELECTROLYZER_META));
     }
 
     @Override
@@ -314,11 +299,11 @@ public class BlockMachineMarsT2 extends BlockTileGC implements IShiftDescription
     {
         switch (meta)
         {
-        case ELECTROLYZER:
+        case ELECTROLYZER_META:
             return GCCoreUtil.translate("tile.electrolyzer.description");
-        case GAS_LIQUEFIER:
+        case GAS_LIQUEFIER_META:
             return GCCoreUtil.translate("tile.gas_liquefier.description");
-        case METHANE_SYNTHESIZER:
+        case METHANE_SYNTHESIZER_META:
             return GCCoreUtil.translate("tile.methane_synthesizer.description");
         }
         return "";
@@ -334,14 +319,14 @@ public class BlockMachineMarsT2 extends BlockTileGC implements IShiftDescription
     public IBlockState getStateFromMeta(int meta)
     {
         EnumFacing enumfacing = EnumFacing.getHorizontal(meta % 4);
-        EnumMachineType type = EnumMachineType.byMetadata((int) Math.floor(meta / 4.0));
+        EnumMachineType type = EnumMachineType.values()[meta / 4];
         return this.getDefaultState().withProperty(FACING, enumfacing).withProperty(TYPE, type);
     }
 
     @Override
     public int getMetaFromState(IBlockState state)
     {
-        return ((EnumFacing) state.getValue(FACING)).getHorizontalIndex() + ((EnumMachineType) state.getValue(TYPE)).getMeta() * 4;
+        return ((EnumFacing) state.getValue(FACING)).getHorizontalIndex() + ((EnumMachineType) state.getValue(TYPE)).getMeta();
     }
 
     @Override

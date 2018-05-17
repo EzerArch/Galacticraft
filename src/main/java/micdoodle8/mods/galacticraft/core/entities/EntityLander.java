@@ -3,7 +3,11 @@ package micdoodle8.mods.galacticraft.core.entities;
 import micdoodle8.mods.galacticraft.api.entity.ICameraZoomEntity;
 import micdoodle8.mods.galacticraft.api.entity.IIgnoreShift;
 import micdoodle8.mods.galacticraft.api.vector.Vector3;
+import micdoodle8.mods.galacticraft.core.Constants;
+import micdoodle8.mods.galacticraft.core.GalacticraftCore;
 import micdoodle8.mods.galacticraft.core.client.fx.EntityFXLanderFlame;
+import micdoodle8.mods.galacticraft.core.network.PacketSimple;
+import micdoodle8.mods.galacticraft.core.network.PacketSimple.EnumSimplePacket;
 import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
 import net.minecraft.client.particle.EntityFX;
 import net.minecraft.entity.Entity;
@@ -39,6 +43,12 @@ public class EntityLander extends EntityLanderBase implements IIgnoreShift, ICam
     public double getMountedYOffset()
     {
         return 2.25;
+    }
+    
+    @Override
+    public float getRotateOffset()
+    {
+        return +0.0F;
     }
 
     @Override
@@ -153,23 +163,21 @@ public class EntityLander extends EntityLanderBase implements IIgnoreShift, ICam
     @Override
     public boolean shouldSpawnParticles()
     {
-        return this.rotationPitch != 0.0000000000001F;
+        return this.ticks > 40 && this.rotationPitch != 0.0000001F;
     }
 
     @Override
     public Map<Vector3, Vector3> getParticleMap()
     {
-        final double x1 = 4 * Math.cos(this.rotationYaw * Math.PI / 180.0D) * Math.sin(this.rotationPitch * Math.PI / 180.0D);
-        final double z1 = 4 * Math.sin(this.rotationYaw * Math.PI / 180.0D) * Math.sin(this.rotationPitch * Math.PI / 180.0D);
-        final double y1 = -4 * Math.abs(Math.cos(this.rotationPitch * Math.PI / 180.0D));
+        double sinPitch = Math.sin(this.rotationPitch / Constants.RADIANS_TO_DEGREES_D);
+        final double x1 = 4 * Math.cos(this.rotationYaw / Constants.RADIANS_TO_DEGREES_D) * sinPitch;
+        final double z1 = 4 * Math.sin(this.rotationYaw / Constants.RADIANS_TO_DEGREES_D) * sinPitch;
+        final double y1 = -4 * Math.abs(Math.cos(this.rotationPitch / Constants.RADIANS_TO_DEGREES_D));
 
         new Vector3(this);
 
         final Map<Vector3, Vector3> particleMap = new HashMap<Vector3, Vector3>();
-        particleMap.put(new Vector3(this).translate(new Vector3(0, 1, 0)), new Vector3(x1, y1, z1));
-        particleMap.put(new Vector3(this).translate(new Vector3(0, 1, 0)), new Vector3(x1, y1, z1));
-        particleMap.put(new Vector3(this).translate(new Vector3(0, 1, 0)), new Vector3(x1, y1, z1));
-        particleMap.put(new Vector3(this).translate(new Vector3(0, 1, 0)), new Vector3(x1, y1, z1));
+        particleMap.put(new Vector3(this.posX, this.posY + 1D + this.motionY / 2, this.posZ), new Vector3(x1, y1 + this.motionY / 2, z1));
         return particleMap;
     }
 
@@ -192,9 +200,9 @@ public class EntityLander extends EntityLanderBase implements IIgnoreShift, ICam
                 this.motionY -= 0.008D;
             }
 
-            double motY = -1 * Math.sin(this.rotationPitch * Math.PI / 180.0D);
-            double motX = Math.cos(this.rotationYaw * Math.PI / 180.0D) * motY;
-            double motZ = Math.sin(this.rotationYaw * Math.PI / 180.0D) * motY;
+            double motY = -1 * Math.sin(this.rotationPitch / Constants.RADIANS_TO_DEGREES_D);
+            double motX = Math.cos(this.rotationYaw / Constants.RADIANS_TO_DEGREES_D) * motY;
+            double motZ = Math.sin(this.rotationYaw / Constants.RADIANS_TO_DEGREES_D) * motY;
             this.motionX = motX / 2.0F;
             this.motionZ = motZ / 2.0F;
         }
@@ -203,7 +211,8 @@ public class EntityLander extends EntityLanderBase implements IIgnoreShift, ICam
     @Override
     public void tickOnGround()
     {
-        this.rotationPitch = 0.0000000000001F;
+        //Signal switch off flames
+        this.rotationPitch = 0.0000001F;
     }
 
     @Override
@@ -215,7 +224,14 @@ public class EntityLander extends EntityLanderBase implements IIgnoreShift, ICam
             {
                 if (this.riddenByEntity != null && this.riddenByEntity instanceof EntityPlayerMP)
                 {
-                    this.riddenByEntity.mountEntity(this);
+                    EntityPlayerMP entity = (EntityPlayerMP) this.riddenByEntity;
+                    entity.mountEntity(null);
+                    GalacticraftCore.packetPipeline.sendTo(new PacketSimple(EnumSimplePacket.C_RESET_THIRD_PERSON, GCCoreUtil.getDimensionID(this.worldObj), new Object[] {}), entity);
+                    entity.motionX = 0;
+                    entity.motionY = 0;
+                    entity.motionZ = 0;
+                    entity.setPosition(entity.posX, this.posY + this.getMountedYOffset(), entity.posZ);
+                    this.worldObj.updateEntityWithOptionalForce(entity, false);
                 }
 
                 this.worldObj.createExplosion(this, this.posX, this.posY, this.posZ, 12, true);
@@ -293,29 +309,5 @@ public class EntityLander extends EntityLanderBase implements IIgnoreShift, ICam
     public boolean canBeCollidedWith()
     {
         return !this.isDead;
-    }
-
-    @Override
-    public int getField(int id)
-    {
-        return 0;
-    }
-
-    @Override
-    public void setField(int id, int value)
-    {
-
-    }
-
-    @Override
-    public int getFieldCount()
-    {
-        return 0;
-    }
-
-    @Override
-    public void clear()
-    {
-
     }
 }

@@ -10,6 +10,7 @@ import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.WorldClient;
 import net.minecraft.client.renderer.GLAllocation;
+import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.WorldRenderer;
@@ -20,8 +21,8 @@ import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.Vec3;
 import net.minecraftforge.client.IRenderHandler;
 import net.minecraftforge.fml.client.FMLClientHandler;
+
 import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GL12;
 import org.lwjgl.util.glu.Project;
 
 import java.lang.reflect.Method;
@@ -167,8 +168,9 @@ public class SkyProviderOverworld extends IRenderHandler
         float theta = MathHelper.sqrt_float(((float) (mc.thePlayer.posY) - Constants.OVERWORLD_SKYPROVIDER_STARTHEIGHT) / 1000.0F);
         final float var21 = Math.max(1.0F - theta * 4.0F, 0.0F);
 
+        GlStateManager.pushMatrix();
         GL11.glDisable(GL11.GL_TEXTURE_2D);
-        GL11.glDisable(GL12.GL_RESCALE_NORMAL);
+        GlStateManager.disableRescaleNormal();
         final Vec3 var2 = this.minecraft.theWorld.getSkyColor(this.minecraft.getRenderViewEntity(), partialTicks);
         float i = (float) var2.xCoord * var21;
         float x = (float) var2.yCoord * var21;
@@ -238,7 +240,7 @@ public class SkyProviderOverworld extends IRenderHandler
 
             for (int var27 = 0; var27 <= phi; ++var27)
             {
-                rand3 = var27 * (float) Math.PI * 2.0F / phi;
+                rand3 = var27 * Constants.twoPI / phi;
                 final float xx = MathHelper.sin(rand3);
                 final float rand5 = MathHelper.cos(rand3);
                 worldRenderer.pos(xx * 120.0F, rand5 * 120.0F, -rand5 * 40.0F * costh[3]).color(costh[0] * sunsetModInv, costh[1] * sunsetModInv, costh[2] * sunsetModInv, 0.0F).endVertex();
@@ -374,8 +376,8 @@ public class SkyProviderOverworld extends IRenderHandler
 
 //	        float zoomIn = (1F - (float) var25 / 768F) / 5.86F;
 //	        if (zoomIn < 0F) zoomIn = 0F;
-            float zoomIn = 0.0F;
-            float cornerB = 1.0F - zoomIn;
+            double zoomIn = 0.0D;
+            double cornerB = 1.0 - zoomIn;
             worldRenderer.pos(-size, 0, size).tex(zoomIn, cornerB).endVertex();
             worldRenderer.pos(size, 0, size).tex(cornerB, cornerB).endVertex();
             worldRenderer.pos(size, 0, -size).tex(cornerB, zoomIn).endVertex();
@@ -387,6 +389,7 @@ public class SkyProviderOverworld extends IRenderHandler
 
         GL11.glColor3f(0.0f, 0.0f, 0.0f);
 
+        GlStateManager.enableRescaleNormal();
         GL11.glEnable(GL11.GL_TEXTURE_2D);
         GL11.glDepthMask(true);
 

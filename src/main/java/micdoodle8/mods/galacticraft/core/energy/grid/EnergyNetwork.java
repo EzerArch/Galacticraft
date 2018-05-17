@@ -61,7 +61,7 @@ public class EnergyNetwork implements IElectricityNetwork
      *   Note: each position in those two linked lists matches
      *         so, an acceptor connected on two sides will be in connectedAcceptors twice
      */
-    private List<TileEntity> connectedAcceptors = new LinkedList<TileEntity>();
+    private List<Object> connectedAcceptors = new LinkedList<Object>();
     private List<EnumFacing> connectedDirections = new LinkedList<EnumFacing>();
 
     /*
@@ -70,10 +70,10 @@ public class EnergyNetwork implements IElectricityNetwork
      *    Note: each acceptor will only be included once in these collections
      *          (there is no point trying to put power into a machine twice from two different sides)
      */
-    private Set<TileEntity> availableAcceptors = new HashSet<TileEntity>();
-    private Map<TileEntity, EnumFacing> availableconnectedDirections = new HashMap<TileEntity, EnumFacing>();
+    private Set<Object> availableAcceptors = new HashSet<Object>();
+    private Map<Object, EnumFacing> availableconnectedDirections = new HashMap<Object, EnumFacing>();
 
-    private Map<TileEntity, Float> energyRequests = new HashMap<TileEntity, Float>();
+    private Map<Object, Float> energyRequests = new HashMap<Object, Float>();
     private List<TileEntity> ignoreAcceptors = new LinkedList<TileEntity>();
 
     private final Set<IConductor> conductors = new HashSet<IConductor>();
@@ -153,9 +153,10 @@ public class EnergyNetwork implements IElectricityNetwork
             if (doReceive)
             {
                 this.totalEnergy += Math.min(energy, this.totalRequested - totalEnergyLast);
-                if (producerTier > 1)
+                //The field producersTierGC will be the *highest* of any producers putting energy into the network this tick
+                if (producerTier > this.producersTierGC)
                 {
-                    this.producersTierGC = 2;
+                    this.producersTierGC = producerTier;
                 }
             }
 
@@ -243,7 +244,7 @@ public class EnergyNetwork implements IElectricityNetwork
         {
             float e;
             final Iterator<EnumFacing> acceptorDirection = this.connectedDirections.iterator();
-            for (TileEntity acceptor : this.connectedAcceptors)
+            for (Object acceptor : this.connectedAcceptors)
             {
                 //This tries all sides of the acceptor which are connected (see refreshAcceptors())
                 EnumFacing sideFrom = acceptorDirection.next();
@@ -276,7 +277,7 @@ public class EnergyNetwork implements IElectricityNetwork
                             }
                         }
                         //Cap IC2 power transfer at 128EU/t for standard Alu wire, 256EU/t for heavy Alu wire
-                        result = Math.max(result, (this.networkTierGC == 2) ? 256D : 128D);
+                        result = Math.min(result, this.networkTierGC * 128D);
                         e = (float) result / EnergyConfigHandler.TO_IC2_RATIO;
                     }
                     else if (isRF2Loaded && acceptor instanceof IEnergyReceiver)
@@ -339,10 +340,10 @@ public class EnergyNetwork implements IElectricityNetwork
             float sentToAcceptor;
             int tierProduced = Math.min(this.producersTierGC, this.networkTierGC);
 
-            TileEntity debugTE = null;
+            Object debugTE = null;
             try
             {
-                for (TileEntity tileEntity : this.availableAcceptors)
+                for (Object tileEntity : this.availableAcceptors)
                 {
                     debugTE = tileEntity;
                     //Exit the loop if there is no energy left at all (should normally not happen, should be some even for the last acceptor)
@@ -388,11 +389,11 @@ public class EnergyNetwork implements IElectricityNetwork
                             {
                                 if (EnergyUtil.voltageParameterIC2)
                                 {
-                                    result = (Double) EnergyUtil.injectEnergyIC2.invoke(tileEntity, sideFrom, energySendingIC2, 120D);
+                                    result = (Double) EnergyUtil.injectEnergyIC2.invoke(tileEntity, sideFrom.getOpposite(), energySendingIC2, 120D);
                                 }
                                 else
                                 {
-                                    result = (Double) EnergyUtil.injectEnergyIC2.invoke(tileEntity, sideFrom, energySendingIC2);
+                                    result = (Double) EnergyUtil.injectEnergyIC2.invoke(tileEntity, sideFrom.getOpposite(), energySendingIC2);
                                 }
                             }
                             catch (Exception ex)
@@ -439,9 +440,9 @@ public class EnergyNetwork implements IElectricityNetwork
             catch (Exception e)
             {
                 GCLog.severe("DEBUG Energy network loop issue, please report this");
-                if (debugTE != null)
+                if (debugTE instanceof TileEntity)
                 {
-                    GCLog.severe("Problem was likely caused by tile in dim " + GCCoreUtil.getDimensionID(debugTE.getWorld()) + " at " + debugTE.getPos() + " Type:" + debugTE.getClass().getSimpleName());
+                    GCLog.severe("Problem was likely caused by tile in dim " + GCCoreUtil.getDimensionID(((TileEntity)debugTE).getWorld()) + " at " + ((TileEntity)debugTE).getPos() + " Type:" + debugTE.getClass().getSimpleName());
                 }
             }
         }
@@ -468,7 +469,7 @@ public class EnergyNetwork implements IElectricityNetwork
      */
     public void refreshWithChecks()
     {
-        int tierfound = 2;
+        int tierfound = Integer.MAX_VALUE;
         Iterator<IConductor> it = this.conductors.iterator();
         while (it.hasNext())
         {
@@ -495,9 +496,9 @@ public class EnergyNetwork implements IElectricityNetwork
                 continue;
             }
 
-            if (conductor.getTierGC() < 2)
+            if (conductor.getTierGC() < tierfound)
             {
-                tierfound = 1;
+                tierfound = conductor.getTierGC();
             }
 
             if (conductor.getNetwork() != this)
@@ -508,13 +509,17 @@ public class EnergyNetwork implements IElectricityNetwork
         }
 
         //This will set the network tier to 2 if all the conductors are tier 2
+        if (tierfound == Integer.MAX_VALUE)
+        {
+            tierfound = 1;
+        }   
         this.networkTierGC = tierfound;
     }
 
     @Override
     public void refresh()
     {
-        int tierfound = 2;
+        int tierfound = Integer.MAX_VALUE;
         Iterator<IConductor> it = this.conductors.iterator();
         while (it.hasNext())
         {
@@ -535,9 +540,9 @@ public class EnergyNetwork implements IElectricityNetwork
                 continue;
             }
 
-            if (conductor.getTierGC() < 2)
+            if (conductor.getTierGC() < tierfound)
             {
-                tierfound = 1;
+                tierfound = conductor.getTierGC();
             }
 
             if (conductor.getNetwork() != this)
@@ -547,7 +552,11 @@ public class EnergyNetwork implements IElectricityNetwork
             }
         }
 
-        //This will set the network tier to 2 if all the conductors are tier 2
+        //This will set the network tier to 2 if all the conductors are tier 2, etc
+        if (tierfound == Integer.MAX_VALUE)
+        {
+            tierfound = 1;
+        }   
         this.networkTierGC = tierfound;
     }
 
@@ -563,7 +572,7 @@ public class EnergyNetwork implements IElectricityNetwork
 
         try
         {
-            LinkedList<IConductor> conductorsCopy = new LinkedList();
+            LinkedList<IConductor> conductorsCopy = new LinkedList<>();
             conductorsCopy.addAll(this.conductors);
             //This prevents concurrent modifications if something in the loop causes chunk loading
             //(Chunk loading can change the network if new conductors are found)

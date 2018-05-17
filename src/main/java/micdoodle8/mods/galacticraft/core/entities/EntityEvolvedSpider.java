@@ -1,12 +1,12 @@
 package micdoodle8.mods.galacticraft.core.entities;
 
 import micdoodle8.mods.galacticraft.api.entity.IEntityBreathable;
+import micdoodle8.mods.galacticraft.core.Constants;
 import micdoodle8.mods.galacticraft.core.GCItems;
 import micdoodle8.mods.galacticraft.core.util.ConfigManagerCore;
 import micdoodle8.mods.galacticraft.core.util.WorldUtil;
 import net.minecraft.entity.IEntityLivingData;
 import net.minecraft.entity.SharedMonsterAttributes;
-import net.minecraft.entity.monster.EntitySkeleton;
 import net.minecraft.entity.monster.EntitySpider;
 import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
@@ -31,8 +31,18 @@ public class EntityEvolvedSpider extends EntitySpider implements IEntityBreathab
     {
         super.applyEntityAttributes();
         this.getEntityAttribute(SharedMonsterAttributes.maxHealth).setBaseValue(22.0D);
-        this.getEntityAttribute(SharedMonsterAttributes.movementSpeed).setBaseValue(ConfigManagerCore.hardMode ? 0.40000001192092896D : 0.30000001192092896D);
-        this.getEntityAttribute(SharedMonsterAttributes.attackDamage).setBaseValue(ConfigManagerCore.hardMode ? 4.0D : 2.0D);
+        double difficulty = 0;
+        switch (this.worldObj.getDifficulty())
+        {
+        case HARD : difficulty = 2D;
+        break;
+        case NORMAL : difficulty = 1D;
+        break;
+        default:
+            break;
+        }
+        this.getEntityAttribute(SharedMonsterAttributes.movementSpeed).setBaseValue(0.3 + 0.05 * difficulty);
+        this.getEntityAttribute(SharedMonsterAttributes.attackDamage).setBaseValue(2D + difficulty);
     }
 
     @Override
@@ -41,39 +51,33 @@ public class EntityEvolvedSpider extends EntitySpider implements IEntityBreathab
         return true;
     }
 
-    /*@Override
-    public boolean isAIEnabled()
-    {
-        return false;
-    }*/
-
     @Override
     public IEntityLivingData onInitialSpawn(DifficultyInstance difficulty, IEntityLivingData livingdata)
     {
-        Object p_180482_2_1 = super.onInitialSpawn(difficulty, livingdata);
+        livingdata = super.onInitialSpawn(difficulty, livingdata);
 
         if (this.worldObj.rand.nextInt(100) == 0)
         {
-            EntitySkeleton entityskeleton = new EntitySkeleton(this.worldObj);
+            EntityEvolvedSkeleton entityskeleton = new EntityEvolvedSkeleton(this.worldObj);
             entityskeleton.setLocationAndAngles(this.posX, this.posY, this.posZ, this.rotationYaw, 0.0F);
-            entityskeleton.onInitialSpawn(difficulty, (IEntityLivingData) null);
+            entityskeleton.onInitialSpawn(difficulty, (IEntityLivingData)null);
             this.worldObj.spawnEntityInWorld(entityskeleton);
             entityskeleton.mountEntity(this);
         }
 
-        if (p_180482_2_1 == null)
+        if (livingdata == null)
         {
-            p_180482_2_1 = new EntitySpider.GroupData();
+            livingdata = new EntitySpider.GroupData();
 
             if (this.worldObj.getDifficulty() == EnumDifficulty.HARD && this.worldObj.rand.nextFloat() < 0.1F * difficulty.getClampedAdditionalDifficulty())
             {
-                ((EntitySpider.GroupData) p_180482_2_1).func_111104_a(this.worldObj.rand);
+                ((EntitySpider.GroupData)livingdata).func_111104_a(this.worldObj.rand);
             }
         }
 
-        if (p_180482_2_1 instanceof EntitySpider.GroupData)
+        if (livingdata instanceof EntitySpider.GroupData)
         {
-            int i = ((EntitySpider.GroupData) p_180482_2_1).potionEffectId;
+            int i = ((EntitySpider.GroupData)livingdata).potionEffectId;
 
             if (i > 0 && Potion.potionTypes[i] != null)
             {
@@ -81,13 +85,14 @@ public class EntityEvolvedSpider extends EntitySpider implements IEntityBreathab
             }
         }
 
-        return (IEntityLivingData) p_180482_2_1;
+        return livingdata;
     }
 
     @Override
     protected void jump()
     {
         this.motionY = 0.52D / WorldUtil.getGravityFactor(this);
+
         if (this.motionY < 0.26D)
         {
             this.motionY = 0.26D;
@@ -100,7 +105,7 @@ public class EntityEvolvedSpider extends EntitySpider implements IEntityBreathab
 
         if (this.isSprinting())
         {
-            float f = this.rotationYaw * 0.017453292F;
+            float f = this.rotationYaw / Constants.RADIANS_TO_DEGREES;
             this.motionX -= MathHelper.sin(f) * 0.2F;
             this.motionZ += MathHelper.cos(f) * 0.2F;
         }
@@ -136,7 +141,10 @@ public class EntityEvolvedSpider extends EntitySpider implements IEntityBreathab
             this.dropItem(GCItems.oxygenConcentrator, 1);
             break;
         default:
-            if (ConfigManagerCore.challengeMode || ConfigManagerCore.challengeMobDropsAndSpawning) this.dropItem(Items.nether_wart, 1);
+            if (ConfigManagerCore.challengeMobDropsAndSpawning)
+            {
+                this.dropItem(Items.nether_wart, 1);
+            }
             break;
         }
     }

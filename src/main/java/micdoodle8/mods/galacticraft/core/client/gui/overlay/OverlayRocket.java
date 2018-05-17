@@ -1,8 +1,9 @@
 package micdoodle8.mods.galacticraft.core.client.gui.overlay;
 
+import micdoodle8.mods.galacticraft.core.entities.EntityTier1Rocket;
+import micdoodle8.mods.galacticraft.core.proxy.ClientProxyCore;
 import micdoodle8.mods.galacticraft.core.util.ClientUtil;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.entity.AbstractClientPlayer;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.OpenGlHelper;
@@ -10,11 +11,13 @@ import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.WorldRenderer;
 import net.minecraft.client.renderer.entity.Render;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
+import net.minecraft.entity.Entity;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.client.FMLClientHandler;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
+
 import org.lwjgl.opengl.GL11;
 
 @SideOnly(Side.CLIENT)
@@ -36,9 +39,9 @@ public class OverlayRocket extends Overlay
         scaledresolution.getScaledWidth();
         final int height = scaledresolution.getScaledHeight();
         OverlayRocket.minecraft.entityRenderer.setupOverlayRendering();
-        GL11.glDepthMask(true);
-        GL11.glEnable(GL11.GL_TEXTURE_2D);
-        GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
+        GlStateManager.depthMask(true);
+        GlStateManager.enableTexture2D();
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         FMLClientHandler.instance().getClient().renderEngine.bindTexture(guiTexture);
 
         float var1 = 0F;
@@ -61,9 +64,15 @@ public class OverlayRocket extends Overlay
         worldRenderer.pos(var1 + 0, var2 + 0, 0.0).tex((var3 + 0) * var7, (var4 + 0) * var8).endVertex();
         tess.draw();
 
-        GL11.glColor3f(1.0F, 1.0F, 1.0F);
+        GlStateManager.color(1.0F, 1.0F, 1.0F);
 
-        Render spaceshipRender = (Render) minecraft.getRenderManager().entityRenderMap.get(OverlayRocket.minecraft.thePlayer.ridingEntity.getClass());
+        Entity rocket = OverlayRocket.minecraft.thePlayer.ridingEntity;
+        float headOffset = 0;
+        if (rocket instanceof EntityTier1Rocket)
+        {
+            headOffset = 5F;
+        }
+        Render spaceshipRender = (Render) minecraft.getRenderManager().entityRenderMap.get(rocket.getClass());
 
         final int y1 = height / 2 + 60 - (int) Math.floor(Overlay.getPlayerPositionY(OverlayRocket.minecraft.thePlayer) / 10.5F);
         var1 = 2.5F;
@@ -74,38 +83,37 @@ public class OverlayRocket extends Overlay
         var5 = 8;
         var6 = 8;
         var7 = 1.0F / 64.0F;
-        var8 = 1.0F / 32.0F;
+        var8 = 1.0F / 64.0F;
 
-        GL11.glPushMatrix();
-        final int i = OverlayRocket.minecraft.thePlayer.ridingEntity.getBrightnessForRender(1);
+        GlStateManager.pushMatrix();
+        final int i = rocket.getBrightnessForRender(1);
         final int j = i % 65536;
         final int k = i / 65536;
         OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, j / 1.0F, k / 1.0F);
-        GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
-        GL11.glEnable(GL11.GL_COLOR_MATERIAL);
-        GL11.glTranslatef(var1 + 4, var2 + 6, 50F);
-        GL11.glScalef(5F, 5F, 5F);
-        GL11.glRotatef(180F, 1, 0, 0);
-        GL11.glRotatef(90F, 0, 1, 0);
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        GlStateManager.enableColorMaterial();
+        GlStateManager.translate(var1 + 4, var2 + 6, 50F);
+        GlStateManager.scale(5F, 5F, 5F);
+        GlStateManager.rotate(180F, 1, 0, 0);
+        GlStateManager.rotate(90F, 0, 1, 0);
 
         try
         {
-            spaceshipRender.doRender(OverlayRocket.minecraft.thePlayer.ridingEntity.getClass().getConstructor(World.class).newInstance(OverlayRocket.minecraft.thePlayer.worldObj), 0, 0, 0, 0, 0);
+            spaceshipRender.doRender(rocket.getClass().getConstructor(World.class).newInstance(OverlayRocket.minecraft.thePlayer.worldObj), 0, 0, 0, 0, 0);
         }
         catch (Exception e)
         {
             e.printStackTrace();
         }
 
-        GL11.glPopMatrix();
+        GlStateManager.popMatrix();
 
-        ResourceLocation resourcelocation = AbstractClientPlayer.getLocationSkin(OverlayRocket.minecraft.thePlayer.getGameProfile().getName());
-        AbstractClientPlayer.getDownloadImageSkin(resourcelocation, OverlayRocket.minecraft.thePlayer.getGameProfile().getName());
-
-        FMLClientHandler.instance().getClient().renderEngine.bindTexture(resourcelocation);
+        FMLClientHandler.instance().getClient().renderEngine.bindTexture(ClientProxyCore.playerHead);
 
         GlStateManager.disableLighting();
-        GL11.glTranslatef(0F, 0F, 60F);
+        GlStateManager.enableBlend();
+        GlStateManager.blendFunc(770, 771);
+        GlStateManager.translate(0F, -12F + headOffset, 60F);
 
         worldRenderer.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX);
         worldRenderer.pos(var1 + 0, var2 + var6, 0.0).tex((var3 + 0) * var7, (var4 + var6) * var8).endVertex();
@@ -121,7 +129,8 @@ public class OverlayRocket extends Overlay
         worldRenderer.pos(var1 + 0, var2 + 0, 0.0).tex((var3b + 0) * var7, (var4 + 0) * var8).endVertex();
         tess.draw();
 
-        GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         GlStateManager.enableLighting();
+        GlStateManager.disableBlend();
     }
 }

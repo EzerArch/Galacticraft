@@ -5,21 +5,27 @@ import micdoodle8.mods.galacticraft.api.block.IOxygenReliantBlock;
 import micdoodle8.mods.galacticraft.api.item.IItemOxygenSupply;
 import micdoodle8.mods.galacticraft.api.vector.BlockVec3;
 import micdoodle8.mods.galacticraft.api.vector.BlockVec3Dim;
+import micdoodle8.mods.galacticraft.api.vector.Vector3;
+import micdoodle8.mods.galacticraft.core.Constants;
 import micdoodle8.mods.galacticraft.core.blocks.BlockOxygenDistributor;
 import micdoodle8.mods.galacticraft.core.energy.item.ItemElectricBase;
-import micdoodle8.mods.galacticraft.core.entities.IBubbleProvider;
+import micdoodle8.mods.galacticraft.core.entities.IBubbleProviderColored;
+import micdoodle8.mods.galacticraft.core.inventory.IInventoryDefaults;
 import micdoodle8.mods.galacticraft.core.util.FluidUtil;
 import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
 import micdoodle8.mods.miccore.Annotations.NetworkedField;
 import net.minecraft.block.Block;
+import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.inventory.IInventory;
 import net.minecraft.inventory.ISidedInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.util.*;
+import net.minecraft.util.AxisAlignedBB;
+import net.minecraft.util.BlockPos;
+import net.minecraft.util.EnumFacing;
+import net.minecraft.util.MathHelper;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
@@ -27,13 +33,13 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 
-public class TileEntityOxygenDistributor extends TileEntityOxygen implements IInventory, ISidedInventory, IBubbleProvider
+public class TileEntityOxygenDistributor extends TileEntityOxygen implements IInventoryDefaults, ISidedInventory, IBubbleProviderColored
 {
     public boolean active;
     public boolean lastActive;
 
     private ItemStack[] containingItems = new ItemStack[2];
-    public static HashSet<BlockVec3Dim> loadedTiles = new HashSet();
+    public static HashSet<BlockVec3Dim> loadedTiles = new HashSet<>();
     public float bubbleSize;
     @NetworkedField(targetSide = Side.CLIENT)
     public boolean shouldRenderBubble = true;
@@ -45,9 +51,8 @@ public class TileEntityOxygenDistributor extends TileEntityOxygen implements IIn
     }
 
     @Override
-    public void validate()
+    public void onLoad()
     {
-        super.validate();
         if (!this.worldObj.isRemote) TileEntityOxygenDistributor.loadedTiles.add(new BlockVec3Dim(this));
     }
 
@@ -149,6 +154,13 @@ public class TileEntityOxygenDistributor extends TileEntityOxygen implements IIn
     }
 
     @Override
+    @SideOnly(Side.CLIENT)
+    public double getMaxRenderDistanceSquared()
+    {
+        return Constants.RENDERDISTANCE_LONG;
+    }
+    
+    @Override
     public void readExtraNetworkedData(ByteBuf dataStream)
     {
         if (this.worldObj.isRemote)
@@ -247,13 +259,14 @@ public class TileEntityOxygenDistributor extends TileEntityOxygen implements IIn
                         for (int z = this.getPos().getZ() - bubbleR; z <= this.getPos().getZ() + bubbleR; z++)
                         {
                             BlockPos pos = new BlockPos(x, y, z);
-                            Block block = this.worldObj.getBlockState(pos).getBlock();
+                            IBlockState state = this.worldObj.getBlockState(pos); 
+                            Block block = state.getBlock();
 
                             if (block instanceof IOxygenReliantBlock)
                             {
                                 if (this.getDistanceFromServer(x, y, z) <= bubbleR2)
                                 {
-                                    ((IOxygenReliantBlock) block).onOxygenAdded(this.worldObj, new BlockPos(x, y, z));
+                                    ((IOxygenReliantBlock) block).onOxygenAdded(this.worldObj, pos, state);
                                 }
                                 else
                                 {
@@ -429,7 +442,7 @@ public class TileEntityOxygenDistributor extends TileEntityOxygen implements IIn
             switch (slotID)
             {
             case 0:
-                return itemstack.getItem() instanceof ItemElectricBase && ((ItemElectricBase) itemstack.getItem()).getElectricityStored(itemstack) > 0;
+                return ItemElectricBase.isElectricItemCharged(itemstack);
             case 1:
                 return itemstack.getItemDamage() < itemstack.getItem().getMaxDamage();
             default:
@@ -445,7 +458,7 @@ public class TileEntityOxygenDistributor extends TileEntityOxygen implements IIn
         switch (slotID)
         {
         case 0:
-            return itemstack.getItem() instanceof ItemElectricBase && ((ItemElectricBase) itemstack.getItem()).getElectricityStored(itemstack) <= 0;
+            return ItemElectricBase.isElectricItemEmpty(itemstack);
         case 1:
             return FluidUtil.isEmptyContainer(itemstack);
         default:
@@ -478,18 +491,6 @@ public class TileEntityOxygenDistributor extends TileEntityOxygen implements IIn
     }
 
     @Override
-    public void openInventory(EntityPlayer player)
-    {
-
-    }
-
-    @Override
-    public void closeInventory(EntityPlayer player)
-    {
-
-    }
-
-    @Override
     public boolean shouldUseEnergy()
     {
         return this.getOxygenStored() > this.oxygenPerTick;
@@ -498,7 +499,12 @@ public class TileEntityOxygenDistributor extends TileEntityOxygen implements IIn
     @Override
     public EnumFacing getFront()
     {
-        return this.worldObj.getBlockState(getPos()).getValue(BlockOxygenDistributor.FACING);
+        IBlockState state = this.worldObj.getBlockState(getPos()); 
+        if (state.getBlock() instanceof BlockOxygenDistributor)
+        {
+            return state.getValue(BlockOxygenDistributor.FACING);
+        }
+        return EnumFacing.NORTH;
     }
 
     @Override
@@ -577,32 +583,8 @@ public class TileEntityOxygenDistributor extends TileEntityOxygen implements IIn
     }
 
     @Override
-    public int getField(int id)
+    public Vector3 getColor()
     {
-        return 0;
-    }
-
-    @Override
-    public void setField(int id, int value)
-    {
-
-    }
-
-    @Override
-    public int getFieldCount()
-    {
-        return 0;
-    }
-
-    @Override
-    public void clear()
-    {
-
-    }
-
-    @Override
-    public IChatComponent getDisplayName()
-    {
-        return null;
+        return new Vector3(0.125F, 0.125F, 0.5F);
     }
 }

@@ -23,7 +23,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
  *
  * @author Calclavia
  */
-@SuppressWarnings({ "unchecked", "rawtypes" })
+@SuppressWarnings({ "rawtypes" })
 public abstract class TileBaseConductor extends TileEntity implements IConductor
 {
     protected IGridNetwork network;
@@ -87,7 +87,7 @@ public abstract class TileBaseConductor extends TileEntity implements IConductor
             this.getNetwork().refresh();
 
             BlockVec3 thisVec = new BlockVec3(this);
-            for (EnumFacing side : EnumFacing.values())
+            for (EnumFacing side : EnumFacing.VALUES)
             {
             	TileEntity tileEntity = thisVec.getTileEntityOnSide(this.worldObj, side);
 

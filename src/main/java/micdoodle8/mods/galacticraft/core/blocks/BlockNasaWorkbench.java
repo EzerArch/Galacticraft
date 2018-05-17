@@ -82,9 +82,8 @@ public class BlockNasaWorkbench extends BlockContainer implements ITileEntityPro
         return r;
     }
 
-    @SuppressWarnings("rawtypes")
     @Override
-    public void addCollisionBoxesToList(World worldIn, BlockPos pos, IBlockState state, AxisAlignedBB mask, List list, Entity collidingEntity)
+    public void addCollisionBoxesToList(World worldIn, BlockPos pos, IBlockState state, AxisAlignedBB mask, List<AxisAlignedBB> list, Entity collidingEntity)
     {
         this.setBlockBounds(-0.0F, 0.0F, -0.0F, 1.0F, 1.4F, 1.0F);
         super.addCollisionBoxesToList(worldIn, pos, state, mask, list, collidingEntity);
@@ -99,13 +98,7 @@ public class BlockNasaWorkbench extends BlockContainer implements ITileEntityPro
     @Override
     public void onBlockPlacedBy(World worldIn, BlockPos pos, IBlockState state, EntityLivingBase placer, ItemStack stack)
     {
-        final TileEntity tile = worldIn.getTileEntity(pos);
-
-        if (tile instanceof IMultiBlock)
-        {
-            ((IMultiBlock) tile).onCreate(worldIn, pos);
-        }
-
+        BlockMulti.onPlacement(worldIn, pos, placer, this);
         super.onBlockPlacedBy(worldIn, pos, state, placer, stack);
     }
 

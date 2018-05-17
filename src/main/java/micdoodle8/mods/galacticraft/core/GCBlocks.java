@@ -5,11 +5,14 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 
 import micdoodle8.mods.galacticraft.core.blocks.*;
+import micdoodle8.mods.galacticraft.core.blocks.BlockBasicMoon.EnumBlockBasicMoon;
 import micdoodle8.mods.galacticraft.core.blocks.BlockSpaceGlass.GlassFrame;
 import micdoodle8.mods.galacticraft.core.blocks.BlockSpaceGlass.GlassType;
 import micdoodle8.mods.galacticraft.core.items.*;
+import micdoodle8.mods.galacticraft.core.util.CompatibilityManager;
 import micdoodle8.mods.galacticraft.core.util.EnumSortCategoryBlock;
 import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
+import micdoodle8.mods.galacticraft.core.util.GCLog;
 import micdoodle8.mods.galacticraft.core.util.StackSorted;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.MapColor;
@@ -18,14 +21,13 @@ import net.minecraft.init.Blocks;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemBlock;
 import net.minecraft.item.ItemStack;
-import net.minecraftforge.fml.common.FMLCommonHandler;
-import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.registry.GameRegistry;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.oredict.OreDictionary;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -75,6 +77,7 @@ public class GCBlocks
     public static Block machineBase3;
     public static Block machineTiered;
     public static Block aluminumWire;
+    public static Block panelLighting;
     public static Block glowstoneTorch;
     public static Block blockMoon;
     public static Block cheeseBlock;
@@ -90,6 +93,13 @@ public class GCBlocks
     public static Block moonStoneStairs;
     public static Block moonBricksStairs;
     public static Block wallGC;
+    public static Block concealedRedstone;
+    public static Block concealedRepeater_Powered;
+    public static Block concealedRepeater_Unpowered;
+    public static Block concealedDetector;
+    public static Block platform;
+    public static Block emergencyBox;
+    public static Block grating;
 
     public static final Material machine = new Material(MapColor.ironColor);
 
@@ -98,6 +108,7 @@ public class GCBlocks
     public static ArrayList<Block> otherModTorchesUnlit = new ArrayList<Block>();
 
     public static Map<EnumSortCategoryBlock, List<StackSorted>> sortMapBlocks = Maps.newHashMap();
+    public static HashMap<Block, Block> itemChanges = new HashMap<>(4, 1.0F);
 
     public static void initBlocks()
     {
@@ -119,6 +130,7 @@ public class GCBlocks
         GCBlocks.basicBlock = new BlockBasic("basic_block_core");
         GCBlocks.airLockFrame = new BlockAirLockFrame("air_lock_frame");
         GCBlocks.airLockSeal = new BlockAirLockWall("air_lock_seal");
+        //These glass types have to be registered as 6 separate blocks, (a) to allow different coloring of each one and (b) because the Forge MultiLayer custom model does not allow for different textures to be set for different variants
         GCBlocks.spaceGlassVanilla = (BlockSpaceGlass) new BlockSpaceGlass("space_glass_vanilla", GlassType.VANILLA, GlassFrame.PLAIN, null).setHardness(0.3F).setResistance(3F);
         GCBlocks.spaceGlassClear = (BlockSpaceGlass) new BlockSpaceGlass("space_glass_clear", GlassType.CLEAR, GlassFrame.PLAIN, null).setHardness(0.3F).setResistance(3F);
         GCBlocks.spaceGlassStrong = (BlockSpaceGlass) new BlockSpaceGlass("space_glass_strong", GlassType.STRONG, GlassFrame.PLAIN, null).setHardness(4F).setResistance(35F);
@@ -137,12 +149,13 @@ public class GCBlocks
         GCBlocks.cargoLoader = new BlockCargoLoader("cargo");
         GCBlocks.parachest = new BlockParaChest("parachest");
         GCBlocks.solarPanel = new BlockSolar("solar");
-        GCBlocks.radioTelescope = new BlockDish("dish");
+        GCBlocks.radioTelescope = new BlockDish("dishbase");
         GCBlocks.machineBase = new BlockMachine("machine");
         GCBlocks.machineBase2 = new BlockMachine2("machine2");
         GCBlocks.machineBase3 = new BlockMachine3("machine3");
         GCBlocks.machineTiered = new BlockMachineTiered("machine_tiered");
         GCBlocks.aluminumWire = new BlockAluminumWire("aluminum_wire");
+        GCBlocks.panelLighting = new BlockPanelLighting("panel_lighting");
         GCBlocks.glowstoneTorch = new BlockGlowstoneTorch("glowstone_torch");
         GCBlocks.blockMoon = new BlockBasicMoon("basic_block_moon");
         GCBlocks.cheeseBlock = new BlockCheese("cheese");
@@ -158,20 +171,24 @@ public class GCBlocks
         GCBlocks.moonStoneStairs = new BlockStairsGC("moon_stairs_stone", blockMoon.getDefaultState().withProperty(BlockBasicMoon.BASIC_TYPE_MOON, BlockBasicMoon.EnumBlockBasicMoon.MOON_STONE)).setHardness(1.5F);
         GCBlocks.moonBricksStairs = new BlockStairsGC("moon_stairs_brick", blockMoon.getDefaultState().withProperty(BlockBasicMoon.BASIC_TYPE_MOON, BlockBasicMoon.EnumBlockBasicMoon.MOON_DUNGEON_BRICK)).setHardness(4.0F);
         GCBlocks.wallGC = new BlockWallGC("wall_gc");
+        GCBlocks.concealedRedstone = new BlockConcealedRedstone("concealed_redstone");
+        GCBlocks.concealedRepeater_Powered = new BlockConcealedRepeater("concealed_repeater_pow", true);
+        GCBlocks.concealedRepeater_Unpowered = new BlockConcealedRepeater("concealed_repeater", false);
+        GCBlocks.concealedDetector = new BlockConcealedDetector("concealed_detector");
+        GCBlocks.platform = new BlockPlatform("platform");
+        GCBlocks.emergencyBox = new BlockEmergencyBox("emergency_box");
+        GCBlocks.grating = new BlockGrating("grating");
 
         // Hide certain items from NEI
         GCBlocks.hiddenBlocks.add(GCBlocks.airLockSeal);
-        GCBlocks.hiddenBlocks.add(GCBlocks.breatheableAir);
-        GCBlocks.hiddenBlocks.add(GCBlocks.brightBreatheableAir);
-        GCBlocks.hiddenBlocks.add(GCBlocks.brightAir);
         GCBlocks.hiddenBlocks.add(GCBlocks.oxygenPipePull);
         GCBlocks.hiddenBlocks.add(GCBlocks.unlitTorch);
         GCBlocks.hiddenBlocks.add(GCBlocks.unlitTorchLit);
         GCBlocks.hiddenBlocks.add(GCBlocks.landingPadFull);
-        GCBlocks.hiddenBlocks.add(GCBlocks.fakeBlock);
         GCBlocks.hiddenBlocks.add(GCBlocks.spaceStationBase);
         GCBlocks.hiddenBlocks.add(GCBlocks.bossSpawner);
         GCBlocks.hiddenBlocks.add(GCBlocks.slabGCDouble);
+        GCBlocks.hiddenBlocks.add(GCBlocks.concealedRepeater_Powered);
 
         // Register blocks before register ores, so that the ItemStack picks up the correct item
         GCBlocks.registerBlocks();
@@ -194,6 +211,9 @@ public class GCBlocks
         OreDictionary.registerOre("blockTin", new ItemStack(GCBlocks.basicBlock, 1, 10));
         OreDictionary.registerOre("blockAluminum", new ItemStack(GCBlocks.basicBlock, 1, 11));
         OreDictionary.registerOre("blockAluminium", new ItemStack(GCBlocks.basicBlock, 1, 11));
+        OreDictionary.registerOre("blockSilicon", new ItemStack(GCBlocks.basicBlock, 1, 13));
+
+        OreDictionary.registerOre("turfMoon", new ItemStack(GCBlocks.blockMoon, 1, EnumBlockBasicMoon.MOON_TURF.getMeta()));
     }
 
     public static void finalizeSort()
@@ -220,7 +240,7 @@ public class GCBlocks
         BlockUnlitTorch torch;
         BlockUnlitTorch torchLit;
 
-        if (Loader.isModLoaded("tconstruct"))
+        if (CompatibilityManager.isTConstructLoaded)
         {
             Block modTorch = null;
             try
@@ -245,6 +265,7 @@ public class GCBlocks
                 registerBlock(torch, ItemBlockGC.class);
                 registerBlock(torchLit, ItemBlockGC.class);
                 BlockUnlitTorch.register(torch, torchLit, modTorch);
+                GCLog.info("Galacticraft: activating Tinker's Construct compatibility.");
             }
         }
     }
@@ -267,16 +288,16 @@ public class GCBlocks
 
     public static void setHarvestLevels()
     {
-        setHarvestLevel(GCBlocks.basicBlock, "pickaxe", 2, 5); //Copper ore
-        setHarvestLevel(GCBlocks.basicBlock, "pickaxe", 2, 6); //Tin ore
-        setHarvestLevel(GCBlocks.basicBlock, "pickaxe", 2, 7); //Aluminium ore
-        setHarvestLevel(GCBlocks.basicBlock, "pickaxe", 1, 8); //Silicon ore
+        setHarvestLevel(GCBlocks.basicBlock, "pickaxe", 1, 5); //Copper ore
+        setHarvestLevel(GCBlocks.basicBlock, "pickaxe", 1, 6); //Tin ore
+        setHarvestLevel(GCBlocks.basicBlock, "pickaxe", 1, 7); //Aluminium ore
+        setHarvestLevel(GCBlocks.basicBlock, "pickaxe", 2, 8); //Silicon ore
         setHarvestLevel(GCBlocks.fallenMeteor, "pickaxe", 3, 0);
-        setHarvestLevel(GCBlocks.blockMoon, "pickaxe", 2, 0); //Copper ore
-        setHarvestLevel(GCBlocks.blockMoon, "pickaxe", 2, 1); //Tin ore
+        setHarvestLevel(GCBlocks.blockMoon, "pickaxe", 1, 0); //Copper ore
+        setHarvestLevel(GCBlocks.blockMoon, "pickaxe", 1, 1); //Tin ore
         setHarvestLevel(GCBlocks.blockMoon, "pickaxe", 1, 2); //Cheese ore
         setHarvestLevel(GCBlocks.blockMoon, "shovel", 0, 3); //Moon dirt
-        setHarvestLevel(GCBlocks.blockMoon, "pickaxe", 1, 4); //Moon rock
+        setHarvestLevel(GCBlocks.blockMoon, "pickaxe", 0, 4); //Moon rock
 
         setHarvestLevel(GCBlocks.slabGCHalf, "pickaxe", 1, 0);
         setHarvestLevel(GCBlocks.slabGCHalf, "pickaxe", 1, 1);
@@ -284,6 +305,7 @@ public class GCBlocks
         setHarvestLevel(GCBlocks.slabGCHalf, "pickaxe", 3, 3);
         setHarvestLevel(GCBlocks.slabGCHalf, "pickaxe", 1, 4);
         setHarvestLevel(GCBlocks.slabGCHalf, "pickaxe", 3, 5);
+        setHarvestLevel(GCBlocks.slabGCHalf, "pickaxe", 1, 6);
 
         setHarvestLevel(GCBlocks.slabGCDouble, "pickaxe", 1, 0);
         setHarvestLevel(GCBlocks.slabGCDouble, "pickaxe", 1, 1);
@@ -291,6 +313,7 @@ public class GCBlocks
         setHarvestLevel(GCBlocks.slabGCDouble, "pickaxe", 3, 3);
         setHarvestLevel(GCBlocks.slabGCDouble, "pickaxe", 1, 4);
         setHarvestLevel(GCBlocks.slabGCDouble, "pickaxe", 3, 5);
+        setHarvestLevel(GCBlocks.slabGCDouble, "pickaxe", 1, 6);
 
         setHarvestLevel(GCBlocks.tinStairs1, "pickaxe", 1, 0);
         setHarvestLevel(GCBlocks.tinStairs1, "pickaxe", 1, 0);
@@ -315,7 +338,7 @@ public class GCBlocks
         String name = block.getUnlocalizedName().substring(5);
         GCCoreUtil.registerGalacticraftBlock(name, block);
         GameRegistry.registerBlock(block, itemClass, name, itemCtorArgs);
-        if (FMLCommonHandler.instance().getEffectiveSide() == Side.CLIENT)
+        if (GCCoreUtil.getEffectiveSide() == Side.CLIENT)
         {
             GCBlocks.registerSorted(block);
         }
@@ -354,9 +377,9 @@ public class GCBlocks
         registerBlock(GCBlocks.landingPadFull, ItemBlockGC.class);
         registerBlock(GCBlocks.unlitTorch, ItemBlockGC.class);
         registerBlock(GCBlocks.unlitTorchLit, ItemBlockGC.class);
-        registerBlock(GCBlocks.breatheableAir, ItemBlockGC.class);
-        registerBlock(GCBlocks.brightAir, ItemBlockGC.class);
-        registerBlock(GCBlocks.brightBreatheableAir, ItemBlockGC.class);
+        registerBlock(GCBlocks.breatheableAir, null);
+        registerBlock(GCBlocks.brightAir, null);
+        registerBlock(GCBlocks.brightBreatheableAir, null);
         registerBlock(GCBlocks.oxygenDistributor, ItemBlockDesc.class);
         registerBlock(GCBlocks.oxygenCollector, ItemBlockDesc.class);
         registerBlock(GCBlocks.oxygenCompressor, ItemBlockOxygenCompressor.class);
@@ -378,10 +401,10 @@ public class GCBlocks
         registerBlock(GCBlocks.spaceGlassTinClear, null);  //The corresponding item is already registered
         registerBlock(GCBlocks.spaceGlassTinVanilla, null);  //The corresponding item is already registered
         registerBlock(GCBlocks.spaceGlassTinStrong, null);  //The corresponding item is already registered
-        registerBlock(GCBlocks.crafting, ItemBlockGC.class);
+        registerBlock(GCBlocks.crafting, ItemBlockDesc.class);
         registerBlock(GCBlocks.sealableBlock, ItemBlockEnclosed.class);
         registerBlock(GCBlocks.spaceStationBase, ItemBlockGC.class);
-        registerBlock(GCBlocks.fakeBlock, ItemBlockDummy.class);
+        registerBlock(GCBlocks.fakeBlock, null);
         registerBlock(GCBlocks.parachest, ItemBlockDesc.class);
         registerBlock(GCBlocks.solarPanel, ItemBlockSolar.class);
         registerBlock(GCBlocks.radioTelescope, ItemBlockGC.class);
@@ -389,6 +412,7 @@ public class GCBlocks
         registerBlock(GCBlocks.machineBase2, ItemBlockMachine.class);
         registerBlock(GCBlocks.machineBase3, ItemBlockMachine.class);
         registerBlock(GCBlocks.machineTiered, ItemBlockMachine.class);
+        registerBlock(GCBlocks.panelLighting, ItemBlockPanel.class);
         registerBlock(GCBlocks.glowstoneTorch, ItemBlockDesc.class);
         registerBlock(GCBlocks.fallenMeteor, ItemBlockDesc.class);
         registerBlock(GCBlocks.blockMoon, ItemBlockMoon.class);
@@ -407,6 +431,13 @@ public class GCBlocks
         registerBlock(GCBlocks.wallGC, ItemBlockWallGC.class);
         registerBlock(GCBlocks.slabGCHalf, ItemBlockSlabGC.class, GCBlocks.slabGCHalf, GCBlocks.slabGCDouble);
         registerBlock(GCBlocks.slabGCDouble, ItemBlockSlabGC.class, GCBlocks.slabGCHalf, GCBlocks.slabGCDouble);
+        registerBlock(GCBlocks.concealedRedstone, ItemBlockGC.class);
+        registerBlock(GCBlocks.concealedRepeater_Powered, ItemBlockGC.class);
+        registerBlock(GCBlocks.concealedRepeater_Unpowered, ItemBlockGC.class);
+        registerBlock(GCBlocks.concealedDetector, ItemBlockCreativeGC.class);
+        registerBlock(GCBlocks.platform, ItemBlockDesc.class);
+        registerBlock(GCBlocks.emergencyBox, ItemBlockEmergencyBox.class);
+        registerBlock(GCBlocks.grating, ItemBlockGC.class);
 //        GCCoreUtil.sortBlock(GCBlocks.aluminumWire, 0, new StackSorted(GCBlocks.landingPad, 1));
 //        GCCoreUtil.sortBlock(GCBlocks.aluminumWire, 1, new StackSorted(GCBlocks.aluminumWire, 0));
 //        GCCoreUtil.sortBlock(GCBlocks.oxygenPipe, 0, new StackSorted(GCBlocks.aluminumWire, 1));

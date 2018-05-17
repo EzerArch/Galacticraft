@@ -6,8 +6,9 @@ import micdoodle8.mods.galacticraft.api.entity.IIgnoreShift;
 import micdoodle8.mods.galacticraft.api.entity.ITelemetry;
 import micdoodle8.mods.galacticraft.api.vector.BlockVec3Dim;
 import micdoodle8.mods.galacticraft.api.world.IExitHeight;
+import micdoodle8.mods.galacticraft.core.Constants;
 import micdoodle8.mods.galacticraft.core.GalacticraftCore;
-import micdoodle8.mods.galacticraft.core.client.gui.screen.GameScreenText;
+import micdoodle8.mods.galacticraft.core.client.screen.GameScreenText;
 import micdoodle8.mods.galacticraft.core.entities.player.GCPlayerStats;
 import micdoodle8.mods.galacticraft.core.network.IPacketReceiver;
 import micdoodle8.mods.galacticraft.core.network.PacketDynamic;
@@ -25,11 +26,15 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.AxisAlignedBB;
+import net.minecraft.util.BlockPos;
 import net.minecraft.util.DamageSource;
+import net.minecraft.util.MathHelper;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.world.World;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.EntityEvent;
+import net.minecraftforge.fluids.FluidTank;
+import net.minecraftforge.fml.client.FMLClientHandler;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
@@ -49,7 +54,8 @@ public abstract class EntitySpaceshipBase extends Entity implements IPacketRecei
     {
         UNIGNITED,
         IGNITED,
-        LAUNCHED
+        LAUNCHED,
+        LANDING
     }
 
     public int launchPhase;
@@ -62,6 +68,11 @@ public abstract class EntitySpaceshipBase extends Entity implements IPacketRecei
     public float shipDamage; 
     private ArrayList<BlockVec3Dim> telemetryList = new ArrayList<BlockVec3Dim>();
     private boolean addToTelemetry = false;
+    public FluidTank fuelTank = new FluidTank(this.getFuelTankCapacity() * ConfigManagerCore.rocketFuelFactor);
+    private double syncAdjustX = 0D; 
+    private double syncAdjustY = 0D; 
+    private double syncAdjustZ = 0D;
+    private boolean syncAdjustFlag = false;
     
     public EntitySpaceshipBase(World par1World)
     {
@@ -71,6 +82,8 @@ public abstract class EntitySpaceshipBase extends Entity implements IPacketRecei
         this.ignoreFrustumCheck = true;
         this.renderDistanceWeight = 5.0D;
     }
+
+    public abstract int getFuelTankCapacity();
 
     public abstract int getMaxFuel();
 
@@ -199,11 +212,6 @@ public abstract class EntitySpaceshipBase extends Entity implements IPacketRecei
     @Override
     public void onUpdate()
     {
-        if (this.ticks >= Long.MAX_VALUE)
-        {
-            this.ticks = 0;
-        }
-
         this.ticks++;
 
         super.onUpdate();
@@ -227,11 +235,11 @@ public abstract class EntitySpaceshipBase extends Entity implements IPacketRecei
             this.riddenByEntity.fallDistance = 0.0F;
         }
 
-        if (this.posY > (this.worldObj.provider instanceof IExitHeight ? ((IExitHeight) this.worldObj.provider).getYCoordinateToTeleport() : 1200))
+        if (this.posY > (this.worldObj.provider instanceof IExitHeight ? ((IExitHeight) this.worldObj.provider).getYCoordinateToTeleport() : 1200) && this.launchPhase != EnumLaunchPhase.LANDING.ordinal())
         {
             this.onReachAtmosphere();
-            if (this.worldObj.isRemote)
-            	this.posY = 1 + (this.worldObj.provider instanceof IExitHeight ? ((IExitHeight) this.worldObj.provider).getYCoordinateToTeleport() : 1200);
+//            if (this.worldObj.isRemote)
+//            	this.posY = 1 + (this.worldObj.provider instanceof IExitHeight ? ((IExitHeight) this.worldObj.provider).getYCoordinateToTeleport() : 1200);
         }
 
         if (this.rollAmplitude > 0)
@@ -248,21 +256,21 @@ public abstract class EntitySpaceshipBase extends Entity implements IPacketRecei
         {
 	        if (this.posY < 0.0D)
 	        {
-	            this.kill();
+	            this.setDead();
 	        }
 	        else
-	        if (this.posY > (this.worldObj.provider instanceof IExitHeight ? ((IExitHeight) this.worldObj.provider).getYCoordinateToTeleport() : 1200) + 100)
+	        if (this.posY > (this.worldObj.provider instanceof IExitHeight ? ((IExitHeight) this.worldObj.provider).getYCoordinateToTeleport() : 1200) + (this.launchPhase == EnumLaunchPhase.LANDING.ordinal() ? 355 : 100))
 	        {
 	        	if (this.riddenByEntity instanceof EntityPlayerMP)
 	        	{
                     GCPlayerStats stats = GCPlayerStats.get(this.riddenByEntity);
 	        		if (stats.isUsingPlanetSelectionGui())
 	        		{
-	        			this.kill();
+	        			this.setDead();
 	        		}
 	        	}
 	        	else
-	        		this.kill();
+	        		this.setDead();
 	        }
 
 	        if (this.timeSinceLaunch > 50 && this.onGround)
@@ -276,7 +284,7 @@ public abstract class EntitySpaceshipBase extends Entity implements IPacketRecei
             this.timeUntilLaunch = this.getPreLaunchWait();
         }
 
-        if (this.launchPhase == EnumLaunchPhase.LAUNCHED.ordinal())
+        if (this.launchPhase >= EnumLaunchPhase.LAUNCHED.ordinal())
         {
             this.timeSinceLaunch++;
         }
@@ -325,10 +333,10 @@ public abstract class EntitySpaceshipBase extends Entity implements IPacketRecei
             this.rotationPitch = -90;
         }
 
-        this.motionX = -(50 * Math.cos(this.rotationYaw * Math.PI / 180.0D) * Math.sin(this.rotationPitch * 0.01 * Math.PI / 180.0D));
-        this.motionZ = -(50 * Math.sin(this.rotationYaw * Math.PI / 180.0D) * Math.sin(this.rotationPitch * 0.01 * Math.PI / 180.0D));
+        this.motionX = -(50 * Math.cos(this.rotationYaw / Constants.RADIANS_TO_DEGREES_D) * Math.sin(this.rotationPitch * 0.01 / Constants.RADIANS_TO_DEGREES_D));
+        this.motionZ = -(50 * Math.sin(this.rotationYaw / Constants.RADIANS_TO_DEGREES_D) * Math.sin(this.rotationPitch * 0.01 / Constants.RADIANS_TO_DEGREES_D));
 
-        if (this.launchPhase != EnumLaunchPhase.LAUNCHED.ordinal())
+        if (this.launchPhase < EnumLaunchPhase.LAUNCHED.ordinal())
         {
             this.motionX = this.motionY = this.motionZ = 0.0F;
         }
@@ -372,10 +380,30 @@ public abstract class EntitySpaceshipBase extends Entity implements IPacketRecei
         return true;
     }
 
+    public abstract boolean hasValidFuel();
+
     @Override
     public void decodePacketdata(ByteBuf buffer)
     {
-        this.setLaunchPhase(EnumLaunchPhase.values()[buffer.readInt()]);
+        if (!this.worldObj.isRemote)
+        {
+            new Exception().printStackTrace();
+        }
+        int newLaunchPhase = buffer.readInt(); 
+        if (this.launchPhase != newLaunchPhase)
+        {
+            this.setLaunchPhase(EnumLaunchPhase.values()[newLaunchPhase]);
+            if (newLaunchPhase == EnumLaunchPhase.LANDING.ordinal())
+            {
+                this.syncAdjustFlag = true;
+            }
+        }
+        else if (this.hasValidFuel())
+        {
+            if (Math.abs(this.syncAdjustX - this.posX) > 0.2D) this.motionX += (this.syncAdjustX - this.posX) / 40D;
+            if (Math.abs(this.syncAdjustY - this.posY) > 0.2D) this.motionY += (this.syncAdjustY - this.posY) / 40D;
+            if (Math.abs(this.syncAdjustZ - this.posZ) > 0.2D) this.motionZ += (this.syncAdjustZ - this.posZ) / 40D;
+        }
         this.timeSinceLaunch = buffer.readFloat();
         this.timeUntilLaunch = buffer.readInt();
     }
@@ -385,7 +413,7 @@ public abstract class EntitySpaceshipBase extends Entity implements IPacketRecei
     {
         if (this.worldObj.isRemote)
         {
-            new Exception().printStackTrace();
+            return;
         }
         list.add(this.launchPhase);
         list.add(this.timeSinceLaunch);
@@ -422,6 +450,50 @@ public abstract class EntitySpaceshipBase extends Entity implements IPacketRecei
     public void setPositionAndRotation2(double x, double y, double z, float yaw, float pitch, int posRotationIncrements, boolean b)
     {
         this.setRotation(yaw, pitch);
+        if (this.syncAdjustFlag && this.worldObj.isBlockLoaded(new BlockPos(x, 255D, z)) && this.hasValidFuel())
+        {
+            EntityPlayer p = FMLClientHandler.instance().getClientPlayerEntity();
+            double dx = x - p.posX;
+            double dz = z - p.posZ;
+            if (dx * dx + dz * dz < 1024)
+            {
+                if (!this.worldObj.loadedEntityList.contains(this))
+                {
+                    try {
+                        this.worldObj.loadedEntityList.add(this);
+                    } catch (Exception e) { e.printStackTrace(); }
+                }
+
+                this.posX = x;
+                this.posY = y;
+                this.posZ = z;
+                
+                int cx = MathHelper.floor_double(x / 16.0D);
+                int cz = MathHelper.floor_double(z / 16.0D);
+
+                if (!this.addedToChunk || this.chunkCoordX != cx || this.chunkCoordZ != cz)
+                {
+                    if (this.addedToChunk && this.worldObj.isBlockLoaded(new BlockPos(this.chunkCoordX << 4, 255, this.chunkCoordZ << 4), true))
+                    {
+                        this.worldObj.getChunkFromChunkCoords(this.chunkCoordX, this.chunkCoordZ).removeEntityAtIndex(this, this.chunkCoordY);
+                    }
+
+                    this.addedToChunk = true;
+                    this.worldObj.getChunkFromChunkCoords(cx, cz).addEntity(this);
+                }
+                
+                this.syncAdjustX = 0D;
+                this.syncAdjustY = 0D;
+                this.syncAdjustZ = 0D;
+                this.syncAdjustFlag = false;
+            }
+        }
+        else
+        {
+            this.syncAdjustX = x;
+            this.syncAdjustY = y;
+            this.syncAdjustZ = z;
+        }
     }
 
     @Override
@@ -478,7 +550,7 @@ public abstract class EntitySpaceshipBase extends Entity implements IPacketRecei
         // Backwards compatibility:
         if (hasOldTags)
         {
-            if (this.launchPhase != EnumLaunchPhase.LAUNCHED.ordinal() && this.launchPhase != EnumLaunchPhase.IGNITED.ordinal())
+            if (this.launchPhase < EnumLaunchPhase.LAUNCHED.ordinal() && this.launchPhase != EnumLaunchPhase.IGNITED.ordinal())
             {
                 this.setLaunchPhase(EnumLaunchPhase.UNIGNITED);
             }
@@ -510,7 +582,7 @@ public abstract class EntitySpaceshipBase extends Entity implements IPacketRecei
 
     public boolean getLaunched()
     {
-        return this.launchPhase == EnumLaunchPhase.LAUNCHED.ordinal();
+        return this.launchPhase >= EnumLaunchPhase.LAUNCHED.ordinal();
     }
 
     public boolean canBeRidden()
@@ -567,7 +639,7 @@ public abstract class EntitySpaceshipBase extends Entity implements IPacketRecei
     @Override
     public boolean shouldIgnoreShiftExit()
     {
-        return this.launchPhase == EnumLaunchPhase.LAUNCHED.ordinal();
+        return this.launchPhase >= EnumLaunchPhase.LAUNCHED.ordinal();
     }
 
     public static class RocketLaunchEvent extends EntityEvent
@@ -647,9 +719,20 @@ public abstract class EntitySpaceshipBase extends Entity implements IPacketRecei
 
     public static final Predicate<Entity> rocketSelector = new Predicate<Entity>()
     {
+        @Override
         public boolean apply(Entity e)
         {
             return e instanceof EntitySpaceshipBase && e.isEntityAlive();
         }
     };
+    
+    @Override
+    @SideOnly(Side.CLIENT)
+    public int getBrightnessForRender(float partialTicks)
+    {
+        double height = this.posY + (double)this.getEyeHeight();
+        if (height > 255D) height = 255D;
+        BlockPos blockpos = new BlockPos(this.posX, height, this.posZ);
+        return this.worldObj.isBlockLoaded(blockpos) ? this.worldObj.getCombinedLight(blockpos, 0) : 0;
+    }
 }

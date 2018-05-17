@@ -1,6 +1,7 @@
 package micdoodle8.mods.galacticraft.core.dimension;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import micdoodle8.mods.galacticraft.api.galaxies.CelestialBody;
@@ -9,10 +10,16 @@ import micdoodle8.mods.galacticraft.api.world.IExitHeight;
 import micdoodle8.mods.galacticraft.api.world.IOrbitDimension;
 import micdoodle8.mods.galacticraft.api.world.ISolarLevel;
 import micdoodle8.mods.galacticraft.api.world.IZeroGDimension;
+import micdoodle8.mods.galacticraft.core.Constants;
 import micdoodle8.mods.galacticraft.core.GalacticraftCore;
+import micdoodle8.mods.galacticraft.core.client.CloudRenderer;
+import micdoodle8.mods.galacticraft.core.client.SkyProviderOrbit;
 import micdoodle8.mods.galacticraft.core.util.ConfigManagerCore;
+import micdoodle8.mods.galacticraft.core.world.gen.dungeon.RoomChest;
+import net.minecraft.block.Block;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.MathHelper;
+import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
@@ -45,12 +52,6 @@ public class WorldProviderOverworldOrbit extends WorldProviderSpaceStation imple
     }
 
     @Override
-    public boolean shouldForceRespawn()
-    {
-        return !ConfigManagerCore.forceOverworldRespawn;
-    }
-
-    @Override
     public boolean isDaytime()
     {
         final float a = this.worldObj.getCelestialAngle(0F);
@@ -63,7 +64,7 @@ public class WorldProviderOverworldOrbit extends WorldProviderSpaceStation imple
     public float getStarBrightness(float par1)
     {
         final float var2 = this.worldObj.getCelestialAngle(par1);
-        float var3 = 1.0F - (MathHelper.cos(var2 * (float) Math.PI * 2.0F) * 2.0F + 0.25F);
+        float var3 = 1.0F - (MathHelper.cos(var2 * Constants.twoPI) * 2.0F + 0.25F);
 
         if (var3 < 0.0F)
         {
@@ -133,12 +134,6 @@ public class WorldProviderOverworldOrbit extends WorldProviderSpaceStation imple
     }
 
     @Override
-    public boolean hasBreathableAtmosphere()
-    {
-        return false;
-    }
-
-    @Override
     public double getMeteorFrequency()
     {
         return 0;
@@ -177,7 +172,7 @@ public class WorldProviderOverworldOrbit extends WorldProviderSpaceStation imple
     @Override
     public double getYCoordinateToTeleport()
     {
-        return 1200;
+        return 750;
     }
 
     @Override
@@ -193,39 +188,9 @@ public class WorldProviderOverworldOrbit extends WorldProviderSpaceStation imple
     }
 
     @Override
-    public float getSoundVolReductionAmount()
-    {
-        return 50.0F;
-    }
-
-    @Override
-    public float getThermalLevelModifier()
-    {
-        return 0;
-    }
-
-    @Override
-    public float getWindLevel()
-    {
-        return 0.1F;
-    }
-
-    @Override
     public String getInternalNameSuffix()
     {
         return "_orbit";
-    }
-
-    @Override
-    public boolean shouldDisablePrecipitation()
-    {
-        return true;
-    }
-
-    @Override
-    public boolean shouldCorrodeArmor()
-    {
-        return false;
     }
 
     @Override
@@ -245,5 +210,51 @@ public class WorldProviderOverworldOrbit extends WorldProviderSpaceStation imple
     {
         freefallingEntities.clear();
         super.updateWeather();
+    }
+
+    @Override
+    @SideOnly(Side.CLIENT)
+    public void setSpinDeltaPerTick(float angle)
+    {
+        SkyProviderOrbit skyProvider = ((SkyProviderOrbit)this.getSkyRenderer());
+        if (skyProvider != null)
+            skyProvider.spinDeltaPerTick = angle;
+    }
+
+    @Override
+    @SideOnly(Side.CLIENT)
+    public float getSkyRotation()
+    {
+        SkyProviderOrbit skyProvider = ((SkyProviderOrbit)this.getSkyRenderer());
+        return skyProvider.spinAngle;
+    }
+    
+    @Override
+    @SideOnly(Side.CLIENT)
+    public void createSkyProvider()
+    {
+        this.setSkyRenderer(new SkyProviderOrbit(new ResourceLocation(Constants.ASSET_PREFIX, "textures/gui/celestialbodies/earth.png"), true, true));
+        this.setSpinDeltaPerTick(this.getSpinManager().getSpinRate());
+        
+        if (this.getCloudRenderer() == null)
+            this.setCloudRenderer(new CloudRenderer());
+    }
+    
+    @Override
+    public int getDungeonSpacing()
+    {
+        return 0;
+    }
+
+    @Override
+    public String getDungeonChestType()
+    {
+        return RoomChest.MOONCHEST;
+    }
+
+    @Override
+    public List<Block> getSurfaceBlocks()
+    {
+        return null;
     }
 }

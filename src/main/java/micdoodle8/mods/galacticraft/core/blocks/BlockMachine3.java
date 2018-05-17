@@ -15,7 +15,6 @@ import net.minecraft.block.state.IBlockState;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
@@ -37,7 +36,7 @@ public class BlockMachine3 extends BlockTileGC implements IShiftDescription, ISo
     public static final int METADATA_MASK = 0x0c; //Used to select the machine type from metadata
 
     public static final PropertyDirection FACING = PropertyDirection.create("facing", EnumFacing.Plane.HORIZONTAL);
-    public static final PropertyEnum TYPE = PropertyEnum.create("type", EnumMachineBuildingType.class);
+    public static final PropertyEnum<EnumMachineBuildingType> TYPE = PropertyEnum.create("type", EnumMachineBuildingType.class);
 
     public enum EnumMachineBuildingType implements IStringSerializable
     {
@@ -115,17 +114,8 @@ public class BlockMachine3 extends BlockTileGC implements IShiftDescription, ISo
     @Override
     public boolean onUseWrench(World world, BlockPos pos, EntityPlayer entityPlayer, EnumFacing side, float hitX, float hitY, float hitZ)
     {
-        int metadata = getMetaFromState(world.getBlockState(pos));
-        int change = world.getBlockState(pos).getValue(FACING).rotateY().getHorizontalIndex();
-
-        world.setBlockState(pos, this.getStateFromMeta((metadata & METADATA_MASK) + change), 3);
-
-        TileEntity te = world.getTileEntity(pos);
-        if (te instanceof TileBaseUniversalElectrical)
-        {
-            ((TileBaseUniversalElectrical) te).updateFacing();
-        }
-
+        IBlockState state = world.getBlockState(pos);
+        TileBaseUniversalElectrical.onUseWrenchBlock(state, world, pos, state.getValue(FACING));
         return true;
     }
 
@@ -134,11 +124,8 @@ public class BlockMachine3 extends BlockTileGC implements IShiftDescription, ISo
     {
         if (!world.isRemote)
         {
-            TileEntity tile = world.getTileEntity(pos);
-            if (tile instanceof TileEntityPainter && entityPlayer instanceof EntityPlayerMP)
-            {
-                ((TileEntityPainter) tile).setAllGlassColors(entityPlayer.getCurrentEquippedItem(), (EntityPlayerMP) entityPlayer);
-            }
+            entityPlayer.openGui(GalacticraftCore.instance, -1, world, pos.getX(), pos.getY(), pos.getZ());
+            return true;
         }
 
         return true;

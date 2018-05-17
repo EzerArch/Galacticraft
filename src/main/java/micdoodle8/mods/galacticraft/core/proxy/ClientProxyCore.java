@@ -7,6 +7,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
+import micdoodle8.mods.galacticraft.api.client.IItemMeshDefinitionCustom;
 import micdoodle8.mods.galacticraft.api.client.tabs.InventoryTabVanilla;
 import micdoodle8.mods.galacticraft.api.client.tabs.TabRegistry;
 import micdoodle8.mods.galacticraft.api.vector.BlockVec3;
@@ -15,38 +16,56 @@ import micdoodle8.mods.galacticraft.core.Constants;
 import micdoodle8.mods.galacticraft.core.GCBlocks;
 import micdoodle8.mods.galacticraft.core.GCItems;
 import micdoodle8.mods.galacticraft.core.GalacticraftCore;
+import micdoodle8.mods.galacticraft.core.blocks.BlockConcealedDetector;
+import micdoodle8.mods.galacticraft.core.blocks.BlockConcealedRedstone;
+import micdoodle8.mods.galacticraft.core.blocks.BlockConcealedRepeater;
 import micdoodle8.mods.galacticraft.core.blocks.BlockEnclosed;
+import micdoodle8.mods.galacticraft.core.blocks.BlockOxygenDetector;
+import micdoodle8.mods.galacticraft.core.blocks.BlockPanelLighting;
 import micdoodle8.mods.galacticraft.core.client.DynamicTextureProper;
 import micdoodle8.mods.galacticraft.core.client.EventHandlerClient;
 import micdoodle8.mods.galacticraft.core.client.fx.EffectHandler;
 import micdoodle8.mods.galacticraft.core.client.gui.screen.InventoryTabGalacticraft;
 import micdoodle8.mods.galacticraft.core.client.model.ModelRocketTier1;
+import micdoodle8.mods.galacticraft.core.client.model.OBJLoaderGC;
+import micdoodle8.mods.galacticraft.core.client.model.block.ModelPanelLightBase;
 import micdoodle8.mods.galacticraft.core.client.render.entities.*;
 import micdoodle8.mods.galacticraft.core.client.render.item.ItemModelBuggy;
 import micdoodle8.mods.galacticraft.core.client.render.item.ItemModelFlag;
 import micdoodle8.mods.galacticraft.core.client.render.item.ItemModelRocket;
 import micdoodle8.mods.galacticraft.core.client.render.item.ItemModelWorkbench;
+import micdoodle8.mods.galacticraft.core.client.render.item.TextureDungeonFinder;
 import micdoodle8.mods.galacticraft.core.client.render.tile.*;
+import micdoodle8.mods.galacticraft.core.client.sounds.MusicTickerGC;
 import micdoodle8.mods.galacticraft.core.entities.*;
 import micdoodle8.mods.galacticraft.core.entities.player.GCPlayerBaseSP;
 import micdoodle8.mods.galacticraft.core.entities.player.IPlayerClient;
 import micdoodle8.mods.galacticraft.core.entities.player.PlayerClient;
 import micdoodle8.mods.galacticraft.core.fluid.FluidNetwork;
 import micdoodle8.mods.galacticraft.core.inventory.InventoryExtended;
+import micdoodle8.mods.galacticraft.core.items.ItemFood;
+import micdoodle8.mods.galacticraft.core.items.ItemSchematic;
+import micdoodle8.mods.galacticraft.core.network.PacketSimple;
 import micdoodle8.mods.galacticraft.core.tick.KeyHandlerClient;
 import micdoodle8.mods.galacticraft.core.tick.TickHandlerClient;
 import micdoodle8.mods.galacticraft.core.tile.*;
 import micdoodle8.mods.galacticraft.core.util.ClientUtil;
+import micdoodle8.mods.galacticraft.core.util.CompatibilityManager;
+import micdoodle8.mods.galacticraft.core.util.ConfigManagerCore;
 import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
+import micdoodle8.mods.galacticraft.core.util.PlayerUtil;
+import micdoodle8.mods.galacticraft.core.util.WorldUtil;
 import micdoodle8.mods.galacticraft.core.wrappers.BlockMetaList;
 import micdoodle8.mods.galacticraft.core.wrappers.ModelTransformWrapper;
 import micdoodle8.mods.galacticraft.core.wrappers.PartialCanister;
 import micdoodle8.mods.galacticraft.core.wrappers.PlayerGearData;
+import micdoodle8.mods.galacticraft.planets.GalacticraftPlanets;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.audio.MusicTicker;
 import net.minecraft.client.gui.GuiScreen;
+import net.minecraft.client.renderer.block.statemap.StateMap;
 import net.minecraft.client.renderer.block.statemap.StateMapperBase;
 import net.minecraft.client.renderer.entity.RenderManager;
 import net.minecraft.client.renderer.entity.RenderPlayer;
@@ -65,17 +84,15 @@ import net.minecraftforge.client.event.ModelBakeEvent;
 import net.minecraftforge.client.event.TextureStitchEvent;
 import net.minecraftforge.client.model.IModelState;
 import net.minecraftforge.client.model.ModelLoader;
+import net.minecraftforge.client.model.ModelLoaderRegistry;
 import net.minecraftforge.client.model.TRSRTransformation;
-import net.minecraftforge.client.model.obj.OBJLoader;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.util.EnumHelper;
 import net.minecraftforge.fluids.Fluid;
 import net.minecraftforge.fml.client.FMLClientHandler;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
 import net.minecraftforge.fml.client.registry.RenderingRegistry;
-import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraftforge.fml.common.FMLLog;
-import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPostInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
@@ -89,7 +106,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.Field;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.*;
@@ -99,7 +115,7 @@ public class ClientProxyCore extends CommonProxyCore
     public static List<String> flagRequestsSent = new ArrayList<>();
     public static Set<BlockVec3> valueableBlocks = Sets.newHashSet();
     public static HashSet<BlockMetaList> detectableBlocks = Sets.newHashSet();
-    public static List<BlockVec3> leakTrace;
+    public static List<BlockVec3> leakTrace = null;
     public static Map<String, PlayerGearData> playerItemData = Maps.newHashMap();
     public static double playerPosX;
     public static double playerPosY;
@@ -111,10 +127,9 @@ public class ClientProxyCore extends CommonProxyCore
     public static HashMap<Integer, Integer> clientSpaceStationID = Maps.newHashMap();
     public static MusicTicker.MusicType MUSIC_TYPE_MARS;
     public static EnumRarity galacticraftItem = EnumHelper.addRarity("GCRarity", EnumChatFormatting.BLUE, "Space");
-    public static Map<String, String> capeMap = new HashMap<>();
+    public static Map<String, ResourceLocation> capeMap = new HashMap<>();
     public static InventoryExtended dummyInventory = new InventoryExtended();
     public static Map<Fluid, ResourceLocation> submergedTextures = Maps.newHashMap();
-    private static Map<String, ResourceLocation> capesMap = Maps.newHashMap();
     public static IPlayerClient playerClientHandler = new PlayerClient();
     public static Minecraft mc = FMLClientHandler.instance().getClient();
     public static List<String> gearDataRequests = Lists.newArrayList();
@@ -124,6 +139,7 @@ public class ClientProxyCore extends CommonProxyCore
     public static boolean overworldTextureRequestSent;
     public static boolean overworldTexturesValid;
     public static float PLAYER_Y_OFFSET = 1.6200000047683716F;
+    public static ResourceLocation playerHead = null;
     public static final ResourceLocation saturnRingTexture = new ResourceLocation(Constants.ASSET_PREFIX, "textures/gui/celestialbodies/saturn_rings.png");
     public static final ResourceLocation uranusRingTexture = new ResourceLocation(Constants.ASSET_PREFIX, "textures/gui/celestialbodies/uranus_rings.png");
     private static List<Item> itemsToRegisterJson = Lists.newArrayList();
@@ -135,10 +151,10 @@ public class ClientProxyCore extends CommonProxyCore
     public void preInit(FMLPreInitializationEvent event)
     {
         ClientProxyCore.registerEntityRenderers();
+        ModelLoaderRegistry.registerLoader(OBJLoaderGC.instance);
+        OBJLoaderGC.instance.addDomain(Constants.ASSET_PREFIX);
 
-        OBJLoader.instance.addDomain(Constants.ASSET_PREFIX);
-
-        if (Loader.isModLoaded("PlayerAPI"))
+        if (CompatibilityManager.PlayerAPILoaded)
         {
             ClientPlayerAPI.register(Constants.MOD_ID_CORE, GCPlayerBaseSP.class);
         }
@@ -151,7 +167,7 @@ public class ClientProxyCore extends CommonProxyCore
                 {
                         { MusicTicker.MusicType.class, ResourceLocation.class, int.class, int.class },
                 };
-        MUSIC_TYPE_MARS = EnumHelper.addEnum(commonTypes, MusicTicker.MusicType.class, "MARS_JC", new ResourceLocation(Constants.ASSET_PREFIX, "galacticraft.musicSpace"), 12000, 24000);
+        MUSIC_TYPE_MARS = EnumHelper.addEnum(commonTypes, MusicTicker.MusicType.class, "MARS_JC", new ResourceLocation(Constants.ASSET_PREFIX, "galacticraft.music_space"), 12000, 24000);
         ClientProxyCore.registerHandlers();
         ClientProxyCore.registerTileEntityRenderers();
         ClientProxyCore.updateCapeList();
@@ -163,10 +179,11 @@ public class ClientProxyCore extends CommonProxyCore
     {
         ClientProxyCore.registerInventoryTabs();
         ClientProxyCore.addVariants();
+        ItemSchematic.registerTextures();
 
         MinecraftForge.EVENT_BUS.register(new TabRegistry());
 
-        if (!Loader.isModLoaded("RenderPlayerAPI"))
+        if (!CompatibilityManager.RenderPlayerAPILoaded)
         {
             try
             {
@@ -177,15 +194,20 @@ public class ClientProxyCore extends CommonProxyCore
                 field = RenderManager.class.getDeclaredField(GCCoreUtil.isDeobfuscated() ? "skinMap" : "field_178636_l");
                 field.setAccessible(true);
                 Map<String, RenderPlayer> skinMap = (Map<String, RenderPlayer>) field.get(FMLClientHandler.instance().getClient().getRenderManager());
-                skinMap.put("default", new RenderPlayerGC());
-                skinMap.put("slim", new RenderPlayerGC(true));
-                field.set(FMLClientHandler.instance().getClient().getRenderManager(), skinMap);
+                skinMap.put("default", new RenderPlayerGC(skinMap.get("default"), false));
+                skinMap.put("slim", new RenderPlayerGC(skinMap.get("slim"), true));
             }
             catch (Exception e)
             {
                 e.printStackTrace();
             }
         }
+        
+        try {
+            Field ftc = Minecraft.getMinecraft().getClass().getDeclaredField(GCCoreUtil.isDeobfuscated() ? "mcMusicTicker" : "field_147126_aw");
+            ftc.setAccessible(true);
+            ftc.set(Minecraft.getMinecraft(), new MusicTickerGC(Minecraft.getMinecraft()));
+        } catch (Exception e) {e.printStackTrace();} 
     }
 
     @Override
@@ -202,7 +224,7 @@ public class ClientProxyCore extends CommonProxyCore
     {
         Item fuel = Item.getItemFromBlock(GCBlocks.fuel);
         ModelBakery.registerItemVariants(fuel, new ResourceLocation("galacticraftcore:fuel"));
-        ModelLoader.setCustomMeshDefinition(fuel, (ItemStack stack) -> fuelLocation);
+        ModelLoader.setCustomMeshDefinition(fuel, IItemMeshDefinitionCustom.create((ItemStack stack) -> fuelLocation));
         ModelLoader.setCustomStateMapper(GCBlocks.fuel, new StateMapperBase()
         {
             @Override
@@ -213,7 +235,7 @@ public class ClientProxyCore extends CommonProxyCore
         });
         Item oil = Item.getItemFromBlock(GCBlocks.crudeOil);
         ModelBakery.registerItemVariants(oil, new ResourceLocation("galacticraftcore:oil"));
-        ModelLoader.setCustomMeshDefinition(oil, (ItemStack stack) -> oilLocation);
+        ModelLoader.setCustomMeshDefinition(oil, IItemMeshDefinitionCustom.create((ItemStack stack) -> oilLocation));
         ModelLoader.setCustomStateMapper(GCBlocks.crudeOil, new StateMapperBase()
         {
             @Override
@@ -250,6 +272,12 @@ public class ClientProxyCore extends CommonProxyCore
 
         modelResourceLocation = new ModelResourceLocation("galacticraftcore:flag", "inventory");
         ModelLoader.setCustomModelResourceLocation(GCItems.flag, 0, modelResourceLocation);
+        ModelLoader.setCustomStateMapper(GCBlocks.oxygenDetector, new StateMap.Builder().ignore(BlockOxygenDetector.ACTIVE).build());
+        ModelLoader.setCustomStateMapper(GCBlocks.panelLighting, new StateMap.Builder().ignore(BlockPanelLighting.TYPE).build());
+        ModelLoader.setCustomStateMapper(GCBlocks.concealedRedstone, new StateMap.Builder().ignore(BlockConcealedRedstone.POWER).build());
+        ModelLoader.setCustomStateMapper(GCBlocks.concealedRepeater_Powered, new StateMap.Builder().ignore(BlockConcealedRepeater.FACING, BlockConcealedRepeater.DELAY, BlockConcealedRepeater.LOCKED).build());
+        ModelLoader.setCustomStateMapper(GCBlocks.concealedRepeater_Unpowered, new StateMap.Builder().ignore(BlockConcealedRepeater.FACING, BlockConcealedRepeater.DELAY, BlockConcealedRepeater.LOCKED).build());
+        ModelLoader.setCustomStateMapper(GCBlocks.concealedDetector, new StateMap.Builder().ignore(BlockConcealedDetector.FACING, BlockConcealedDetector.DETECTED).build());
     }
 
     @Override
@@ -267,6 +295,11 @@ public class ClientProxyCore extends CommonProxyCore
     @Override
     public World getWorldForID(int dimensionID)
     {
+        if (GCCoreUtil.getEffectiveSide() == Side.SERVER)
+        {
+            return WorldUtil.getWorldForDimensionServer(dimensionID);
+        }
+
         World world = ClientProxyCore.mc.theWorld;
 
         if (world != null && GCCoreUtil.getDimensionID(world) == dimensionID)
@@ -295,7 +328,7 @@ public class ClientProxyCore extends CommonProxyCore
     {
         super.unregisterNetwork(fluidNetwork);
 
-        if (!FMLCommonHandler.instance().getEffectiveSide().isServer())
+        if (!GCCoreUtil.getEffectiveSide().isServer())
         {
             TickHandlerClient.removeFluidNetwork(fluidNetwork);
         }
@@ -306,7 +339,7 @@ public class ClientProxyCore extends CommonProxyCore
     {
         super.registerNetwork(fluidNetwork);
 
-        if (!FMLCommonHandler.instance().getEffectiveSide().isServer())
+        if (!GCCoreUtil.getEffectiveSide().isServer())
         {
             TickHandlerClient.addFluidNetwork(fluidNetwork);
         }
@@ -341,6 +374,7 @@ public class ClientProxyCore extends CommonProxyCore
         event.map.registerSprite(new ResourceLocation("galacticraftcore:blocks/fluids/oxygen_gas"));
         event.map.registerSprite(new ResourceLocation("galacticraftcore:blocks/fluids/hydrogen_gas"));
         event.map.registerSprite(new ResourceLocation("galacticraftcore:blocks/bubble"));
+        new TextureDungeonFinder("galacticraftcore:items/dungeonfinder").register(event.map);
     }
 
     @SubscribeEvent
@@ -371,6 +405,17 @@ public class ClientProxyCore extends CommonProxyCore
         }
 
         replaceModelDefault(event, "flag", "flag.obj", ImmutableList.of("Flag", "Pole"), ItemModelFlag.class, TRSRTransformation.identity());
+        ModelResourceLocation blockLoc = new ModelResourceLocation(Constants.ASSET_PREFIX + ":panel_lighting", "normal");
+        ModelResourceLocation defaultLoc;
+        if (GalacticraftCore.isPlanetsLoaded)
+        {
+            defaultLoc = new ModelResourceLocation(GalacticraftPlanets.ASSET_PREFIX + ":asteroids_block", "basictypeasteroids=asteroid_deco");
+        }
+        else
+        {
+            defaultLoc = new ModelResourceLocation(Constants.ASSET_PREFIX + ":basic_block_core", "basictype=deco_block_1");
+        }
+        event.modelRegistry.putObject(blockLoc, new ModelPanelLightBase(defaultLoc));
 //
 //        for (PartialCanister container : ClientProxyCore.canisters)
 //        {
@@ -405,7 +450,9 @@ public class ClientProxyCore extends CommonProxyCore
         RenderingRegistry.registerEntityRenderingHandler(EntityCelestialFake.class, (RenderManager manager) -> new RenderEntityFake(manager));
         RenderingRegistry.registerEntityRenderingHandler(EntityBuggy.class, (RenderManager manager) -> new RenderBuggy(manager));
         RenderingRegistry.registerEntityRenderingHandler(EntityMeteorChunk.class, (RenderManager manager) -> new RenderMeteorChunk(manager));
-//        RenderingRegistry.registerEntityRenderingHandler(EntityBubble.class, new RenderBubble(0.25F, 0.25F, 1.0F));
+        RenderingRegistry.registerEntityRenderingHandler(EntityHangingSchematic.class, (RenderManager manager) -> new RenderSchematic(manager));
+        RenderingRegistry.registerEntityRenderingHandler(EntityEvolvedEnderman.class, (RenderManager manager) -> new RenderEvolvedEnderman(manager));
+        RenderingRegistry.registerEntityRenderingHandler(EntityEvolvedWitch.class, (RenderManager manager) -> new RenderEvolvedWitch(manager));
     }
 
     private static void registerHandlers()
@@ -424,13 +471,16 @@ public class ClientProxyCore extends CommonProxyCore
     {
         ClientRegistry.bindTileEntitySpecialRenderer(TileEntityTreasureChest.class, new TileEntityTreasureChestRenderer());
         ClientRegistry.bindTileEntitySpecialRenderer(TileEntitySolar.class, new TileEntitySolarPanelRenderer());
-        ClientRegistry.bindTileEntitySpecialRenderer(TileEntityOxygenDistributor.class, new TileEntityBubbleProviderRenderer<>(0.25F, 0.25F, 1.0F));
+//        ClientRegistry.bindTileEntitySpecialRenderer(TileEntityOxygenDistributor.class, new TileEntityBubbleProviderRenderer<>(0.25F, 0.25F, 1.0F));
         ClientRegistry.bindTileEntitySpecialRenderer(TileEntityScreen.class, new TileEntityScreenRenderer());
         ClientRegistry.bindTileEntitySpecialRenderer(TileEntityFluidTank.class, new TileEntityFluidTankRenderer());
         ClientRegistry.bindTileEntitySpecialRenderer(TileEntityFluidPipe.class, new TileEntityFluidPipeRenderer());
-//            ClientRegistry.bindTileEntitySpecialRenderer(TileEntityDish.class, new TileEntityDishRenderer());
+            ClientRegistry.bindTileEntitySpecialRenderer(TileEntityDish.class, new TileEntityDishRenderer());
 //            ClientRegistry.bindTileEntitySpecialRenderer(TileEntityThruster.class, new TileEntityThrusterRenderer());
         ClientRegistry.bindTileEntitySpecialRenderer(TileEntityArclamp.class, new TileEntityArclampRenderer());
+        ClientRegistry.bindTileEntitySpecialRenderer(TileEntityPanelLight.class, new TileEntityPanelLightRenderer());
+        ClientRegistry.bindTileEntitySpecialRenderer(TileEntityPlatform.class, new TileEntityPlatformRenderer());
+        ClientRegistry.bindTileEntitySpecialRenderer(TileEntityEmergencyBox.class, new TileEntityEmergencyBoxRenderer());
 //            ClientRegistry.bindTileEntitySpecialRenderer(TileEntityFluidPipe.class, new TileEntityOxygenPipeRenderer());
 //            ClientRegistry.bindTileEntitySpecialRenderer(TileEntityOxygenStorageModule.class, new TileEntityMachineRenderer());
 //            ClientRegistry.bindTileEntitySpecialRenderer(TileEntityCircuitFabricator.class, new TileEntityMachineRenderer());
@@ -485,15 +535,27 @@ public class ClientProxyCore extends CommonProxyCore
         ClientUtil.registerItemJson(Constants.TEXTURE_PREFIX, GCItems.basicItem, 12, "wafer_solar");
         ClientUtil.registerItemJson(Constants.TEXTURE_PREFIX, GCItems.basicItem, 13, "wafer_basic");
         ClientUtil.registerItemJson(Constants.TEXTURE_PREFIX, GCItems.basicItem, 14, "wafer_advanced");
-        ClientUtil.registerItemJson(Constants.TEXTURE_PREFIX, GCItems.basicItem, 15, "dehydrated_apple");
+        ClientUtil.registerItemJson(Constants.TEXTURE_PREFIX, GCItems.basicItem, 15, "food");
         ClientUtil.registerItemJson(Constants.TEXTURE_PREFIX, GCItems.basicItem, 16, "dehydrated_carrot");
         ClientUtil.registerItemJson(Constants.TEXTURE_PREFIX, GCItems.basicItem, 17, "dehydrated_melon");
         ClientUtil.registerItemJson(Constants.TEXTURE_PREFIX, GCItems.basicItem, 18, "dehydrated_potato");
         ClientUtil.registerItemJson(Constants.TEXTURE_PREFIX, GCItems.basicItem, 19, "frequency_module");
         ClientUtil.registerItemJson(Constants.TEXTURE_PREFIX, GCItems.basicItem, 20, "ambient_thermal_controller");
+        ClientUtil.registerItemJson(Constants.TEXTURE_PREFIX, GCItems.foodItem, 0, "food");
+        for (int j = 1; j < ItemFood.names.length; j++)
+        {
+            ClientUtil.registerItemJson(Constants.TEXTURE_PREFIX, GCItems.foodItem, j, ItemFood.names[j]);
+        }
         ClientUtil.registerItemJson(Constants.TEXTURE_PREFIX, GCItems.itemBasicMoon, 0, "item_basic_moon");  //This was meteoric_iron_ingot
         ClientUtil.registerItemJson(Constants.TEXTURE_PREFIX, GCItems.itemBasicMoon, 1, "compressed_meteoric_iron");
         ClientUtil.registerItemJson(Constants.TEXTURE_PREFIX, GCItems.itemBasicMoon, 2, "lunar_sapphire");
+        if (CompatibilityManager.isIc2Loaded())
+        {
+            ClientUtil.registerItemJson(Constants.TEXTURE_PREFIX, GCItems.ic2compat, 0, "ic2compat");
+            ClientUtil.registerItemJson(Constants.TEXTURE_PREFIX, GCItems.ic2compat, 1, "ic2_ore_purified_alu");
+            ClientUtil.registerItemJson(Constants.TEXTURE_PREFIX, GCItems.ic2compat, 2, "ic2_ore_crushed_alu");
+            ClientUtil.registerItemJson(Constants.TEXTURE_PREFIX, GCItems.ic2compat, 7, "ic2_dust_small_titanium");
+        }
 
         for (PartialCanister container : ClientProxyCore.canisters)
         {
@@ -539,6 +601,7 @@ public class ClientProxyCore extends CommonProxyCore
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.oxygenSealer);
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.oxygenDetector);
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.nasaWorkbench);
+        ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.radioTelescope);
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.fallenMeteor);
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.basicBlock, 3, "deco_block_0");
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.basicBlock, 4, "deco_block_1");
@@ -550,6 +613,7 @@ public class ClientProxyCore extends CommonProxyCore
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.basicBlock, 10, "block_tin_gc");
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.basicBlock, 11, "block_aluminum_gc");
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.basicBlock, 12, "block_meteoric_iron_gc");
+        ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.basicBlock, 13, "block_silicon_gc");
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.airLockFrame, 0, "air_lock_frame");
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.airLockFrame, 1, "air_lock_controller");
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.airLockSeal, 0, "air_lock_seal");
@@ -568,18 +632,19 @@ public class ClientProxyCore extends CommonProxyCore
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.fakeBlock);
         for (BlockEnclosed.EnumEnclosedBlockType type : BlockEnclosed.EnumEnclosedBlockType.values())
         {
-            ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.sealableBlock, type.getMeta(), type.getName());
+            ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.sealableBlock, type.getMeta(), type == BlockEnclosed.EnumEnclosedBlockType.ALUMINUM_WIRE ? "enclosed" : type.getName());
         }
-        ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.cargoLoader, 0, "cargo_loader");
+        ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.cargoLoader, 0, "cargo");
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.cargoLoader, 4, "cargo_unloader");
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.parachest);
-        ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.solarPanel, 0, "basic_solar");
+        ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.solarPanel, 0, "solar");
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.solarPanel, 4, "advanced_solar");
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.machineBase, 0, "coal_generator");
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.machineBase, 12, "ingot_compressor");
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.machineBase2, 0, "electric_ingot_compressor");
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.machineBase2, 4, "circuit_fabricator");
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.machineBase2, 8, "oxygen_storage_module");
+        ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.machineBase2, 12, "deconstructor");
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.machineTiered, 0, "energy_storage");
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.machineTiered, 4, "electric_furnace");
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.machineTiered, 8, "cluster_storage");
@@ -589,12 +654,21 @@ public class ClientProxyCore extends CommonProxyCore
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.aluminumWire, 1, "aluminum_wire_heavy");
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.aluminumWire, 2, "aluminum_wire_switch");
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.aluminumWire, 3, "aluminum_wire_switch_heavy");
+        ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.panelLighting, 0, "panel_lighting");
+        ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.panelLighting, 1, "panel_lighting_1");
+        ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.panelLighting, 2, "panel_lighting_2");
+        ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.panelLighting, 3, "panel_lighting_3");
+        ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.panelLighting, 4, "panel_lighting_4");
+        ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.platform);
+        ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.emergencyBox, 0, "emergency_box");
+        ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.emergencyBox, 1, "emergency_box_full");
+        ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.grating);
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.glowstoneTorch);
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.blockMoon, 0, "ore_copper_moon");
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.blockMoon, 1, "ore_tin_moon");
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.blockMoon, 2, "ore_cheese_moon");
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.blockMoon, 3, "moon_dirt_moon");
-        ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.blockMoon, 4, "moon_stone");
+        ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.blockMoon, 4, "basic_block_moon");
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.blockMoon, 5, "moon_turf");
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.blockMoon, 6, "ore_sapphire_moon");
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.blockMoon, 14, "moon_dungeon_brick");
@@ -603,14 +677,13 @@ public class ClientProxyCore extends CommonProxyCore
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.screen);
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.telemetry);
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.fluidTank);
-        ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.unlitTorch);
-        ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.unlitTorchLit);
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.slabGCHalf, 0, "slab_tin_1");
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.slabGCHalf, 1, "slab_tin_2");
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.slabGCHalf, 2, "slab_moon_stone");
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.slabGCHalf, 3, "slab_moon_dungeon_brick");
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.slabGCHalf, 4, "slab_mars_cobblestone");
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.slabGCHalf, 5, "slab_mars_dungeon_brick");
+        ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.slabGCHalf, 6, "slab_asteroid");
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.tinStairs1);
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.tinStairs2);
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.moonStoneStairs);
@@ -621,30 +694,38 @@ public class ClientProxyCore extends CommonProxyCore
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.wallGC, 3, "wall_moon_dungeon_brick");
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.wallGC, 4, "wall_mars_cobblestone");
         ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.wallGC, 5, "wall_mars_dungeon_brick");
+        ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.bossSpawner);
+        ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.concealedRedstone);
+        ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.concealedRepeater_Powered);
+        ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.concealedRepeater_Unpowered);
+        ClientUtil.registerBlockJson(Constants.TEXTURE_PREFIX, GCBlocks.concealedDetector);
+        //TODO: doubleslabs, fluids - and all the remaining meta-dependent block models (e.g. machine, machine2) have no 'inventory' variant for the meta-less block...
     }
 
     private static void addVariants()
     {
         //BlockItem variants: 
         addCoreVariant("air_lock_frame", "air_lock_frame", "air_lock_controller");
-        addCoreVariant("basic_block_core", "deco_block_0", "deco_block_1", "ore_copper_gc", "ore_tin_gc", "ore_aluminum_gc", "ore_silicon", "block_copper_gc", "block_tin_gc", "block_aluminum_gc", "block_meteoric_iron_gc");
+        addCoreVariant("basic_block_core", "deco_block_0", "deco_block_1", "ore_copper_gc", "ore_tin_gc", "ore_aluminum_gc", "ore_silicon", "block_copper_gc", "block_tin_gc", "block_aluminum_gc", "block_meteoric_iron_gc", "block_silicon_gc");
         addCoreVariant("air_lock_frame", "air_lock_frame", "air_lock_controller");
         addCoreVariant("landing_pad", "landing_pad", "buggy_pad");
         addCoreVariant("oxygen_compressor", "oxygen_compressor", "oxygen_decompressor");
-        addCoreVariant("cargo", "cargo_loader", "cargo_unloader");
-        addCoreVariant("enclosed", "enclosed_hv_cable", "enclosed_fluid_pipe", "enclosed_copper_cable", "enclosed_gold_cable", "enclosed_te_conduit", "enclosed_glass_fibre_cable", "enclosed_lv_cable", "enclosed_pipe_items_stone", "enclosed_pipe_items_cobblestone", "enclosed_pipe_fluids_stone", "enclosed_pipe_fluids_cobblestone", "enclosed_pipe_power_stone", "enclosed_pipe_power_gold", "enclosed_me_cable", "enclosed_aluminum_wire", "enclosed_heavy_aluminum_wire");
-        addCoreVariant("solar", "advanced_solar", "basic_solar");
+        addCoreVariant("cargo", "cargo", "cargo_unloader");
+        addCoreVariant("enclosed", "enclosed_hv_cable", "enclosed_fluid_pipe", "enclosed_copper_cable", "enclosed_gold_cable", "enclosed_te_conduit", "enclosed_glass_fibre_cable", "enclosed_lv_cable", "enclosed_pipe_items_stone", "enclosed_pipe_items_cobblestone", "enclosed_pipe_fluids_stone", "enclosed_pipe_fluids_cobblestone", "enclosed_pipe_power_stone", "enclosed_pipe_power_gold", "enclosed_me_cable", "enclosed", "enclosed_heavy_aluminum_wire");
+        addCoreVariant("solar", "advanced_solar", "solar");
         addCoreVariant("machine", "coal_generator", "ingot_compressor");
-        addCoreVariant("machine2", "circuit_fabricator", "oxygen_storage_module", "electric_ingot_compressor");
+        addCoreVariant("machine2", "circuit_fabricator", "oxygen_storage_module", "electric_ingot_compressor", "deconstructor");
         addCoreVariant("machine3", "painter");
         addCoreVariant("machine_tiered", "energy_storage", "electric_furnace", "cluster_storage", "arc_furnace");
-        addCoreVariant("basic_block_moon", "ore_copper_moon", "ore_tin_moon", "ore_cheese_moon", "moon_dirt_moon", "moon_stone", "moon_turf", "ore_sapphire_moon", "moon_dungeon_brick");
+        addCoreVariant("basic_block_moon", "ore_copper_moon", "ore_tin_moon", "ore_cheese_moon", "moon_dirt_moon", "basic_block_moon", "moon_turf", "ore_sapphire_moon", "moon_dungeon_brick");
         addCoreVariant("aluminum_wire", "aluminum_wire", "aluminum_wire_heavy", "aluminum_wire_switch", "aluminum_wire_switch_heavy");
-        addCoreVariant("slab_gc_half", "slab_tin_1", "slab_tin_2", "slab_moon_stone", "slab_moon_dungeon_brick", "slab_mars_cobblestone", "slab_mars_dungeon_brick");
+        addCoreVariant("slab_gc_half", "slab_tin_1", "slab_tin_2", "slab_moon_stone", "slab_moon_dungeon_brick", "slab_mars_cobblestone", "slab_mars_dungeon_brick", "slab_asteroid");
         addCoreVariant("wall_gc", "wall_tin_1", "wall_tin_2", "wall_moon_stone", "wall_moon_dungeon_brick", "wall_mars_cobblestone", "wall_mars_dungeon_brick");
         addCoreVariant("space_glass_clear", "space_glass_clear", "space_glass_tin_clear");
         addCoreVariant("space_glass_vanilla", "space_glass_vanilla", "space_glass_tin_vanilla");
         addCoreVariant("space_glass_strong", "space_glass_strong", "space_glass_tin_strong");
+        addCoreVariant("panel_lighting", "panel_lighting", "panel_lighting_1", "panel_lighting_2", "panel_lighting_3", "panel_lighting_4");
+        addCoreVariant("emergency_box", "emergency_box", "emergency_box_full");
 
         //Item variants: best if the damage=0 variant has the registered item name, to avoid ModelLoader errors for the #inventory variant
         addCoreVariant("canister", "canister", "canister_copper");
@@ -653,10 +734,12 @@ public class ClientProxyCore extends CommonProxyCore
         addCoreVariant("schematic", "schematic", "schematic_rocket_t2");
         addCoreVariant("key", "key");
         addCoreVariant("buggymat", "buggymat", "seat", "storage");
-        addCoreVariant("basic_item", "basic_item", "solar_module_1", "raw_silicon", "ingot_copper", "ingot_tin", "ingot_aluminum", "compressed_copper", "compressed_tin", "compressed_aluminum", "compressed_steel", "compressed_bronze", "compressed_iron", "wafer_solar", "wafer_basic", "wafer_advanced", "dehydrated_apple", "dehydrated_carrot", "dehydrated_melon", "dehydrated_potato", "frequency_module", "ambient_thermal_controller");
+        addCoreVariant("basic_item", "basic_item", "solar_module_1", "raw_silicon", "ingot_copper", "ingot_tin", "ingot_aluminum", "compressed_copper", "compressed_tin", "compressed_aluminum", "compressed_steel", "compressed_bronze", "compressed_iron", "wafer_solar", "wafer_basic", "wafer_advanced", "food", "dehydrated_carrot", "dehydrated_melon", "dehydrated_potato", "frequency_module", "ambient_thermal_controller");
+        addCoreVariant("food", "food", "dehydrated_carrot", "dehydrated_melon", "dehydrated_potato", ItemFood.names[4], ItemFood.names[5], ItemFood.names[6], ItemFood.names[7], ItemFood.names[8], ItemFood.names[9]);
         addCoreVariant("item_basic_moon", "item_basic_moon", "compressed_meteoric_iron", "lunar_sapphire");
         addCoreVariant("meteor_chunk", "meteor_chunk", "meteor_chunk_hot");
         addCoreVariant("buggy", "buggy", "buggy_1", "buggy_2", "buggy_3");
+        if (CompatibilityManager.isIc2Loaded()) addCoreVariant("ic2compat", "ic2compat", "ic2_ore_purified_alu", "ic2_ore_crushed_alu", "ic2_dust_small_titanium");
 
         for (PartialCanister container : ClientProxyCore.canisters)
         {
@@ -683,10 +766,10 @@ public class ClientProxyCore extends CommonProxyCore
         {
             capeListUrl = new URL("https://raw.github.com/micdoodle8/Galacticraft/master/capes.txt");
         }
-        catch (MalformedURLException e)
+        catch (IOException e)
         {
             FMLLog.severe("Error getting capes list URL");
-            e.printStackTrace();
+            if (ConfigManagerCore.enableDebug) e.printStackTrace();
             return;
         }
 
@@ -698,7 +781,7 @@ public class ClientProxyCore extends CommonProxyCore
         }
         catch (IOException e)
         {
-            e.printStackTrace();
+            if (ConfigManagerCore.enableDebug) e.printStackTrace();
             return;
         }
 
@@ -712,7 +795,7 @@ public class ClientProxyCore extends CommonProxyCore
         }
         catch (IOException e)
         {
-            e.printStackTrace();
+            if (ConfigManagerCore.enableDebug) e.printStackTrace();
             return;
         }
 
@@ -728,40 +811,41 @@ public class ClientProxyCore extends CommonProxyCore
                 {
                     int splitLocation = line.indexOf(":");
                     String username = line.substring(0, splitLocation);
-                    String capeUrl = "https://raw.github.com/micdoodle8/Galacticraft/master/capes/" + line.substring(splitLocation + 1) + ".png";
-                    ClientProxyCore.capeMap.put(username, capeUrl);
+                    ClientProxyCore.capeMap.put(username, new ResourceLocation(Constants.ASSET_PREFIX, "textures/misc/capes/" + convertCapeString(line.substring(splitLocation + 1)) + ".png"));
                 }
             }
         }
         catch (IOException e)
         {
-            e.printStackTrace();
+            if (ConfigManagerCore.enableDebug) e.printStackTrace();
         }
+        finally
+        {
+            try
+            {
+                reader.close();
+            }
+            catch (IOException e)
+            {
+                if (ConfigManagerCore.enableDebug) e.printStackTrace();
+            }
+        }
+    }
 
-        try
+    private static String convertCapeString(String capeName)
+    {
+        StringBuilder underscoreCase = new StringBuilder();
+        for (int i = 0; i < capeName.length(); ++i)
         {
-            reader.close();
+            char c = capeName.charAt(i);
+            if (!Character.isLowerCase(c))
+            {
+                underscoreCase.append("_");
+                c = Character.toLowerCase(c);
+            }
+            underscoreCase.append(c);
         }
-        catch (IOException e)
-        {
-            e.printStackTrace();
-        }
-        try
-        {
-            streamReader.close();
-        }
-        catch (IOException e)
-        {
-            e.printStackTrace();
-        }
-        try
-        {
-            stream.close();
-        }
-        catch (IOException e)
-        {
-            e.printStackTrace();
-        }
+        return underscoreCase.toString();
     }
 
     public static void registerInventoryTabs()
@@ -794,5 +878,24 @@ public class ClientProxyCore extends CommonProxyCore
         {
             this.partialTicks = partialTicks;
         }
+    }
+    
+    @Override
+    public PlayerGearData getGearData(EntityPlayer player)
+    {
+        PlayerGearData gearData = ClientProxyCore.playerItemData.get(player.getName());
+
+        if (gearData == null)
+        {
+            String id = PlayerUtil.getName(player);
+
+            if (!ClientProxyCore.gearDataRequests.contains(id))
+            {
+                GalacticraftCore.packetPipeline.sendToServer(new PacketSimple(PacketSimple.EnumSimplePacket.S_REQUEST_GEAR_DATA, GCCoreUtil.getDimensionID(player.worldObj), new Object[] { id }));
+                ClientProxyCore.gearDataRequests.add(id);
+            }
+        }
+
+        return gearData;
     }
 }

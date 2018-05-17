@@ -1,21 +1,29 @@
 package micdoodle8.mods.galacticraft.core.entities.player;
 
+import micdoodle8.mods.galacticraft.api.prefab.entity.EntitySpaceshipBase;
+import micdoodle8.mods.galacticraft.api.entity.ICameraZoomEntity;
+import micdoodle8.mods.galacticraft.api.event.ZeroGravityEvent;
+import micdoodle8.mods.galacticraft.api.item.IHoldableItem;
 import micdoodle8.mods.galacticraft.api.world.IZeroGDimension;
 import micdoodle8.mods.galacticraft.core.client.EventHandlerClient;
 import micdoodle8.mods.galacticraft.core.proxy.ClientProxyCore;
+import micdoodle8.mods.galacticraft.core.util.ConfigManagerCore;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.audio.PositionedSoundRecord;
 import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.network.NetHandlerPlayClient;
+import net.minecraft.client.network.NetworkPlayerInfo;
 import net.minecraft.entity.Entity;
 import net.minecraft.potion.Potion;
 import net.minecraft.stats.StatFileWriter;
 import net.minecraft.util.AxisAlignedBB;
+import net.minecraft.util.BlockPos;
 import net.minecraft.util.MathHelper;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.world.EnumDifficulty;
 import net.minecraft.world.World;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.FMLLog;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -27,6 +35,8 @@ public class GCEntityClientPlayerMP extends EntityPlayerSP
     private boolean lastIsFlying;
     private boolean sneakLast;
     private int lastLandingTicks;
+    private boolean checkedCape = false;
+    private ResourceLocation galacticraftCape = null;
 
     public GCEntityClientPlayerMP(Minecraft mcIn, World worldIn, NetHandlerPlayClient netHandler, StatFileWriter statFileWriter)
     {
@@ -346,7 +356,9 @@ public class GCEntityClientPlayerMP extends EntityPlayerSP
                 }
             }
             else
+            {
                 super.onLivingUpdate();
+            }
         }
         catch (RuntimeException e)
         {
@@ -375,6 +387,13 @@ public class GCEntityClientPlayerMP extends EntityPlayerSP
     {
         if (this.worldObj.provider instanceof IZeroGDimension)
         {
+            ZeroGravityEvent zeroGEvent = new ZeroGravityEvent.SneakOverride(this);
+            MinecraftForge.EVENT_BUS.post(zeroGEvent);
+            if (zeroGEvent.isCanceled())
+            {
+                return super.isSneaking();
+            }
+
             GCPlayerStatsClient stats = GCPlayerStatsClient.get(this);
             if (stats.getLandingTicks() > 0)
             {
@@ -393,7 +412,7 @@ public class GCEntityClientPlayerMP extends EntityPlayerSP
             }
             if (EventHandlerClient.sneakRenderOverride)
             {
-                if (this.movementInput.sneak != this.sneakLast)
+                if (this.movementInput != null && this.movementInput.sneak != this.sneakLast)
                 { 
                     this.sneakLast = this.movementInput.sneak;
                     return false;
@@ -403,6 +422,18 @@ public class GCEntityClientPlayerMP extends EntityPlayerSP
                 {
                     this.sneakLast = false;
                     return false;
+                }
+            }
+        }
+        else if (EventHandlerClient.sneakRenderOverride)
+        {
+            if (this.onGround && this.inventory.getCurrentItem() != null && this.inventory.getCurrentItem().getItem() instanceof IHoldableItem && !(this.ridingEntity instanceof ICameraZoomEntity))
+            {
+                IHoldableItem holdableItem = (IHoldableItem) this.inventory.getCurrentItem().getItem();
+
+                if (holdableItem.shouldCrouch(this))
+                {
+                    return true;
                 }
             }
         }
@@ -441,7 +472,7 @@ public class GCEntityClientPlayerMP extends EntityPlayerSP
                 ySize = 0.08F;
             }
         }
-        else if (this.isSneaking())
+        else if (this.isSneaking() && this.movementInput != null && this.movementInput.sneak)
         {
             ySize = 0.08F;
         }
@@ -476,4 +507,40 @@ public class GCEntityClientPlayerMP extends EntityPlayerSP
     		super.setInPortal();
     	}
     } TODO Fix disable of portal */
+
+    @Override
+    public ResourceLocation getLocationCape()
+    {
+        if (this.ridingEntity instanceof EntitySpaceshipBase)
+        {
+            // Don't draw any cape if riding a rocket (the cape renders outside the rocket model!)
+            return null;
+        }
+        
+        ResourceLocation vanillaCape = super.getLocationCape();
+
+        if (!this.checkedCape)
+        {
+            NetworkPlayerInfo networkplayerinfo = this.getPlayerInfo();
+            this.galacticraftCape = ClientProxyCore.capeMap.get(networkplayerinfo.getGameProfile().getName());
+            this.checkedCape = true;
+        }
+
+        if ((ConfigManagerCore.overrideCapes || vanillaCape == null) && galacticraftCape != null)
+        {
+            return galacticraftCape;
+        }
+
+        return vanillaCape;
+    }
+    
+    @Override
+    @SideOnly(Side.CLIENT)
+    public int getBrightnessForRender(float partialTicks)
+    {
+        double height = this.posY + (double)this.getEyeHeight();
+        if (height > 255D) height = 255D;
+        BlockPos blockpos = new BlockPos(this.posX, height, this.posZ);
+        return this.worldObj.isBlockLoaded(blockpos) ? this.worldObj.getCombinedLight(blockpos, 0) : 0;
+    }
 }

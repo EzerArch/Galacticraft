@@ -2,6 +2,9 @@ package micdoodle8.mods.galacticraft.planets;
 
 import micdoodle8.mods.galacticraft.api.vector.Vector3;
 import micdoodle8.mods.galacticraft.core.Constants;
+import micdoodle8.mods.galacticraft.core.tile.TileEntityDeconstructor;
+import micdoodle8.mods.galacticraft.core.util.CompatibilityManager;
+import micdoodle8.mods.galacticraft.core.util.ConfigManagerCore;
 import micdoodle8.mods.galacticraft.core.util.GCLog;
 import micdoodle8.mods.galacticraft.planets.asteroids.AsteroidsModule;
 import micdoodle8.mods.galacticraft.planets.asteroids.ConfigManagerAsteroids;
@@ -16,9 +19,9 @@ import net.minecraftforge.common.MinecraftForge;
 import micdoodle8.mods.galacticraft.planets.mars.world.gen.BiomeGenBaseMars;
 import net.minecraft.world.biome.BiomeGenBase;
 import net.minecraftforge.common.config.ConfigElement;
+import net.minecraftforge.common.config.Property;
 import net.minecraftforge.fml.client.config.IConfigElement;
 import net.minecraftforge.fml.client.event.ConfigChangedEvent;
-import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.Mod.EventHandler;
 import net.minecraftforge.fml.common.Mod.Instance;
@@ -33,8 +36,10 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
-@Mod(name = GalacticraftPlanets.NAME, version = Constants.LOCALMAJVERSION + "." + Constants.LOCALMINVERSION + "." + Constants.LOCALBUILDVERSION, useMetadata = true, modid = Constants.MOD_ID_PLANETS, dependencies = "required-after:" + Constants.MOD_ID_CORE + ";", guiFactory = "micdoodle8.mods.galacticraft.planets.ConfigGuiFactoryPlanets")
+@Mod(modid = Constants.MOD_ID_PLANETS, name = GalacticraftPlanets.NAME, version = Constants.COMBINEDVERSION, useMetadata = true, acceptedMinecraftVersions = Constants.MCVERSION, dependencies = "required-after:" + Constants.MOD_ID_CORE + ";", guiFactory = "micdoodle8.mods.galacticraft.planets.ConfigGuiFactoryPlanets")
 public class GalacticraftPlanets
 {
     public static final String NAME = "Galacticraft Planets";
@@ -51,6 +56,8 @@ public class GalacticraftPlanets
     @SidedProxy(clientSide = "micdoodle8.mods.galacticraft.planets.PlanetsProxyClient", serverSide = "micdoodle8.mods.galacticraft.planets.PlanetsProxy")
     public static PlanetsProxy proxy;
 
+    public static Map<String, List<String>> propOrder = new TreeMap<>();
+
     @EventHandler
     public void preInit(FMLPreInitializationEvent event)
     {
@@ -66,9 +73,11 @@ public class GalacticraftPlanets
             oldMarsConf.renameTo(newPlanetsConf);
             update = true;
         }
+        this.configSyncStart();
         new ConfigManagerMars(newPlanetsConf, update);
         new ConfigManagerAsteroids(new File(event.getModConfigurationDirectory(), "Galacticraft/asteroids.conf"));
         new ConfigManagerVenus(new File(event.getModConfigurationDirectory(), "Galacticraft/venus.conf"));
+        this.configSyncEnd(true);
 
         GalacticraftPlanets.commonModules.add(new MarsModule());
         GalacticraftPlanets.commonModules.add(new AsteroidsModule());
@@ -95,9 +104,12 @@ public class GalacticraftPlanets
     public void postInit(FMLPostInitializationEvent event)
     {
         GalacticraftPlanets.proxy.postInit(event);
+        TileEntityDeconstructor.initialiseRecipeListPlanets();
         try {
-        	if (Loader.isModLoaded("MineFactoryReloaded"))
+        	if (CompatibilityManager.isMFRLoaded)
+        	{
         		FactoryRegistry.sendMessage("registerSpawnHandler", new MFRSpawnHandlerSlimeling());
+        	}
         } catch (Exception e)
         {
         	GCLog.severe("Error when attempting to register Slimeling auto-spawnhandler in MFR");
@@ -128,31 +140,15 @@ public class GalacticraftPlanets
     public static List<IConfigElement> getConfigElements()
     {
         List<IConfigElement> list = new ArrayList<IConfigElement>();
-
-        for (IPlanetsModule module : GalacticraftPlanets.commonModules)
-        {
-            list.addAll(new ConfigElement(module.getConfiguration().getCategory(Constants.CONFIG_CATEGORY_DIMENSIONS)).getChildElements());
-        }
-
-        for (IPlanetsModule module : GalacticraftPlanets.commonModules)
-        {
-            list.addAll(new ConfigElement(module.getConfiguration().getCategory(Constants.CONFIG_CATEGORY_ENTITIES)).getChildElements());
-        }
-
-        for (IPlanetsModule module : GalacticraftPlanets.commonModules)
-        {
-            list.addAll(new ConfigElement(module.getConfiguration().getCategory(Constants.CONFIG_CATEGORY_ACHIEVEMENTS)).getChildElements());
-        }
-
-        for (IPlanetsModule module : GalacticraftPlanets.commonModules)
-        {
-            list.addAll(new ConfigElement(module.getConfiguration().getCategory(Constants.CONFIG_CATEGORY_ENTITIES)).getChildElements());
-        }
-
-        for (IPlanetsModule module : GalacticraftPlanets.commonModules)
-        {
-            list.addAll(new ConfigElement(module.getConfiguration().getCategory(Constants.CONFIG_CATEGORY_GENERAL)).getChildElements());
-        }
+        
+        //Get the last planet to be configured only, as all will reference and re-use the same planets.conf config file
+        IPlanetsModule module = GalacticraftPlanets.commonModules.get(GalacticraftPlanets.commonModules.size() - 1);
+        list.addAll(new ConfigElement(module.getConfiguration().getCategory(Constants.CONFIG_CATEGORY_ENTITIES)).getChildElements());
+        list.addAll(new ConfigElement(module.getConfiguration().getCategory(Constants.CONFIG_CATEGORY_ACHIEVEMENTS)).getChildElements());
+        list.addAll(new ConfigElement(module.getConfiguration().getCategory(Constants.CONFIG_CATEGORY_GENERAL)).getChildElements());
+        list.addAll(new ConfigElement(module.getConfiguration().getCategory(Constants.CONFIG_CATEGORY_WORLDGEN)).getChildElements());
+        list.addAll(new ConfigElement(module.getConfiguration().getCategory(Constants.CONFIG_CATEGORY_DIMENSIONS)).getChildElements());
+        list.addAll(new ConfigElement(module.getConfiguration().getCategory(Constants.CONFIG_CATEGORY_SCHEMATIC)).getChildElements());
 
         return list;
     }
@@ -162,11 +158,39 @@ public class GalacticraftPlanets
     {
         if (event.modID.equals(Constants.MOD_ID_PLANETS))
         {
+            this.configSyncStart();
             for (IPlanetsModule module : GalacticraftPlanets.commonModules)
             {
                 module.syncConfig();
             }
+            this.configSyncEnd(false);
         }
+    }
+
+    private void configSyncEnd(boolean load)
+    {
+        //Cleanup older GC config files
+        ConfigManagerCore.cleanConfig(ConfigManagerMars.config, propOrder);
+
+        //Always save - this is last to be called both at load time and at mid-game
+        if (ConfigManagerMars.config.hasChanged())
+        {
+            ConfigManagerMars.config.save();
+        }
+    }
+
+    private void configSyncStart()
+    {
+        propOrder.clear();
+    }
+
+    public static void finishProp(Property prop, String currentCat)
+    {
+        if (propOrder.get(currentCat) == null)
+        {
+            propOrder.put(currentCat, new ArrayList<String>());
+        }
+        propOrder.get(currentCat).add(prop.getName());
     }
 
     private void initModInfo(ModMetadata info)
@@ -174,10 +198,11 @@ public class GalacticraftPlanets
         info.autogenerated = false;
         info.modId = Constants.MOD_ID_PLANETS;
         info.name = GalacticraftPlanets.NAME;
-        info.version = Constants.LOCALMAJVERSION + "." + Constants.LOCALMINVERSION + "." + Constants.LOCALBUILDVERSION;
+        info.version = Constants.COMBINEDVERSION;
         info.description = "Planets addon for Galacticraft.";
         info.url = "https://micdoodle8.com/";
         info.authorList = Arrays.asList("micdoodle8", "radfast", "EzerArch", "fishtaco", "SpaceViking", "SteveKunG");
-        info.logoFile = "assets/galacticraftcore/galacticraft_logo.png";
+        info.logoFile = "assets/galacticraftplanets/galacticraft_logo.png";
     }
+
 }

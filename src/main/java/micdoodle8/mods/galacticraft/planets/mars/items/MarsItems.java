@@ -7,7 +7,6 @@ import net.minecraft.item.Item;
 import net.minecraft.item.Item.ToolMaterial;
 import net.minecraft.item.ItemArmor.ArmorMaterial;
 import net.minecraftforge.common.util.EnumHelper;
-import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraftforge.fml.common.registry.GameRegistry;
 import net.minecraftforge.fml.relauncher.Side;
 
@@ -31,7 +30,7 @@ public class MarsItems
     public static Item bucketSludge;
 
     public static ArmorMaterial ARMORDESH = EnumHelper.addArmorMaterial("DESH", "", 42, new int[] { 4, 9, 7, 4 }, 12);
-    public static ToolMaterial TOOLDESH = EnumHelper.addToolMaterial("DESH", 3, 1024, 5.0F, 2.5F, 8);
+    public static ToolMaterial TOOLDESH = EnumHelper.addToolMaterial("DESH", 3, 1024, 5.0F, 2.5F, 10);
 
 
     public static void initItems()
@@ -89,7 +88,7 @@ public class MarsItems
         GCCoreUtil.registerGalacticraftItem(name, item);
         GameRegistry.registerItem(item, item.getUnlocalizedName().substring(5));
         GalacticraftPlanets.proxy.postRegisterItem(item);
-        if (FMLCommonHandler.instance().getEffectiveSide() == Side.CLIENT)
+        if (GCCoreUtil.getEffectiveSide() == Side.CLIENT)
         {
             GCItems.registerSorted(item);
         }

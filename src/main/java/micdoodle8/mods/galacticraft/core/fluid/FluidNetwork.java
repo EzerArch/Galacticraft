@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+
 import micdoodle8.mods.galacticraft.api.transmission.NetworkType;
 import micdoodle8.mods.galacticraft.api.transmission.grid.IGridNetwork;
 import micdoodle8.mods.galacticraft.api.transmission.grid.Pathfinder;
@@ -25,10 +26,10 @@ import net.minecraft.world.World;
 import net.minecraftforge.fluids.Fluid;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.IFluidHandler;
-import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraftforge.fml.common.FMLLog;
 import net.minecraftforge.fml.common.network.NetworkRegistry;
 import net.minecraftforge.fml.relauncher.Side;
+
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.*;
@@ -251,7 +252,7 @@ public class FluidNetwork implements IGridNetwork<FluidNetwork, IBufferTransmitt
             }
         }
 
-        if (doTransfer && totalSend > 0 && FMLCommonHandler.instance().getEffectiveSide().isServer())
+        if (doTransfer && totalSend > 0 && GCCoreUtil.getEffectiveSide().isServer())
         {
             this.didTransfer = true;
             this.transferDelay = 2;
@@ -305,7 +306,7 @@ public class FluidNetwork implements IGridNetwork<FluidNetwork, IBufferTransmitt
 
     public void onUpdate()
     {
-        if (FMLCommonHandler.instance().getEffectiveSide().isServer())
+        if (GCCoreUtil.getEffectiveSide().isServer())
         {
             Iterator<DelayQueue> iterator = this.updateQueue.iterator();
 
@@ -421,11 +422,11 @@ public class FluidNetwork implements IGridNetwork<FluidNetwork, IBufferTransmitt
         return Math.min(1.0F, this.buffer.amount / (float) this.getCapacity());
     }
 
-    public Set<Pair<BlockPos, IFluidHandler>> getAcceptors(FluidStack toSend)
+    public List<Pair<BlockPos, IFluidHandler>> getAcceptors(FluidStack toSend)
     {
-        Set<Pair<BlockPos, IFluidHandler>> toReturn = new HashSet<>();
+        List<Pair<BlockPos, IFluidHandler>> toReturn = new LinkedList<>();
 
-        if (FMLCommonHandler.instance().getEffectiveSide() == Side.CLIENT)
+        if (GCCoreUtil.getEffectiveSide() == Side.CLIENT)
         {
             return toReturn;
         }
@@ -435,23 +436,32 @@ public class FluidNetwork implements IGridNetwork<FluidNetwork, IBufferTransmitt
             this.refreshAcceptors();
         }
 
-        for (BlockPos coords : acceptors.keySet())
+        List<BlockPos> acceptorsCopy = new ArrayList<>();
+        acceptorsCopy.addAll(acceptors.keySet());
+
+        for (BlockPos coords : acceptorsCopy)
         {
             EnumSet<EnumFacing> sides = acceptorDirections.get(coords);
+            if (sides == null || sides.isEmpty())
+            {
+                continue;
+            }
+            
             TileEntity tile = this.worldObj.getTileEntity(coords);
-
-            if (sides == null || sides.isEmpty() || !(tile instanceof IFluidHandler))
+            if (!(tile instanceof IFluidHandler))
             {
                 continue;
             }
 
             IFluidHandler acceptor = (IFluidHandler) tile;
+            Fluid fluidToSend = toSend.getFluid();
 
             for (EnumFacing side : sides)
             {
-                if (acceptor.canFill(side, toSend.getFluid()))
+                if (acceptor.canFill(side, fluidToSend))
                 {
                     toReturn.add(Pair.of(coords, acceptor));
+                    break;
                 }
             }
         }
@@ -548,7 +558,7 @@ public class FluidNetwork implements IGridNetwork<FluidNetwork, IBufferTransmitt
                     {
                         EnumFacing facing = EnumFacing.getFront(i).getOpposite();
                         BlockPos acceptorPos = tile.getPos().offset(facing.getOpposite());
-                        EnumSet<EnumFacing> facingSet = this.acceptorDirections.get(tile.getPos());
+                        EnumSet<EnumFacing> facingSet = this.acceptorDirections.get(acceptorPos);
                         if (facingSet != null)
                         {
                             facingSet.add(facing);

@@ -32,7 +32,7 @@ public class BlockSolar extends BlockTileGC implements IShiftDescription, IParti
     public static final int ADVANCED_METADATA = 4;
 
     public static final PropertyDirection FACING = PropertyDirection.create("facing", EnumFacing.Plane.HORIZONTAL);
-    public static final PropertyEnum TYPE = PropertyEnum.create("type", EnumSolarType.class);
+    public static final PropertyEnum<EnumSolarType> TYPE = PropertyEnum.create("type", EnumSolarType.class);
 
     public enum EnumSolarType implements IStringSerializable
     {
@@ -142,12 +142,7 @@ public class BlockSolar extends BlockTileGC implements IShiftDescription, IParti
 
         worldIn.setBlockState(pos, getStateFromMeta(change), 3);
 
-        TileEntity tile = worldIn.getTileEntity(pos);
-
-        if (tile instanceof TileEntitySolar)
-        {
-            ((TileEntitySolar) tile).onCreate(worldIn, pos);
-        }
+        BlockMulti.onPlacement(worldIn, pos, placer, this);
     }
 
     @Override
@@ -166,17 +161,8 @@ public class BlockSolar extends BlockTileGC implements IShiftDescription, IParti
     @Override
     public boolean onUseWrench(World world, BlockPos pos, EntityPlayer entityPlayer, EnumFacing side, float hitX, float hitY, float hitZ)
     {
-        int metadata = getMetaFromState(world.getBlockState(pos));
-        int change = world.getBlockState(pos).getValue(FACING).rotateY().getHorizontalIndex();
-
-        world.setBlockState(pos, this.getStateFromMeta(metadata - (metadata % 4) + change), 3);
-
-        TileEntity te = world.getTileEntity(pos);
-        if (te instanceof TileBaseUniversalElectrical)
-        {
-            ((TileBaseUniversalElectrical) te).updateFacing();
-        }
-
+        IBlockState state = world.getBlockState(pos);
+        TileBaseUniversalElectrical.onUseWrenchBlock(state, world, pos, state.getValue(FACING));
         return true;
     }
 

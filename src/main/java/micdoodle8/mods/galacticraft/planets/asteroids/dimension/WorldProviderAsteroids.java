@@ -8,11 +8,12 @@ import micdoodle8.mods.galacticraft.api.world.ISolarLevel;
 import micdoodle8.mods.galacticraft.core.event.EventHandlerGC;
 import micdoodle8.mods.galacticraft.core.util.ConfigManagerCore;
 import micdoodle8.mods.galacticraft.core.util.GCLog;
+import micdoodle8.mods.galacticraft.core.world.gen.dungeon.RoomChest;
 import micdoodle8.mods.galacticraft.planets.asteroids.AsteroidsModule;
 import micdoodle8.mods.galacticraft.planets.asteroids.entities.EntityAstroMiner;
 import micdoodle8.mods.galacticraft.planets.asteroids.world.gen.ChunkProviderAsteroids;
 import micdoodle8.mods.galacticraft.planets.asteroids.world.gen.WorldChunkManagerAsteroids;
-import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.block.Block;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.world.biome.WorldChunkManager;
@@ -22,12 +23,13 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.TreeMap;
 
 public class WorldProviderAsteroids extends WorldProviderSpace implements ISolarLevel
 {
     //Used to list asteroid centres to external code that needs to know them
-    private HashSet<AsteroidData> asteroids = new HashSet();
+    private HashSet<AsteroidData> asteroids = new HashSet<>();
     private boolean dataNotLoaded = true;
     private AsteroidSaveData datafile;
     private double solarMultiplier = -1D;
@@ -87,12 +89,6 @@ public class WorldProviderAsteroids extends WorldProviderSpace implements ISolar
     }
 
     @Override
-    public boolean shouldForceRespawn()
-    {
-        return !ConfigManagerCore.forceOverworldRespawn;
-    }
-
-    @Override
     public float calculateCelestialAngle(long par1, float par3)
     {
         return 0.25F;
@@ -129,14 +125,6 @@ public class WorldProviderAsteroids extends WorldProviderSpace implements ISolar
         return true;
     }
 
-    //Overriding only in case the Galacticraft API is not up-to-date
-    //(with up-to-date API this makes zero difference)
-    @Override
-    public boolean isSurfaceWorld()
-    {
-        return (this.worldObj == null) ? false : this.worldObj.isRemote;
-    }
-
     //Overriding so that beds do not explode on Asteroids
     @Override
     public boolean canRespawnHere()
@@ -147,14 +135,6 @@ public class WorldProviderAsteroids extends WorldProviderSpace implements ISolar
             return true;
         }
         return false;
-    }
-
-    //Overriding only in case the Galacticraft API is not up-to-date
-    //(with up-to-date API this makes zero difference)
-    @Override
-    public int getRespawnDimension(EntityPlayerMP player)
-    {
-        return this.shouldForceRespawn() ? this.dimensionId : 0;
     }
 
     @Override
@@ -185,24 +165,6 @@ public class WorldProviderAsteroids extends WorldProviderSpace implements ISolar
     public float getFallDamageModifier()
     {
         return 0.1F;
-    }
-
-    @Override
-    public float getSoundVolReductionAmount()
-    {
-        return 10.0F;
-    }
-
-    @Override
-    public boolean hasBreathableAtmosphere()
-    {
-        return false;
-    }
-
-    @Override
-    public float getThermalLevelModifier()
-    {
-        return -1.5F;
     }
 
     public void addAsteroid(int x, int y, int z, int size, int core)
@@ -295,7 +257,8 @@ public class WorldProviderAsteroids extends WorldProviderSpace implements ISolar
         this.datafile.markDirty();
     }
 
-    public BlockVec3 getClosestAsteroidXZ(int x, int y, int z)
+
+    public boolean checkHasAsteroids()
     {
         if (this.dataNotLoaded)
         {
@@ -303,6 +266,16 @@ public class WorldProviderAsteroids extends WorldProviderSpace implements ISolar
         }
 
         if (this.asteroids.size() == 0)
+        {
+            return false;
+        }
+        
+        return true;
+    }
+
+    public BlockVec3 getClosestAsteroidXZ(int x, int y, int z, boolean mark)
+    {
+        if (!this.checkHasAsteroids())
         {
             return null;
         }
@@ -313,7 +286,7 @@ public class WorldProviderAsteroids extends WorldProviderSpace implements ISolar
 
         for (AsteroidData test : this.asteroids)
         {
-            if ((test.sizeAndLandedFlag & 128) > 0)
+            if (mark && (test.sizeAndLandedFlag & 128) > 0)
             {
                 continue;
             }
@@ -334,24 +307,24 @@ public class WorldProviderAsteroids extends WorldProviderSpace implements ISolar
             return null;
         }
 
-        resultRoid.sizeAndLandedFlag |= 128;
-        this.writeToNBT(this.datafile.datacompound);
-        return result.clone();
+        if (mark)
+        {
+            resultRoid.sizeAndLandedFlag |= 128;
+            this.writeToNBT(this.datafile.datacompound);
+        }
+        result = result.clone();
+        result.sideDoneBits = resultRoid.sizeAndLandedFlag & 127;
+        return result;
     }
 
     public ArrayList<BlockVec3> getClosestAsteroidsXZ(int x, int y, int z, int facing, int count)
     {
-        if (this.dataNotLoaded)
-        {
-            this.loadAsteroidSavedData();
-        }
-
-        if (this.asteroids.size() == 0)
+        if (!this.checkHasAsteroids())
         {
             return null;
         }
 
-        TreeMap<Integer, BlockVec3> targets = new TreeMap();
+        TreeMap<Integer, BlockVec3> targets = new TreeMap<>();
 
         for (AsteroidData roid : this.asteroids)
         {
@@ -398,7 +371,7 @@ public class WorldProviderAsteroids extends WorldProviderSpace implements ISolar
             return null;
         }
 
-        ArrayList<BlockVec3> returnValues = new ArrayList();
+        ArrayList<BlockVec3> returnValues = new ArrayList<>();
         int i = 0;
         int offset = EntityAstroMiner.MINE_LENGTH_AST / 2;
         for (BlockVec3 target : targets.values())
@@ -428,12 +401,6 @@ public class WorldProviderAsteroids extends WorldProviderSpace implements ISolar
         }
 
         return returnValues;
-    }
-
-    @Override
-    public float getWindLevel()
-    {
-        return 0.05F;
     }
 
     @Override
@@ -552,14 +519,27 @@ public class WorldProviderAsteroids extends WorldProviderSpace implements ISolar
     }
 
     @Override
-    public boolean shouldDisablePrecipitation()
+    public int getDungeonSpacing()
     {
-        return true;
+        return 576;
+        //Used for generating Abandoned Base 
     }
 
     @Override
-    public boolean shouldCorrodeArmor()
+    public float getArrowGravity()
     {
-        return false;
+        return 0.002F;
+    }
+
+    @Override
+    public String getDungeonChestType()
+    {
+        return RoomChest.MOONCHEST;
+    }
+
+    @Override
+    public List<Block> getSurfaceBlocks()
+    {
+        return null;
     }
 }

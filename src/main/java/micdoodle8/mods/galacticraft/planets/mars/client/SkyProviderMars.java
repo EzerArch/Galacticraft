@@ -14,9 +14,8 @@ import net.minecraftforge.client.IRenderHandler;
 import net.minecraftforge.fml.client.FMLClientHandler;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
-import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GL12;
 
+import org.lwjgl.opengl.GL11;
 import java.util.Random;
 
 /**
@@ -30,7 +29,7 @@ import java.util.Random;
 public class SkyProviderMars extends IRenderHandler
 {
     private static final ResourceLocation overworldTexture = new ResourceLocation(Constants.ASSET_PREFIX, "textures/gui/celestialbodies/earth.png");
-    private static final ResourceLocation sunTexture = new ResourceLocation("textures/environment/sun.png");
+    private static final ResourceLocation sunTexture = new ResourceLocation(Constants.ASSET_PREFIX, "textures/gui/planets/atmosphericsun.png");
 
     public int starList;
     public int glSkyList;
@@ -65,10 +64,10 @@ public class SkyProviderMars extends IRenderHandler
             for (int l = -byte2 * i; l <= byte2 * i; l += byte2)
             {
                 worldRenderer.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION);
-                worldRenderer.pos(j + 0, f, l + 0).endVertex();
-                worldRenderer.pos(j + byte2, f, l + 0).endVertex();
+                worldRenderer.pos(j, f, l).endVertex();
+                worldRenderer.pos(j + byte2, f, l).endVertex();
                 worldRenderer.pos(j + byte2, f, l + byte2).endVertex();
-                worldRenderer.pos(j + 0, f, l + byte2).endVertex();
+                worldRenderer.pos(j, f, l + byte2).endVertex();
                 tessellator.draw();
             }
         }
@@ -82,9 +81,9 @@ public class SkyProviderMars extends IRenderHandler
         {
             for (int i1 = -byte2 * i; i1 <= byte2 * i; i1 += byte2)
             {
-                worldRenderer.pos(k + byte2, f, i1 + 0).endVertex();
-                worldRenderer.pos(k + 0, f, i1 + 0).endVertex();
-                worldRenderer.pos(k + 0, f, i1 + byte2).endVertex();
+                worldRenderer.pos(k + byte2, f, i1).endVertex();
+                worldRenderer.pos(k, f, i1).endVertex();
+                worldRenderer.pos(k, f, i1 + byte2).endVertex();
                 worldRenderer.pos(k + byte2, f, i1 + byte2).endVertex();
             }
         }
@@ -97,7 +96,7 @@ public class SkyProviderMars extends IRenderHandler
     public void render(float partialTicks, WorldClient world, Minecraft mc)
     {
         GL11.glDisable(GL11.GL_TEXTURE_2D);
-        GL11.glDisable(GL12.GL_RESCALE_NORMAL);
+        GlStateManager.disableRescaleNormal();
         Vec3 vec3 = world.getSkyColor(mc.getRenderViewEntity(), partialTicks);
         float f1 = (float) vec3.xCoord;
         float f2 = (float) vec3.yCoord;
@@ -262,9 +261,9 @@ public class SkyProviderMars extends IRenderHandler
         GL11.glColor4f(1.0F, 1.0F, 1.0F, 1F);
         FMLClientHandler.instance().getClient().renderEngine.bindTexture(SkyProviderMars.overworldTexture);
         worldRenderer1.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX);
-        worldRenderer1.pos(-f10, -100.0D, f10).tex(0, 1).endVertex();
-        worldRenderer1.pos(f10, -100.0D, f10).tex(1, 1).endVertex();
-        worldRenderer1.pos(f10, -100.0D, -f10).tex(1, 0).endVertex();
+        worldRenderer1.pos(-f10, -100.0D, f10).tex(0, 1.0).endVertex();
+        worldRenderer1.pos(f10, -100.0D, f10).tex(1.0, 1.0).endVertex();
+        worldRenderer1.pos(f10, -100.0D, -f10).tex(1.0, 0).endVertex();
         worldRenderer1.pos(-f10, -100.0D, -f10).tex(0, 0).endVertex();
         tessellator1.draw();
 
@@ -326,9 +325,8 @@ public class SkyProviderMars extends IRenderHandler
         GL11.glCallList(this.glSkyList2);
         GL11.glPopMatrix();
         GL11.glEnable(GL11.GL_TEXTURE_2D);
-        GL11.glEnable(GL12.GL_RESCALE_NORMAL);
+        GlStateManager.enableRescaleNormal();
         GL11.glEnable(GL11.GL_COLOR_MATERIAL);
-        GL11.glDisable(GL11.GL_FOG);
         OpenGlHelper.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ZERO);
         GL11.glDepthMask(true);
         GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
@@ -396,7 +394,7 @@ public class SkyProviderMars extends IRenderHandler
     public float getSkyBrightness(float par1)
     {
         final float var2 = FMLClientHandler.instance().getClient().theWorld.getCelestialAngle(par1);
-        float var3 = 1.0F - (MathHelper.sin(var2 * (float) Math.PI * 2.0F) * 2.0F + 0.25F);
+        float var3 = 1.0F - (MathHelper.sin(var2 * Constants.twoPI) * 2.0F + 0.25F);
 
         if (var3 < 0.0F)
         {

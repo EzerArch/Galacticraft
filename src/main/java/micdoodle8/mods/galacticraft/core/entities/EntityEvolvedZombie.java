@@ -1,9 +1,11 @@
 package micdoodle8.mods.galacticraft.core.entities;
 
 import micdoodle8.mods.galacticraft.api.entity.IEntityBreathable;
+import micdoodle8.mods.galacticraft.core.Constants;
 import micdoodle8.mods.galacticraft.core.GCItems;
 import micdoodle8.mods.galacticraft.core.util.ConfigManagerCore;
 import micdoodle8.mods.galacticraft.core.util.WorldUtil;
+import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.*;
 import net.minecraft.entity.ai.attributes.IAttribute;
 import net.minecraft.entity.monster.EntityIronGolem;
@@ -44,15 +46,33 @@ public class EntityEvolvedZombie extends EntityZombie implements IEntityBreathab
     }
 
     @Override
+    protected void applyEntityAttributes()
+    {
+        super.applyEntityAttributes();
+        this.getEntityAttribute(SharedMonsterAttributes.maxHealth).setBaseValue(30.0D);
+        double difficulty = 0;
+        switch (this.worldObj.getDifficulty())
+        {
+        case HARD : difficulty = 2D;
+            break;
+        case NORMAL : difficulty = 1D;
+            break;
+        }
+        this.getEntityAttribute(SharedMonsterAttributes.movementSpeed).setBaseValue(0.26D + 0.04D * difficulty);
+        this.getEntityAttribute(SharedMonsterAttributes.attackDamage).setBaseValue(3D + difficulty);
+        this.getEntityAttribute(SharedMonsterAttributes.followRange).setBaseValue(16D + difficulty * 2D);
+    }
+
+    @Override
     protected void applyEntityAI()
     {
         this.tasks.addTask(4, new EntityAIAttackOnCollide(this, EntityVillager.class, 1.0D, true));
         this.tasks.addTask(4, new EntityAIAttackOnCollide(this, EntityIronGolem.class, 1.0D, true));
         this.tasks.addTask(6, new EntityAIMoveThroughVillage(this, 1.0D, false));
         this.targetTasks.addTask(1, new EntityAIHurtByTarget(this, true, new Class[] { EntityPigZombie.class }));
-        this.targetTasks.addTask(2, new EntityAINearestAttackableTarget(this, EntityPlayer.class, true));
-        this.targetTasks.addTask(2, new EntityAINearestAttackableTarget(this, EntityVillager.class, false));
-        this.targetTasks.addTask(2, new EntityAINearestAttackableTarget(this, EntityIronGolem.class, true));
+        this.targetTasks.addTask(2, new EntityAINearestAttackableTarget<>(this, EntityPlayer.class, true));
+        this.targetTasks.addTask(2, new EntityAINearestAttackableTarget<>(this, EntityVillager.class, false));
+        this.targetTasks.addTask(2, new EntityAINearestAttackableTarget<>(this, EntityIronGolem.class, true));
     }
 
     @Override
@@ -82,7 +102,7 @@ public class EntityEvolvedZombie extends EntityZombie implements IEntityBreathab
 
         if (this.isSprinting())
         {
-            float f = this.rotationYaw * 0.017453292F;
+            float f = this.rotationYaw / Constants.RADIANS_TO_DEGREES;
             this.motionX -= MathHelper.sin(f) * 0.2F;
             this.motionZ += MathHelper.cos(f) * 0.2F;
         }
@@ -101,7 +121,7 @@ public class EntityEvolvedZombie extends EntityZombie implements IEntityBreathab
         case 1:
         case 2:
             //Dehydrated carrot
-            this.entityDropItem(new ItemStack(GCItems.basicItem, 1, 16), 0.0F);
+            this.entityDropItem(new ItemStack(GCItems.foodItem, 1, 1), 0.0F);
             break;
         case 3:
         case 4:
@@ -110,7 +130,7 @@ public class EntityEvolvedZombie extends EntityZombie implements IEntityBreathab
         case 5:
         case 6:
             //Dehydrated potato
-            this.entityDropItem(new ItemStack(GCItems.basicItem, 1, 18), 0.0F);
+            this.entityDropItem(new ItemStack(GCItems.foodItem, 1, 3), 0.0F);
             break;
         case 7:
         case 8:
@@ -130,7 +150,7 @@ public class EntityEvolvedZombie extends EntityZombie implements IEntityBreathab
         case 13:
         case 14:
         case 15:
-            if (ConfigManagerCore.challengeMode || ConfigManagerCore.challengeMobDropsAndSpawning) this.dropItem(Items.melon_seeds, 1);
+            if (ConfigManagerCore.challengeMobDropsAndSpawning) this.dropItem(Items.melon_seeds, 1);
             break;
         }
     }
@@ -138,7 +158,6 @@ public class EntityEvolvedZombie extends EntityZombie implements IEntityBreathab
     @Override
     protected void dropFewItems(boolean p_70628_1_, int p_70628_2_)
     {
-        super.dropFewItems(p_70628_1_, p_70628_2_);
         Item item = this.getDropItem();
 
         //Less rotten flesh than vanilla
@@ -158,7 +177,7 @@ public class EntityEvolvedZombie extends EntityZombie implements IEntityBreathab
         }
 
         //Drop copper ingot as semi-rare drop if player hit and if dropping rotten flesh (50% chance)
-        if (p_70628_1_ && (ConfigManagerCore.challengeMode || ConfigManagerCore.challengeMobDropsAndSpawning) && j > 0 && this.rand.nextInt(6) == 0)
+        if (p_70628_1_ && (ConfigManagerCore.challengeMobDropsAndSpawning) && j > 0 && this.rand.nextInt(6) == 0)
             this.entityDropItem(new ItemStack(GCItems.basicItem, 1, 3), 0.0F);
     }
 

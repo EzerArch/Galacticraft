@@ -36,7 +36,7 @@ import java.util.List;
 public class BlockSlimelingEgg extends Block implements ITileEntityProvider, IShiftDescription, ISortableBlock
 {
     //    private IIcon[] icons;
-    public static final PropertyEnum EGG_COLOR = PropertyEnum.create("eggcolor", EnumEggColor.class);
+    public static final PropertyEnum<EnumEggColor> EGG_COLOR = PropertyEnum.create("eggcolor", EnumEggColor.class);
     public static final PropertyBool BROKEN = PropertyBool.create("broken");
 
     public enum EnumEggColor implements IStringSerializable
@@ -97,7 +97,7 @@ public class BlockSlimelingEgg extends Block implements ITileEntityProvider, ISh
     @Override
     public boolean canPlaceBlockAt(World worldIn, BlockPos pos)
     {
-        return worldIn.getBlockState(pos).getBlock().isReplaceable(worldIn, pos) && worldIn.getBlockState(pos.down()).getBlock() == MarsBlocks.marsBlock && worldIn.getBlockState(pos.down()).getValue(BlockBasicMars.BASIC_TYPE) == BlockBasicMars.EnumBlockBasic.SURFACE;
+        return worldIn.getBlockState(pos).getBlock().isReplaceable(worldIn, pos);
     }
 
 //    @Override

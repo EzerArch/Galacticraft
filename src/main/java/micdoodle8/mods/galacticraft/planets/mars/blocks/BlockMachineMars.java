@@ -4,6 +4,7 @@ import micdoodle8.mods.galacticraft.api.block.IPartialSealableBlock;
 import micdoodle8.mods.galacticraft.api.vector.Vector3;
 import micdoodle8.mods.galacticraft.core.GCBlocks;
 import micdoodle8.mods.galacticraft.core.GalacticraftCore;
+import micdoodle8.mods.galacticraft.core.blocks.BlockMulti;
 import micdoodle8.mods.galacticraft.core.blocks.BlockTileGC;
 import micdoodle8.mods.galacticraft.core.blocks.ISortableBlock;
 import micdoodle8.mods.galacticraft.core.energy.tile.TileBaseUniversalElectrical;
@@ -11,6 +12,7 @@ import micdoodle8.mods.galacticraft.core.items.IShiftDescription;
 import micdoodle8.mods.galacticraft.core.tile.IMultiBlock;
 import micdoodle8.mods.galacticraft.core.util.EnumSortCategoryBlock;
 import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
+import micdoodle8.mods.galacticraft.core.util.WorldUtil;
 import micdoodle8.mods.galacticraft.core.world.IChunkLoader;
 import micdoodle8.mods.galacticraft.planets.GalacticraftPlanets;
 import micdoodle8.mods.galacticraft.planets.GuiIdsPlanets;
@@ -18,7 +20,6 @@ import micdoodle8.mods.galacticraft.planets.mars.ConfigManagerMars;
 import micdoodle8.mods.galacticraft.planets.mars.tile.TileEntityCryogenicChamber;
 import micdoodle8.mods.galacticraft.planets.mars.tile.TileEntityLaunchController;
 import micdoodle8.mods.galacticraft.planets.mars.tile.TileEntityTerraformer;
-import net.minecraft.block.Block;
 import net.minecraft.block.properties.PropertyDirection;
 import net.minecraft.block.properties.PropertyEnum;
 import net.minecraft.block.state.BlockState;
@@ -51,7 +52,7 @@ public class BlockMachineMars extends BlockTileGC implements IShiftDescription, 
     public static final int LAUNCH_CONTROLLER_METADATA = 8;
 
     public static final PropertyDirection FACING = PropertyDirection.create("facing", EnumFacing.Plane.HORIZONTAL);
-    public static final PropertyEnum TYPE = PropertyEnum.create("type", EnumMachineType.class);
+    public static final PropertyEnum<EnumMachineType> TYPE = PropertyEnum.create("type", EnumMachineType.class);
 
     public enum EnumMachineType implements IStringSerializable
     {
@@ -122,55 +123,34 @@ public class BlockMachineMars extends BlockTileGC implements IShiftDescription, 
 
         worldIn.setBlockState(pos, getStateFromMeta((metadata & 12) + change), 3);
 
-        TileEntity var8 = worldIn.getTileEntity(pos);
-
-        if (var8 instanceof IMultiBlock)
+        switch (metadata & 12)
         {
-            ((IMultiBlock) var8).onCreate(worldIn, pos);
-        }
-
-        if (metadata >= BlockMachineMars.LAUNCH_CONTROLLER_METADATA)
-        {
-            for (int dX = -2; dX < 3; dX++)
+        
+        case BlockMachineMars.CRYOGENIC_CHAMBER_METADATA:
+            BlockMulti.onPlacement(worldIn, pos, placer, this);
+            break;
+            
+        case BlockMachineMars.LAUNCH_CONTROLLER_METADATA:
+            WorldUtil.markAdjacentPadForUpdate(worldIn, pos);
+            TileEntity var8 = worldIn.getTileEntity(pos);
+            if (var8 instanceof IChunkLoader && !worldIn.isRemote && ConfigManagerMars.launchControllerChunkLoad && placer instanceof EntityPlayer)
             {
-                for (int dZ = -2; dZ < 3; dZ++)
-                {
-                    BlockPos pos1 = pos.add(dX, 0, dZ);
-                    final Block id = worldIn.getBlockState(pos1).getBlock();
-
-                    if (id == GCBlocks.landingPadFull)
-                    {
-                        worldIn.markBlockForUpdate(pos1);
-                    }
-                }
+                ((IChunkLoader) var8).setOwnerName(((EntityPlayer) placer).getName());
+                ((IChunkLoader) var8).onTicketLoaded(ForgeChunkManager.requestTicket(GalacticraftCore.instance, var8.getWorld(), Type.NORMAL), true);
             }
-        }
-
-        if (var8 instanceof IChunkLoader && !var8.getWorld().isRemote && ConfigManagerMars.launchControllerChunkLoad && placer instanceof EntityPlayer)
-        {
-            ((IChunkLoader) var8).setOwnerName(((EntityPlayer) placer).getGameProfile().getName());
-            ((IChunkLoader) var8).onTicketLoaded(ForgeChunkManager.requestTicket(GalacticraftCore.instance, var8.getWorld(), Type.NORMAL), true);
-        }
-        else if (var8 instanceof TileEntityLaunchController && placer instanceof EntityPlayer)
-        {
-            ((TileEntityLaunchController) var8).setOwnerName(((EntityPlayer) placer).getGameProfile().getName());
+            else if (var8 instanceof TileEntityLaunchController && placer instanceof EntityPlayer)
+            {
+                ((TileEntityLaunchController) var8).setOwnerName(((EntityPlayer) placer).getName());
+            }
+            break;
         }
     }
 
     @Override
     public boolean onUseWrench(World world, BlockPos pos, EntityPlayer entityPlayer, EnumFacing side, float hitX, float hitY, float hitZ)
     {
-        int metadata = getMetaFromState(world.getBlockState(pos));
-        int change = world.getBlockState(pos).getValue(FACING).rotateY().getHorizontalIndex();
-
-        world.setBlockState(pos, this.getStateFromMeta(metadata - (metadata % 4) + change), 3);
-
-        TileEntity te = world.getTileEntity(pos);
-        if (te instanceof TileBaseUniversalElectrical)
-        {
-            ((TileBaseUniversalElectrical) te).updateFacing();
-        }
-
+        IBlockState state = world.getBlockState(pos);
+        TileBaseUniversalElectrical.onUseWrenchBlock(state, world, pos, state.getValue(FACING));
         return true;
     }
 
@@ -230,19 +210,7 @@ public class BlockMachineMars extends BlockTileGC implements IShiftDescription, 
     {
         if (getMetaFromState(world.getBlockState(pos)) >= BlockMachineMars.LAUNCH_CONTROLLER_METADATA)
         {
-            for (int dX = -2; dX < 3; dX++)
-            {
-                for (int dZ = -2; dZ < 3; dZ++)
-                {
-                    BlockPos pos1 = pos.add(dX, 0, dZ);
-                    final Block id = world.getBlockState(pos1).getBlock();
-
-                    if (id == GCBlocks.landingPadFull)
-                    {
-                        world.markBlockForUpdate(pos1);
-                    }
-                }
-            }
+            WorldUtil.markAdjacentPadForUpdate(world, pos);
         }
 
         return super.removedByPlayer(world, pos, player, willHarvest);
@@ -263,9 +231,8 @@ public class BlockMachineMars extends BlockTileGC implements IShiftDescription, 
         return new ItemStack(this, 1, BlockMachineMars.LAUNCH_CONTROLLER_METADATA);
     }
 
-    @SuppressWarnings({ "unchecked", "rawtypes" })
     @Override
-    public void getSubBlocks(Item par1, CreativeTabs par2CreativeTabs, List par3List)
+    public void getSubBlocks(Item par1, CreativeTabs par2CreativeTabs, List<ItemStack> par3List)
     {
         par3List.add(this.getTerraformer());
         par3List.add(this.getChamber());
@@ -316,7 +283,7 @@ public class BlockMachineMars extends BlockTileGC implements IShiftDescription, 
     @Override
     public EnumFacing getBedDirection(IBlockAccess world, BlockPos pos)
     {
-        return EnumFacing.DOWN;
+        return world.getBlockState(pos).getValue(FACING);
     }
 
     @Override

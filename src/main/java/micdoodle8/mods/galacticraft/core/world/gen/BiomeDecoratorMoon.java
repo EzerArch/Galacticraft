@@ -75,20 +75,21 @@ public class BiomeDecoratorMoon extends BiomeDecorator
         }
         if (!ConfigManagerCore.disableCheeseMoon)
         {
-            this.genStandardOre(12, this.cheeseGen, 0, 128);
+            this.genStandardOre(14, this.cheeseGen, 0, 85);
         }
         if (!ConfigManagerCore.disableSapphireMoon)
         {
             int count = 3 + this.randomGenerator.nextInt(6);
+            IBlockState sapphire = GCBlocks.blockMoon.getDefaultState().withProperty(BlockBasicMoon.BASIC_TYPE_MOON, BlockBasicMoon.EnumBlockBasicMoon.ORE_SAPPHIRE);
             for (int i = 0; i < count; i++)
             {
-                BlockPos blockpos = this.field_180294_c.add(this.randomGenerator.nextInt(16), this.randomGenerator.nextInt(28) + 4, this.randomGenerator.nextInt(16));
+                BlockPos blockpos = this.field_180294_c.add(this.randomGenerator.nextInt(16) + 8, this.randomGenerator.nextInt(28) + 4, this.randomGenerator.nextInt(16) + 8);
 
                 IBlockState toReplace = worldObj.getBlockState(blockpos);
 
                 if (toReplace.getBlock() == GCBlocks.blockMoon && toReplace.getBlock().isReplaceableOreGen(worldObj, blockpos, BlockHelper.forBlock(Blocks.stone)))
                 {
-                    worldObj.setBlockState(blockpos, GCBlocks.blockMoon.getDefaultState().withProperty(BlockBasicMoon.BASIC_TYPE_MOON, BlockBasicMoon.EnumBlockBasicMoon.ORE_SAPPHIRE), 2);
+                    worldObj.setBlockState(blockpos, sapphire, 2);
                 }
             }
         }

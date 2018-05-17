@@ -3,7 +3,6 @@ package micdoodle8.mods.galacticraft.core.network;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 
-import micdoodle8.mods.galacticraft.core.GCItems;
 import micdoodle8.mods.galacticraft.core.GalacticraftCore;
 import micdoodle8.mods.galacticraft.core.dimension.SpaceRace;
 import micdoodle8.mods.galacticraft.core.dimension.SpaceRaceManager;
@@ -11,13 +10,13 @@ import micdoodle8.mods.galacticraft.core.dimension.SpaceStationWorldData;
 import micdoodle8.mods.galacticraft.core.dimension.WorldProviderSpaceStation;
 import micdoodle8.mods.galacticraft.core.entities.player.GCPlayerStats;
 import micdoodle8.mods.galacticraft.core.network.PacketSimple.EnumSimplePacket;
+import micdoodle8.mods.galacticraft.core.tick.TickHandlerClient;
 import micdoodle8.mods.galacticraft.core.util.*;
 import micdoodle8.mods.galacticraft.core.world.ChunkLoadingCallback;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.network.EnumConnectionState;
 import net.minecraft.network.EnumPacketDirection;
 import net.minecraft.network.Packet;
-import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerLoggedInEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerLoggedOutEvent;
@@ -30,7 +29,6 @@ import org.apache.logging.log4j.LogManager;
 public class ConnectionEvents
 {
     private static boolean clientConnected = false;
-    private static boolean initialisedJEI = false;
 
     static
     {
@@ -40,7 +38,7 @@ public class ConnectionEvents
 
     protected static EnumConnectionState registerPacket(EnumPacketDirection direction, Class<? extends Packet> packetClass)
     {
-        BiMap<Integer, Class<? extends Packet>> bimap = (BiMap) EnumConnectionState.PLAY.directionMaps.get(direction);
+        BiMap<Integer, Class<? extends Packet>> bimap = (BiMap<Integer, Class<? extends Packet>>) EnumConnectionState.PLAY.directionMaps.get(direction);
 
         if (bimap == null)
         {
@@ -78,10 +76,10 @@ public class ConnectionEvents
             GCPlayerStats stats = GCPlayerStats.get(thePlayer);
             SpaceStationWorldData.checkAllStations(thePlayer, stats);
             GalacticraftCore.packetPipeline.sendTo(new PacketSimple(EnumSimplePacket.C_UPDATE_SPACESTATION_CLIENT_ID, GCCoreUtil.getDimensionID(thePlayer.worldObj), new Object[] { WorldUtil.spaceStationDataToString(stats.getSpaceStationDimensionData()) }), thePlayer);
-            SpaceRace raceForPlayer = SpaceRaceManager.getSpaceRaceFromPlayer(thePlayer.getGameProfile().getName());
+            SpaceRace raceForPlayer = SpaceRaceManager.getSpaceRaceFromPlayer(PlayerUtil.getName(thePlayer));
             if (raceForPlayer != null)
             {
-                SpaceRaceManager.sendSpaceRaceData(thePlayer, raceForPlayer);
+                SpaceRaceManager.sendSpaceRaceData(thePlayer.mcServer, thePlayer, raceForPlayer);
             }
         }
 
@@ -116,20 +114,12 @@ public class ConnectionEvents
         {
             ConnectionEvents.clientConnected = true;
         }
-        MapUtil.resetClient();
-        if (!initialisedJEI)
-        {
-            initialisedJEI = true;
-            if (Loader.isModLoaded("JEI"))
-            {
-                GCItems.hideItemsJEI();
-            }
-        }
     }
 
     @SubscribeEvent
     public void onConnectionClosed(ClientDisconnectionFromServerEvent event)
     {
+        TickHandlerClient.menuReset = true;
         if (ConnectionEvents.clientConnected)
         {
             ConnectionEvents.clientConnected = false;

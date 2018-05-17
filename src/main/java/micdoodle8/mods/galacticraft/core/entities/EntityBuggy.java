@@ -3,9 +3,11 @@ package micdoodle8.mods.galacticraft.core.entities;
 import io.netty.buffer.ByteBuf;
 import micdoodle8.mods.galacticraft.api.entity.IDockable;
 import micdoodle8.mods.galacticraft.api.tile.IFuelDock;
+import micdoodle8.mods.galacticraft.core.Constants;
 import micdoodle8.mods.galacticraft.core.GCItems;
 import micdoodle8.mods.galacticraft.core.GalacticraftCore;
 import micdoodle8.mods.galacticraft.core.TransformerHooks;
+import micdoodle8.mods.galacticraft.core.inventory.IInventoryDefaults;
 import micdoodle8.mods.galacticraft.core.network.*;
 import micdoodle8.mods.galacticraft.core.network.PacketEntityUpdate.IEntityFullSync;
 import micdoodle8.mods.galacticraft.core.tick.KeyHandlerClient;
@@ -18,7 +20,6 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.inventory.IInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
@@ -37,7 +38,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-public class EntityBuggy extends Entity implements IInventory, IPacketReceiver, IDockable, IControllableEntity, IEntityFullSync
+public class EntityBuggy extends Entity implements IInventoryDefaults, IPacketReceiver, IDockable, IControllableEntity, IEntityFullSync
 {
     public static final int tankCapacity = 1000;
     public FluidTank buggyFuelTank = new FluidTank(this.tankCapacity);
@@ -67,7 +68,7 @@ public class EntityBuggy extends Entity implements IInventory, IPacketReceiver, 
     public EntityBuggy(World var1)
     {
         super(var1);
-        this.setSize(0.98F, 1F);
+        this.setSize(0.98F, 1.4F);
         this.currentDamage = 18;
         this.timeSinceHit = 19;
         this.rockDirection = 20;
@@ -78,6 +79,11 @@ public class EntityBuggy extends Entity implements IInventory, IPacketReceiver, 
         this.dataWatcher.addObject(this.rockDirection, new Integer(1));
         this.ignoreFrustumCheck = true;
         this.isImmuneToFire = true;
+        
+        if (var1 != null && var1.isRemote)
+        {
+            GalacticraftCore.packetPipeline.sendToServer(new PacketDynamic(this));
+        }
     }
 
     public EntityBuggy(World var1, double var2, double var4, double var6, int type)
@@ -150,8 +156,8 @@ public class EntityBuggy extends Entity implements IInventory, IPacketReceiver, 
     {
         if (this.riddenByEntity != null)
         {
-            final double var1 = Math.cos(this.rotationYaw * Math.PI / 180.0D + 114.8) * -0.5D;
-            final double var3 = Math.sin(this.rotationYaw * Math.PI / 180.0D + 114.8) * -0.5D;
+            final double var1 = Math.cos(this.rotationYaw / Constants.RADIANS_TO_DEGREES_D + 114.8) * -0.5D;
+            final double var3 = Math.sin(this.rotationYaw / Constants.RADIANS_TO_DEGREES_D + 114.8) * -0.5D;
             this.riddenByEntity.setPosition(this.posX + var1, this.posY + 0.4F + this.riddenByEntity.getYOffset(), this.posZ + var3);
         }
     }
@@ -314,11 +320,6 @@ public class EntityBuggy extends Entity implements IInventory, IPacketReceiver, 
     @Override
     public void onUpdate()
     {
-        if (this.ticks >= Long.MAX_VALUE)
-        {
-            this.ticks = 1;
-        }
-
         this.ticks++;
 
         super.onUpdate();
@@ -418,8 +419,8 @@ public class EntityBuggy extends Entity implements IInventory, IPacketReceiver, 
 
         if (this.worldObj.isRemote && this.buggyFuelTank.getFluid() != null && this.buggyFuelTank.getFluid().amount > 0)
         {
-            this.motionX = -(this.speed * Math.cos((this.rotationYaw - 90F) * Math.PI / 180.0D));
-            this.motionZ = -(this.speed * Math.sin((this.rotationYaw - 90F) * Math.PI / 180.0D));
+            this.motionX = -(this.speed * Math.cos((this.rotationYaw - 90F) / Constants.RADIANS_TO_DEGREES_D));
+            this.motionZ = -(this.speed * Math.sin((this.rotationYaw - 90F) / Constants.RADIANS_TO_DEGREES_D));
         }
 
         if (this.worldObj.isRemote)
@@ -455,6 +456,10 @@ public class EntityBuggy extends Entity implements IInventory, IPacketReceiver, 
     @Override
     public void getNetworkedData(ArrayList<Object> sendData)
     {
+        if (this.worldObj.isRemote)
+        {
+            return;
+        }
         sendData.add(this.buggyType);
         sendData.add(this.buggyFuelTank);
     }
@@ -612,16 +617,6 @@ public class EntityBuggy extends Entity implements IInventory, IPacketReceiver, 
 
     @Override
     public void markDirty()
-    {
-    }
-
-    @Override
-    public void openInventory(EntityPlayer player)
-    {
-    }
-
-    @Override
-    public void closeInventory(EntityPlayer player)
     {
     }
 
@@ -850,26 +845,8 @@ public class EntityBuggy extends Entity implements IInventory, IPacketReceiver, 
     }
 
     @Override
-    public int getField(int id)
+    public boolean inFlight()
     {
-        return 0;
-    }
-
-    @Override
-    public void setField(int id, int value)
-    {
-
-    }
-
-    @Override
-    public int getFieldCount()
-    {
-        return 0;
-    }
-
-    @Override
-    public void clear()
-    {
-
+        return false;
     }
 }

@@ -32,8 +32,8 @@ public class ThreadFindSeal
     private BlockVec3 head;
     private boolean sealed;
     private List<TileEntityOxygenSealer> sealers;
-    private intBucket[] buckets = new intBucket[256];
-    private int checkedSize = 0;
+    private static intBucket[] buckets;
+    private static int checkedSize;
     private int checkCount;
     private HashMap<BlockVec3, TileEntityOxygenSealer> sealersAround;
     private List<BlockVec3> currentLayer;
@@ -48,21 +48,31 @@ public class ThreadFindSeal
     private List<BlockVec3> torchesToUpdate;
     private boolean foundAmbientThermal;
     public List<BlockVec3> leakTrace;
+    
+    static 
+    {
+        buckets = new intBucket[256];
+        checkedInit();
+    }
 
     public ThreadFindSeal(TileEntityOxygenSealer sealer)
     {
         this(sealer.getWorld(), sealer.getPos().up(), sealer.getFindSealChecks(), new ArrayList<TileEntityOxygenSealer>(Collections.singletonList(sealer)));
     }
 
-    @SuppressWarnings("unchecked")
     public ThreadFindSeal(World world, BlockPos head, int checkCount, List<TileEntityOxygenSealer> sealers)
     {
+        if (ThreadFindSeal.anylooping.getAndSet(true))
+        {
+            return;
+        }
         this.world = world;
         this.head = new BlockVec3(head);
         this.checkCount = checkCount;
         this.sealers = sealers;
         this.foundAmbientThermal = false;
-        this.checkedInit();
+        checkedClear();
+        checkedSize = 0;
         this.torchesToUpdate = new LinkedList<BlockVec3>();
 
         this.sealersAround = TileEntityOxygenSealer.getSealersAround(world, head, 1024 * 1024);
@@ -102,6 +112,7 @@ public class ThreadFindSeal
             //Run this in the main thread
             this.check();
         }
+        ThreadFindSeal.anylooping.set(false);
     }
 
     //Multi-threaded version of the code for sealer updates (not for edge checks).
@@ -110,7 +121,6 @@ public class ThreadFindSeal
         public ThreadedFindSeal()
         {
             super("GC Sealer Roomfinder Thread");
-            ThreadFindSeal.anylooping.set(true);
 
             if (this.isAlive())
             {
@@ -193,8 +203,8 @@ public class ThreadFindSeal
         }
         else
         {
-            int checkedSave = this.checkedSize;
-            this.checkedClear();
+            int checkedSave = checkedSize;
+            checkedClear();
             this.breatheableToReplace = new LinkedList<BlockVec3>();
             this.breatheableToReplaceBright = new LinkedList<BlockVec3>();
             this.fireToReplace = new LinkedList<BlockVec3>();
@@ -219,7 +229,7 @@ public class ThreadFindSeal
                 // unbreathable actually still has an unchecked sealer in it
                 List<TileEntityOxygenSealer> sealersSave = this.sealers;
                 List<BlockVec3> torchesSave = this.torchesToUpdate;
-                List<TileEntityOxygenSealer> sealersDone = new ArrayList();
+                List<TileEntityOxygenSealer> sealersDone = new ArrayList<>();
                 sealersDone.addAll(this.sealers);
                 for (TileEntityOxygenSealer otherSealer : this.otherSealers)
                 {
@@ -237,7 +247,7 @@ public class ThreadFindSeal
                         {
                             foundAmbientThermal = true;
                         }
-                        this.checkedClear();
+                        checkedClear();
                         this.checkedAdd(newhead);
                         this.currentLayer.clear();
                         this.airToReplace.clear();
@@ -276,7 +286,7 @@ public class ThreadFindSeal
                             this.head = newhead.clone();
                             otherSealer.threadSeal = this;
                             otherSealer.stopSealThreadCooldown = 75 + TileEntityOxygenSealer.countEntities;
-                            checkedSave += this.checkedSize;
+                            checkedSave += checkedSize;
                             break;
                         }
                         else
@@ -284,7 +294,7 @@ public class ThreadFindSeal
                             sealersDone.addAll(this.sealers);
                         }
 
-                        checkedSave += this.checkedSize;
+                        checkedSave += checkedSize;
                     }
                 }
 
@@ -301,7 +311,7 @@ public class ThreadFindSeal
                     this.makeSealGood(foundAmbientThermal);
                 }
             }
-            this.checkedSize = checkedSave;
+            checkedSize = checkedSave;
 
             if (!this.sealed)
             {
@@ -359,7 +369,7 @@ public class ThreadFindSeal
             float looping = (time2 - time1) / 1000000.0F;
             float replacing = (time3 - time2) / 1000000.0F; 
             GCLog.info("Oxygen Sealer Check Completed at x" + this.head.x + " y" + this.head.y + " z" + this.head.z);
-            GCLog.info("   Sealed: " + this.sealed + "  ~  " + this.sealers.size() + " sealers  ~  " + (this.checkedSize - 1) + " blocks");
+            GCLog.info("   Sealed: " + this.sealed + "  ~  " + this.sealers.size() + " sealers  ~  " + (checkedSize - 1) + " blocks");
             GCLog.info("   Total Time taken: " + String.format("%.2f", total) + "ms  ~  " + String.format("%.2f", looping) + " + " + String.format("%.2f", replacing) + "");
         }
     }
@@ -441,7 +451,7 @@ public class ThreadFindSeal
         Block airBlockBright = GCBlocks.brightAir;
         List<BlockVec3> toReplaceLocal = this.breatheableToReplace;
         List<BlockVec3> toReplaceLocalBright = this.breatheableToReplaceBright;
-        LinkedList nextLayer = new LinkedList<BlockVec3>();
+        LinkedList<BlockVec3> nextLayer = new LinkedList<>();
         World world = this.world;
         int side, bits;
 
@@ -544,7 +554,7 @@ public class ThreadFindSeal
         Block airBlock = Blocks.air;
         Block airBlockBright = GCBlocks.brightAir;
         List<BlockVec3> toReplaceLocal = this.breatheableToReplace;
-        LinkedList nextLayer = new LinkedList<BlockVec3>();
+        LinkedList<BlockVec3> nextLayer = new LinkedList<>();
         World world = this.world;
         int side, bits;
 
@@ -637,7 +647,7 @@ public class ThreadFindSeal
         Block breatheableAirIDBright = GCBlocks.brightBreatheableAir;
         Block airIDBright = GCBlocks.brightAir;
         Block oxygenSealerID = GCBlocks.oxygenSealer;
-        LinkedList nextLayer = new LinkedList<BlockVec3>();
+        LinkedList<BlockVec3> nextLayer = new LinkedList<>();
         World world = this.world;
         int side, bits;
 
@@ -772,7 +782,7 @@ public class ThreadFindSeal
         Block breatheableAirIDBright = GCBlocks.brightBreatheableAir;
         Block airIDBright = GCBlocks.brightAir;
         Block oxygenSealerID = GCBlocks.oxygenSealer;
-        LinkedList nextLayer = new LinkedList<BlockVec3>();
+        LinkedList<BlockVec3> nextLayer = new LinkedList<>();
         World world = this.world;
         int side, bits;
 
@@ -965,19 +975,19 @@ public class ThreadFindSeal
         return null;
     }
 
-    private void checkedInit()
+    private static void checkedInit()
     {
         for (int i = 0; i < 256; i++)
         {
-            this.buckets[i] = new intBucket();
+            buckets[i] = new intBucket();
         }
     }
 
-    private void checkedClear()
+    private static void checkedClear()
     {
         for (int i = 0; i < 256; i++)
         {
-            this.buckets[i].clear();
+            buckets[i].clear();
         }
         checkedSize = 0;
     }
@@ -1008,8 +1018,7 @@ public class ThreadFindSeal
 
     private void traceLeak(BlockVec3 tracer)
     {
-        GCLog.debug("Leak tracing test length = " + this.checkedSize);
-        ArrayList<BlockVec3> route = new ArrayList();
+        ArrayList<BlockVec3> route = new ArrayList<>();
         BlockVec3 start = this.head.clone().translate(0, 1, 0);
         int count = 0;
         int x = tracer.x;
@@ -1041,7 +1050,7 @@ public class ThreadFindSeal
             count ++;
         }
         
-        this.leakTrace = new ArrayList();
+        this.leakTrace = new ArrayList<>();
         this.leakTrace.add(start);
         for (int j = route.size() - 1; j >= 0; j--)
         {
@@ -1051,6 +1060,37 @@ public class ThreadFindSeal
 
     private boolean canBlockPassAirCheck(Block block, BlockVec3 vec, int side)
     {
+        if (block instanceof IPartialSealableBlock)
+        {
+            EnumFacing testSide = EnumFacing.getFront(side);
+            IPartialSealableBlock blockPartial = (IPartialSealableBlock) block;
+            BlockPos vecPos = new BlockPos(vec.x, vec.y, vec.z);
+            if (blockPartial.isSealed(this.world, vecPos, testSide))
+            {
+                // If a partial block checks as solid, allow it to be tested
+                // again from other directions
+                // This won't cause an endless loop, because the block won't
+                // be included in nextLayer if it checks as solid
+                this.checkCount--;
+                return false;
+            }
+
+            //Find the solid sides so they don't get iterated into, when doing the next layer
+            for (EnumFacing face : EnumFacing.VALUES)
+            {
+                if (face == testSide)
+                {
+                    continue;
+                }
+                if (blockPartial.isSealed(this.world, vecPos, face))
+                {
+                    vec.setSideDone(face.getIndex() ^ 1);
+                }
+            }
+            checkedAdd(vec);
+            return true;
+        }
+
         //Check leaves first, because their isOpaqueCube() test depends on graphics settings
         //(See net.minecraft.block.BlockLeaves.isOpaqueCube()!)
         if (block instanceof BlockLeavesBase)
@@ -1082,37 +1122,6 @@ public class ThreadFindSeal
                 checkedAdd(vec);
                 return false;
             }
-        }
-
-        if (block instanceof IPartialSealableBlock)
-        {
-            EnumFacing testSide = EnumFacing.getFront(side);
-            IPartialSealableBlock blockPartial = (IPartialSealableBlock) block;
-            BlockPos vecPos = new BlockPos(vec.x, vec.y, vec.z);
-            if (blockPartial.isSealed(this.world, vecPos, testSide))
-            {
-                // If a partial block checks as solid, allow it to be tested
-                // again from other directions
-                // This won't cause an endless loop, because the block won't
-                // be included in nextLayer if it checks as solid
-                this.checkCount--;
-                return false;
-            }
-
-            //Find the solid sides so they don't get iterated into, when doing the next layer
-            for (EnumFacing face : EnumFacing.values())
-            {
-                if (face == testSide)
-                {
-                    continue;
-                }
-                if (blockPartial.isSealed(this.world, vecPos, face))
-                {
-                    vec.setSideDone(face.getIndex() ^ 1);
-                }
-            }
-            checkedAdd(vec);
-            return true;
         }
 
         if (block instanceof BlockUnlitTorch)
@@ -1216,7 +1225,7 @@ public class ThreadFindSeal
         return true;
     }
 
-    public class intBucket
+    public static class intBucket
     {
         private int maxSize = 64;  //default size
         private int size = 0;

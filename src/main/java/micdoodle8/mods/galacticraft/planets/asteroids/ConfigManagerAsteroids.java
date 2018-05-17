@@ -1,10 +1,12 @@
 package micdoodle8.mods.galacticraft.planets.asteroids;
 
 import micdoodle8.mods.galacticraft.core.Constants;
+import micdoodle8.mods.galacticraft.planets.GalacticraftPlanets;
 import micdoodle8.mods.galacticraft.planets.mars.ConfigManagerMars;
 import net.minecraftforge.common.config.Configuration;
 import net.minecraftforge.common.config.Property;
 import net.minecraftforge.fml.common.FMLLog;
+
 import org.apache.logging.log4j.Level;
 
 import java.io.File;
@@ -67,7 +69,7 @@ public class ConfigManagerAsteroids
 
             prop = config.get(Constants.CONFIG_CATEGORY_DIMENSIONS, "dimensionIDAsteroids", -30);
             prop.comment = "Dimension ID for Asteroids";
-            prop.setLanguageKey("gc.configgui.dimensionIDAsteroids").setRequiresMcRestart(true);
+            prop.setLanguageKey("gc.configgui.dimension_id_asteroids").setRequiresMcRestart(true);
             if (update)
             {
                 propCopy = ConfigManagerMars.config.get(Constants.CONFIG_CATEGORY_DIMENSIONS, prop.getName(), prop.getInt(), prop.comment);
@@ -75,88 +77,79 @@ public class ConfigManagerAsteroids
                 propCopy.setRequiresMcRestart(prop.requiresMcRestart());
             }
             dimensionIDAsteroids = prop.getInt();
+            GalacticraftPlanets.finishProp(prop, Constants.CONFIG_CATEGORY_DIMENSIONS);
 
             //
 
             prop = config.get(Constants.CONFIG_CATEGORY_SCHEMATIC, "idSchematicRocketT3", 4);
             prop.comment = "Schematic ID for Tier 3 Rocket, must be unique.";
-            prop.setLanguageKey("gc.configgui.idSchematicRocketT3");
+            prop.setLanguageKey("gc.configgui.id_schematic_rocket_t3");
             if (update)
             {
                 propCopy = ConfigManagerMars.config.get(Constants.CONFIG_CATEGORY_SCHEMATIC, prop.getName(), prop.getInt(), prop.comment);
                 propCopy.setLanguageKey(prop.getLanguageKey());
             }
             idSchematicRocketT3 = prop.getInt(4);
+            GalacticraftPlanets.finishProp(prop, Constants.CONFIG_CATEGORY_SCHEMATIC);
 
             prop = config.get(Constants.CONFIG_CATEGORY_GENERAL, "disableGalacticraftHelium", false);
             prop.comment = "Option to disable Helium gas in Galacticraft (because it will be registered by another mod eg GregTech).";
-            prop.setLanguageKey("gc.configgui.disableGalacticraftHelium");
+            prop.setLanguageKey("gc.configgui.disable_galacticraft_helium");
             if (update)
             {
                 propCopy = ConfigManagerMars.config.get(Constants.CONFIG_CATEGORY_GENERAL, prop.getName(), prop.getBoolean(), prop.comment);
                 propCopy.setLanguageKey(prop.getLanguageKey());
             }
             disableGalacticraftHelium = prop.getBoolean(false);
-            ConfigManagerMars.propOrder.add(prop.getName());
+            GalacticraftPlanets.finishProp(prop, Constants.CONFIG_CATEGORY_GENERAL);
 
             prop = config.get(Constants.CONFIG_CATEGORY_GENERAL, "maximumAstroMiners", 6);
-            prop.comment = "Maximum number of Astro Miners each player is allowed to have active (default 4).";
-            prop.setLanguageKey("gc.configgui.astroMinersMax");
+            prop.comment = "Maximum number of Astro Miners each player is allowed to have active (default 6).";
+            prop.setLanguageKey("gc.configgui.astro_miners_max");
             if (update)
             {
                 propCopy = ConfigManagerMars.config.get(Constants.CONFIG_CATEGORY_GENERAL, prop.getName(), prop.getInt(), prop.comment);
                 propCopy.setLanguageKey(prop.getLanguageKey());
             }
             astroMinerMax = prop.getInt(6);
-            ConfigManagerMars.propOrder.add(prop.getName());
+            GalacticraftPlanets.finishProp(prop, Constants.CONFIG_CATEGORY_GENERAL);
 
             prop = config.get(update ? Constants.CONFIG_CATEGORY_GENERAL : Constants.CONFIG_CATEGORY_WORLDGEN, "Disable Iron Ore Gen on Asteroids", false);
             prop.comment = "Disable Iron Ore Gen on Asteroids.";
-            prop.setLanguageKey("gc.configgui.disableIronGenAsteroids");
+            prop.setLanguageKey("gc.configgui.disable_iron_gen_asteroids");
             if (update)
             {
                 propCopy = ConfigManagerMars.config.get(Constants.CONFIG_CATEGORY_WORLDGEN, prop.getName(), prop.getBoolean(), prop.comment);
                 propCopy.setLanguageKey(prop.getLanguageKey());
             }
             disableIronGen = prop.getBoolean(false);
-            ConfigManagerMars.propOrder.add(prop.getName());
+            GalacticraftPlanets.finishProp(prop, Constants.CONFIG_CATEGORY_WORLDGEN);
 
             prop = config.get(update ? Constants.CONFIG_CATEGORY_GENERAL : Constants.CONFIG_CATEGORY_WORLDGEN, "Disable Aluminum Ore Gen on Asteroids", false);
             prop.comment = "Disable Aluminum Ore Gen on Asteroids.";
-            prop.setLanguageKey("gc.configgui.disableAluminumGenAsteroids");
+            prop.setLanguageKey("gc.configgui.disable_aluminum_gen_asteroids");
             if (update)
             {
                 propCopy = ConfigManagerMars.config.get(Constants.CONFIG_CATEGORY_WORLDGEN, prop.getName(), prop.getBoolean(), prop.comment);
                 propCopy.setLanguageKey(prop.getLanguageKey());
             }
             disableAluminumGen = prop.getBoolean(false);
-            ConfigManagerMars.propOrder.add(prop.getName());
+            GalacticraftPlanets.finishProp(prop, Constants.CONFIG_CATEGORY_WORLDGEN);
 
             prop = config.get(update ? Constants.CONFIG_CATEGORY_GENERAL : Constants.CONFIG_CATEGORY_WORLDGEN, "Disable Ilmenite Ore Gen on Asteroids", false);
             prop.comment = "Disable Ilmenite Ore Gen on Asteroids.";
-            prop.setLanguageKey("gc.configgui.disableIlmeniteGenAsteroids");
+            prop.setLanguageKey("gc.configgui.disable_ilmenite_gen_asteroids");
             if (update)
             {
                 propCopy = ConfigManagerMars.config.get(Constants.CONFIG_CATEGORY_WORLDGEN, prop.getName(), prop.getBoolean(), prop.comment);
                 propCopy.setLanguageKey(prop.getLanguageKey());
             }
             disableIlmeniteGen = prop.getBoolean(false);
-            ConfigManagerMars.propOrder.add(prop.getName());
-
-            if (load)
-            {
-                ConfigManagerMars.config.setCategoryPropertyOrder(Constants.CONFIG_CATEGORY_WORLDGEN, ConfigManagerMars.propOrder);
-            }
-
-            //Always save - this is last to be called both at load time and at mid-game
-            if (ConfigManagerMars.config.hasChanged())
-            {
-                ConfigManagerMars.config.save();
-            }
+            GalacticraftPlanets.finishProp(prop, Constants.CONFIG_CATEGORY_WORLDGEN);
         }
         catch (final Exception e)
         {
-            FMLLog.log(Level.ERROR, e, "Galacticraft Asteroids (Planets) has a problem loading it's config");
+            FMLLog.log(Level.ERROR, e, "Galacticraft Asteroids (Planets) has a problem loading its config");
         }
     }
 }

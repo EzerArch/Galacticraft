@@ -1,7 +1,9 @@
 package micdoodle8.mods.galacticraft.core.world.gen;
 
 import micdoodle8.mods.galacticraft.api.prefab.world.gen.MapGenBaseMeta;
+import micdoodle8.mods.galacticraft.core.Constants;
 import micdoodle8.mods.galacticraft.core.GCBlocks;
+import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
 import net.minecraft.util.MathHelper;
@@ -71,8 +73,8 @@ public class MapGenCavesMoon extends MapGenBaseMeta
 
             if (!flag && par15 == k1 && par12 > 1.0F && par16 > 0)
             {
-                this.generateCaveNode(random.nextLong(), par3, par4, primer, par6, par8, par10, random.nextFloat() * 0.5F + 0.5F, par13 - (float) Math.PI / 2F, par14 / 3.0F, par15, par16, 1.0D);
-                this.generateCaveNode(random.nextLong(), par3, par4, primer, par6, par8, par10, random.nextFloat() * 0.5F + 0.5F, par13 + (float) Math.PI / 2F, par14 / 3.0F, par15, par16, 1.0D);
+                this.generateCaveNode(random.nextLong(), par3, par4, primer, par6, par8, par10, random.nextFloat() * 0.5F + 0.5F, par13 - Constants.halfPI, par14 / 3.0F, par15, par16, 1.0D);
+                this.generateCaveNode(random.nextLong(), par3, par4, primer, par6, par8, par10, random.nextFloat() * 0.5F + 0.5F, par13 + Constants.halfPI, par14 / 3.0F, par15, par16, 1.0D);
                 return;
             }
 
@@ -148,7 +150,7 @@ public class MapGenCavesMoon extends MapGenBaseMeta
 
                     if (true)
                     {
-
+                        Block testBlock = GCBlocks.blockMoon;
                         for (int localY = j2; localY < k2; localY++)
                         {
                             final double yfactor = (localY + 0.5D - par8) / d7;
@@ -171,14 +173,10 @@ public class MapGenCavesMoon extends MapGenBaseMeta
                                         if (yfactor > -0.7D && xfactorSq + yfactorSq + zfactorSq < 1.0D)
                                         {
                                             IBlockState state = primer.getBlockState(coords);
-                                            if (state.getBlock() == GCBlocks.blockMoon)
+                                            if (state.getBlock() == testBlock)
                                             {
-                                                if (state.getBlock().getMetaFromState(state) == 3 || state.getBlock().getMetaFromState(state) == 4)
-                                                {
-                                                    primer.setBlockState(coords, Blocks.air.getDefaultState());
-//                                                    blockIdArray[coords] = Blocks.air;
-                                                }
-                                                else if (state.getBlock().getMetaFromState(state) == 5)
+                                                int meta = state.getBlock().getMetaFromState(state); 
+                                                if (meta == 3 || meta == 4 || meta == 5)
                                                 {
                                                     primer.setBlockState(coords, Blocks.air.getDefaultState());
 //                                                    blockIdArray[coords] = Blocks.air;
@@ -225,7 +223,7 @@ public class MapGenCavesMoon extends MapGenBaseMeta
 
             for (int var16 = 0; var16 < var15; ++var16)
             {
-                final float var17 = this.rand.nextFloat() * (float) Math.PI * 2.0F;
+                final float var17 = this.rand.nextFloat() * Constants.twoPI;
                 final float var18 = (this.rand.nextFloat() - 0.5F) * 2.0F / 8.0F;
                 float var19 = this.rand.nextFloat() * 2.0F + this.rand.nextFloat();
 

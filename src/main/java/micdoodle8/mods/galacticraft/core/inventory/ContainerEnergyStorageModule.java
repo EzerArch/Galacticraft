@@ -1,6 +1,7 @@
 package micdoodle8.mods.galacticraft.core.inventory;
 
 import micdoodle8.mods.galacticraft.api.item.IItemElectric;
+import micdoodle8.mods.galacticraft.core.energy.EnergyUtil;
 import micdoodle8.mods.galacticraft.core.tile.TileEntityEnergyStorageModule;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
@@ -65,20 +66,22 @@ public class ContainerEnergyStorageModule extends Container
         {
             ItemStack itemStack = slot.getStack();
             returnStack = itemStack.copy();
+            boolean movedToMachineSlot = false;
 
             if (slotID != 0 && slotID != 1)
             {
-                if (itemStack.getItem() instanceof IItemElectric)
+                if (EnergyUtil.isElectricItem(itemStack.getItem()))
                 {
-                    if (((IItemElectric) itemStack.getItem()).getElectricityStored(itemStack) > 0)
+                    if (EnergyUtil.isChargedElectricItem(itemStack))
                     {
                         if (!this.mergeItemStack(itemStack, 1, 2, false))
                         {
-                            if (((IItemElectric) itemStack.getItem()).getElectricityStored(itemStack) < ((IItemElectric) itemStack.getItem()).getMaxElectricityStored(itemStack) && !this.mergeItemStack(itemStack, 0, 1, false))
+                            if (EnergyUtil.isFillableElectricItem(itemStack) && !this.mergeItemStack(itemStack, 0, 1, false))
                             {
                                 return null;
                             }
                         }
+                        movedToMachineSlot = true;
                     }
                     else
                     {
@@ -86,6 +89,7 @@ public class ContainerEnergyStorageModule extends Container
                         {
                             return null;
                         }
+                        movedToMachineSlot = true;
                     }
                 }
                 else
@@ -110,7 +114,17 @@ public class ContainerEnergyStorageModule extends Container
 
             if (itemStack.stackSize == 0)
             {
-                slot.putStack((ItemStack) null);
+                // Needed where tile has inventoryStackLimit of 1
+                if (movedToMachineSlot && returnStack.stackSize > 1)
+                {
+                    ItemStack remainder = returnStack.copy();
+                    --remainder.stackSize;
+                    slot.putStack(remainder);
+                }
+                else
+                {
+                    slot.putStack((ItemStack) null);
+                }
             }
             else
             {

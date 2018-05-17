@@ -7,7 +7,7 @@ import micdoodle8.mods.galacticraft.api.transmission.NetworkType;
 import micdoodle8.mods.galacticraft.api.transmission.tile.IConnector;
 import micdoodle8.mods.galacticraft.api.vector.BlockVec3;
 import micdoodle8.mods.galacticraft.api.vector.BlockVec3Dim;
-import micdoodle8.mods.galacticraft.api.world.IAtmosphericGas;
+import micdoodle8.mods.galacticraft.api.world.EnumAtmosphericGas;
 import micdoodle8.mods.galacticraft.api.world.IGalacticraftWorldProvider;
 import micdoodle8.mods.galacticraft.core.GCBlocks;
 import micdoodle8.mods.galacticraft.core.energy.EnergyConfigHandler;
@@ -85,8 +85,16 @@ public class OxygenUtil
 
         //A good first estimate of head size is that it's the smallest of the entity's 3 dimensions (e.g. front to back, for Steve)
         double smin = Math.min(sx, Math.min(sy, sz)) / 2;
+        double offsetXZ = 0.0;
 
-        return OxygenUtil.isAABBInBreathableAirBlock(entity.worldObj, AxisAlignedBB.fromBounds(x - smin, y - smin, z - smin, x + smin, y + smin, z + smin), testThermal);
+        // If entity is within air lock wall, check adjacent blocks for oxygen
+        // The value is equal to the max distance from an adjacent oxygen block to the edge of a sealer wall
+        if (entity.worldObj.getBlockState(entity.getPosition()).getBlock() == GCBlocks.airLockSeal)
+        {
+            offsetXZ = 0.75F;
+        }
+
+        return OxygenUtil.isAABBInBreathableAirBlock(entity.worldObj, AxisAlignedBB.fromBounds(x - smin - offsetXZ, y - smin, z - smin - offsetXZ, x + smin + offsetXZ, y + smin, z + smin + offsetXZ), testThermal);
     }
 
     public static boolean isAABBInBreathableAirBlock(World world, AxisAlignedBB bb)
@@ -94,7 +102,6 @@ public class OxygenUtil
         return isAABBInBreathableAirBlock(world, bb, false);
     }
 
-    @SuppressWarnings("rawtypes")
     public static boolean isAABBInBreathableAirBlock(World world, AxisAlignedBB bb, boolean testThermal)
     {
         final double avgX = (bb.minX + bb.maxX) / 2.0D;
@@ -103,7 +110,7 @@ public class OxygenUtil
 
         if (testThermal)
         {
-            return OxygenUtil.isInOxygenAndThermalBlock(world, bb.contract(0.001D, 0.001D, 0.001D));
+            return OxygenUtil.isInOxygenAndThermalBlock(world, bb);
         }
 
         if (OxygenUtil.inOxygenBubble(world, avgX, avgY, avgZ))
@@ -111,26 +118,26 @@ public class OxygenUtil
             return true;
         }
 
-        return OxygenUtil.isInOxygenBlock(world, bb.contract(0.001D, 0.001D, 0.001D));
+        return OxygenUtil.isInOxygenBlock(world, bb);
     }
 
     public static boolean isInOxygenBlock(World world, AxisAlignedBB bb)
     {
-        int i = MathHelper.floor_double(bb.minX);
-        int j = MathHelper.floor_double(bb.maxX);
-        int k = MathHelper.floor_double(bb.minY);
-        int l = MathHelper.floor_double(bb.maxY);
-        int i1 = MathHelper.floor_double(bb.minZ);
-        int j1 = MathHelper.floor_double(bb.maxZ);
+        int xm = MathHelper.floor_double(bb.minX + 0.001D);
+        int xx = MathHelper.floor_double(bb.maxX - 0.001D);
+        int ym = MathHelper.floor_double(bb.minY + 0.001D);
+        int yy = MathHelper.floor_double(bb.maxY - 0.001D);
+        int zm = MathHelper.floor_double(bb.minZ + 0.001D);
+        int zz = MathHelper.floor_double(bb.maxZ - 0.001D);
 
-        OxygenUtil.checked = new HashSet();
-        if (world.isAreaLoaded(new BlockPos(i, k, i1), new BlockPos(j, l, j1)))
+        OxygenUtil.checked = new HashSet<>();
+        if (world.isAreaLoaded(new BlockPos(xm, ym, zm), new BlockPos(xx, yy, zz)))
         {
-            for (int x = i; x <= j; ++x)
+            for (int x = xm; x <= xx; ++x)
             {
-                for (int y = k; y <= l; ++y)
+                for (int z = zm; z <= zz; ++z)
                 {
-                    for (int z = i1; z <= j1; ++z)
+                    for (int y = ym; y <= yy; ++y)
                     {
                         BlockPos pos = new BlockPos(x, y, z);
                         Block block = world.getBlockState(pos).getBlock();
@@ -148,14 +155,14 @@ public class OxygenUtil
 
     public static boolean isInOxygenAndThermalBlock(World world, AxisAlignedBB bb)
     {
-        int i = MathHelper.floor_double(bb.minX);
-        int j = MathHelper.floor_double(bb.maxX);
-        int k = MathHelper.floor_double(bb.minY);
-        int l = MathHelper.floor_double(bb.maxY);
-        int i1 = MathHelper.floor_double(bb.minZ);
-        int j1 = MathHelper.floor_double(bb.maxZ);
+        int i = MathHelper.floor_double(bb.minX + 0.001D);
+        int j = MathHelper.floor_double(bb.maxX - 0.001D);
+        int k = MathHelper.floor_double(bb.minY + 0.001D);
+        int l = MathHelper.floor_double(bb.maxY - 0.001D);
+        int i1 = MathHelper.floor_double(bb.minZ + 0.001D);
+        int j1 = MathHelper.floor_double(bb.maxZ - 0.001D);
 
-        OxygenUtil.checked = new HashSet();
+        OxygenUtil.checked = new HashSet<>();
         if (world.isAreaLoaded(new BlockPos(i, k, i1), new BlockPos(j, l, j1)))
         {
             for (int x = i; x <= j; ++x)
@@ -189,7 +196,7 @@ public class OxygenUtil
         {
             return true;
         }
-        OxygenUtil.checked = new HashSet();
+        OxygenUtil.checked = new HashSet<>();
         BlockVec3 vec = new BlockVec3(pos);
         for (int side = 0; side < 6; side++)
         {
@@ -211,7 +218,7 @@ public class OxygenUtil
      * air-reachable blocks (up to 5 blocks away) and return true if breathable air is found
      * in one of them, or false if not.
      */
-    private static int testContactWithBreathableAir(World world, Block block, BlockPos pos, int limitCount)
+    private static synchronized int testContactWithBreathableAir(World world, Block block, BlockPos pos, int limitCount)
     {
         checked.add(pos);
         if (block == GCBlocks.breatheableAir || block == GCBlocks.brightBreatheableAir)
@@ -251,7 +258,7 @@ public class OxygenUtil
             {
                 ArrayList<Integer> metaList = OxygenPressureProtocol.nonPermeableBlocks.get(block);
                 IBlockState state = world.getBlockState(pos);
-                if (metaList.contains(Integer.valueOf(-1)) || metaList.contains(state.getBlock().getMetaFromState(state)))
+                if (metaList.contains(-1) || metaList.contains(state.getBlock().getMetaFromState(state)))
                 {
                     return -1;
                 }
@@ -265,7 +272,7 @@ public class OxygenUtil
         //Testing a non-air, permeable block (for example a torch or a ladder)
         if (limitCount < 5)
         {
-            for (EnumFacing side : EnumFacing.values())
+            for (EnumFacing side : EnumFacing.VALUES)
             {
                 if (permeableFlag || OxygenUtil.canBlockPassAirOnSide(world, block, pos, side))
                 {
@@ -455,12 +462,12 @@ public class OxygenUtil
 
     public static TileEntity[] getAdjacentFluidConnections(TileEntity tile, boolean ignoreConnect)
     {
-        TileEntity[] adjacentConnections = new TileEntity[EnumFacing.values().length];
+        TileEntity[] adjacentConnections = new TileEntity[EnumFacing.VALUES.length];
 
         boolean isMekLoaded = EnergyConfigHandler.isMekanismLoaded();
 
         BlockVec3 thisVec = new BlockVec3(tile);
-        for (EnumFacing direction : EnumFacing.values())
+        for (EnumFacing direction : EnumFacing.VALUES)
         {
             TileEntity tileEntity = thisVec.getTileEntityOnSide(tile.getWorld(), direction);
 
@@ -490,7 +497,7 @@ public class OxygenUtil
     {
         if (provider instanceof IGalacticraftWorldProvider)
         {
-            return (!((IGalacticraftWorldProvider) provider).isGasPresent(IAtmosphericGas.OXYGEN) && !((IGalacticraftWorldProvider) provider).hasBreathableAtmosphere());
+            return (!((IGalacticraftWorldProvider) provider).isGasPresent(EnumAtmosphericGas.OXYGEN) && !((IGalacticraftWorldProvider) provider).hasBreathableAtmosphere());
         }
 
         return false;

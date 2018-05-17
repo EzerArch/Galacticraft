@@ -1,5 +1,6 @@
 package micdoodle8.mods.galacticraft.core.client;
 
+import micdoodle8.mods.galacticraft.core.util.GCLog;
 import net.minecraft.client.gui.GuiChat;
 import net.minecraft.client.settings.KeyBinding;
 import net.minecraftforge.fml.client.FMLClientHandler;
@@ -62,7 +63,30 @@ public abstract class KeyHandler
         {
             KeyBinding keyBinding = this.keyBindings[i];
             int keyCode = keyBinding.getKeyCode();
-            boolean state = inChat ? false : (keyCode < 0 ? Mouse.isButtonDown(keyCode + 100) : Keyboard.isKeyDown(keyCode));
+            if (keyCode == Keyboard.KEY_NONE) continue;
+            boolean state = false;
+
+            try
+            {
+                if (!inChat)
+                {
+                    if (keyCode < 0)
+                    {
+                        keyCode += 100;
+                        state = Mouse.isButtonDown(keyCode);
+                    }
+                    else
+                    {
+                        state = Keyboard.isKeyDown(keyCode);
+                    }
+                }
+            }
+            catch (IndexOutOfBoundsException e)
+            {
+                GCLog.severe("Invalid keybinding! " + keyBinding.getKeyDescription());
+                continue;
+            }
+
             if (state != this.keyDown[i] || state && this.repeatings[i])
             {
                 if (state)
@@ -83,6 +107,7 @@ public abstract class KeyHandler
         {
             KeyBinding keyBinding = this.vKeyBindings[i];
             int keyCode = keyBinding.getKeyCode();
+            if (keyCode == Keyboard.KEY_NONE) continue;
             boolean state = keyCode < 0 ? Mouse.isButtonDown(keyCode + 100) : Keyboard.isKeyDown(keyCode);
             if (state != this.keyDown[i + this.keyBindings.length] || state && this.vRepeatings[i])
             {

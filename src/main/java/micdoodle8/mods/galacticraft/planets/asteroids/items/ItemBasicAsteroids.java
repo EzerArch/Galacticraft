@@ -17,7 +17,7 @@ import java.util.List;
 
 public class ItemBasicAsteroids extends Item implements ISortableItem
 {
-    public static String[] names = { "reinforced_plate_t3", "engine_t2", "rocket_fins_t2", "shard_iron", "shard_titanium", "ingot_titanium", "compressed_titanium", "thermal_cloth", "beam_core" };
+    public static String[] names = { "ingot_titanium", "engine_t2", "rocket_fins_t2", "shard_iron", "shard_titanium", "reinforced_plate_t3", "compressed_titanium", "thermal_cloth", "beam_core", "dust_titanium" };
 //    protected IIcon[] icons = new IIcon[ItemBasicAsteroids.names.length];
 
     public ItemBasicAsteroids(String name)
@@ -65,9 +65,8 @@ public class ItemBasicAsteroids extends Item implements ISortableItem
         return super.getIconFromDamage(damage);
     }*/
 
-    @SuppressWarnings({ "unchecked", "rawtypes" })
     @Override
-    public void getSubItems(Item par1, CreativeTabs par2CreativeTabs, List par3List)
+    public void getSubItems(Item par1, CreativeTabs par2CreativeTabs, List<ItemStack> par3List)
     {
         for (int i = 0; i < ItemBasicAsteroids.names.length; i++)
         {
@@ -86,12 +85,11 @@ public class ItemBasicAsteroids extends Item implements ISortableItem
         return "unnamed";
     }
 
-    @SuppressWarnings({ "unchecked", "rawtypes" })
     @Override
     @SideOnly(Side.CLIENT)
     public void addInformation(ItemStack par1ItemStack, EntityPlayer par2EntityPlayer, List<String> tooltip, boolean par4)
     {
-        if (par1ItemStack != null && par1ItemStack.getItemDamage() == 0)
+        if (par1ItemStack != null && par1ItemStack.getItemDamage() == 5)
         {
             tooltip.add(GCCoreUtil.translate("item.tier3.desc"));
         }
@@ -109,11 +107,24 @@ public class ItemBasicAsteroids extends Item implements ISortableItem
         switch (meta)
         {
         case 0:
+            return EnumSortCategoryItem.INGOT;
+        case 5:
         case 6:
             return EnumSortCategoryItem.PLATE;
-        case 5:
-            return EnumSortCategoryItem.INGOT;
         }
         return EnumSortCategoryItem.GENERAL;
+    }
+
+    @Override
+    public float getSmeltingExperience(ItemStack item)
+    {
+        switch (item.getItemDamage())
+        {
+        case 5:
+            return 2F;
+        case 6:
+            return 1F;
+        }
+        return -1F;
     }
 }

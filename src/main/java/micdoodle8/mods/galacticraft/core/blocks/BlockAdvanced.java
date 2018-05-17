@@ -1,5 +1,7 @@
 package micdoodle8.mods.galacticraft.core.blocks;
 
+import micdoodle8.mods.galacticraft.core.GCItems;
+import micdoodle8.mods.galacticraft.core.util.CompatibilityManager;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
@@ -8,6 +10,7 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.BlockPos;
 import net.minecraft.util.EnumFacing;
+import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
 
 import java.lang.reflect.Method;
@@ -27,6 +30,24 @@ public abstract class BlockAdvanced extends Block
 
     @Override
     public boolean onBlockActivated(World worldIn, BlockPos pos, IBlockState state, EntityPlayer playerIn, EnumFacing side, float hitX, float hitY, float hitZ)
+    {
+        if (this.useWrench(worldIn, pos, playerIn, side, hitX, hitY, hitZ))
+        {
+            return true;
+        }
+
+        if (playerIn.isSneaking())
+        {
+            if (this.onSneakMachineActivated(worldIn, pos, playerIn, side, hitX, hitY, hitZ))
+            {
+                return true;
+            }
+        }
+
+        return this.onMachineActivated(worldIn, pos, state, playerIn, side, hitX, hitY, hitZ);
+    }
+
+    protected boolean useWrench(World worldIn, BlockPos pos, EntityPlayer playerIn, EnumFacing side, float hitX, float hitY, float hitZ)
     {
         /**
          * Check if the player is holding a wrench or an electric item. If so,
@@ -52,15 +73,7 @@ public abstract class BlockAdvanced extends Block
             }
         }
 
-        if (playerIn.isSneaking())
-        {
-            if (this.onSneakMachineActivated(worldIn, pos, playerIn, side, hitX, hitY, hitZ))
-            {
-                return true;
-            }
-        }
-
-        return this.onMachineActivated(worldIn, pos, state, playerIn, side, hitX, hitY, hitZ);
+        return false;
     }
 
     /**
@@ -74,15 +87,18 @@ public abstract class BlockAdvanced extends Block
     {
         if (entityPlayer != null && itemStack != null)
         {
-            Class<? extends Item> wrenchClass = itemStack.getItem().getClass();
+            Item item = itemStack.getItem();
+            if (item == GCItems.wrench) return true;
+            
+            Class<? extends Item> wrenchClass = item.getClass();
 
             /**
-             * UE and Buildcraft
+             * Buildcraft
              */
             try
             {
                 Method methodCanWrench = wrenchClass.getMethod("canWrench", EntityPlayer.class, BlockPos.class);
-                return (Boolean) methodCanWrench.invoke(itemStack.getItem(), entityPlayer, pos);
+                return (Boolean) methodCanWrench.invoke(item, entityPlayer, pos);
             }
             catch (NoClassDefFoundError e)
             {
@@ -91,18 +107,15 @@ public abstract class BlockAdvanced extends Block
             {
             }
 
+            if (CompatibilityManager.isIc2Loaded())
+            {
             /**
              * Industrialcraft
              */
-            try
-            {
-                if (wrenchClass == Class.forName("ic2.core.item.tool.ItemToolWrench") || wrenchClass == Class.forName("ic2.core.item.tool.ItemToolWrenchElectric"))
+                if (wrenchClass == CompatibilityManager.classIC2wrench || wrenchClass == CompatibilityManager.classIC2wrenchElectric )
                 {
                     return itemStack.getItemDamage() < itemStack.getMaxDamage();
                 }
-            }
-            catch (Exception e)
-            {
             }
         }
 
@@ -122,12 +135,12 @@ public abstract class BlockAdvanced extends Block
             Class<? extends Item> wrenchClass = itemStack.getItem().getClass();
 
             /**
-             * UE and Buildcraft
+             * Buildcraft
              */
             try
             {
-                Method methodWrenchUsed = wrenchClass.getMethod("wrenchUsed", EntityPlayer.class, Integer.TYPE, Integer.TYPE, Integer.TYPE);
-                methodWrenchUsed.invoke(itemStack.getItem(), entityPlayer, pos.getX(), pos.getY(), pos.getZ());
+                Method methodWrenchUsed = wrenchClass.getMethod("wrenchUsed", EntityPlayer.class, BlockPos.class);
+                methodWrenchUsed.invoke(itemStack.getItem(), entityPlayer, pos);
                 return true;
             }
             catch (Exception e)
@@ -139,7 +152,7 @@ public abstract class BlockAdvanced extends Block
              */
             try
             {
-                if (wrenchClass == Class.forName("ic2.core.item.tool.ItemToolWrench") || wrenchClass == Class.forName("ic2.core.item.tool.ItemToolWrenchElectric"))
+                if (wrenchClass == CompatibilityManager.classIC2wrench || wrenchClass == CompatibilityManager.classIC2wrenchElectric )
                 {
                     Method methodWrenchDamage = wrenchClass.getMethod("damage", ItemStack.class, Integer.TYPE, EntityPlayer.class);
                     methodWrenchDamage.invoke(itemStack.getItem(), itemStack, 1, entityPlayer);
@@ -194,5 +207,32 @@ public abstract class BlockAdvanced extends Block
     {
         return this.onUseWrench(world, pos, entityPlayer, side, hitX, hitY, hitZ);
     }
+    
+    public void rotate6Ways(World world, BlockPos pos)
+    {
+        int metadata = this.getMetaFromState(world.getBlockState(pos));
+        int metaDir = ((metadata & 7) + 1) % 6;
+        //DOWN->UP->NORTH->*EAST*->*SOUTH*->WEST
+        //0->1 1->2 2->5 3->4 4->0 5->3 
+        if (metaDir == 3) //after north
+        {
+            metaDir = 5;
+        }
+        else if (metaDir == 0)
+        {
+            metaDir = 3;
+        }
+        else if (metaDir == 5)
+        {
+            metaDir = 0;
+        }
+            
+        world.setBlockState(pos, this.getStateFromMeta(metaDir), 3);
+    }
 
+    @Override
+    public boolean isSideSolid(IBlockAccess world, BlockPos pos, EnumFacing side)
+    {
+        return this.isNormalCube(world, pos);
+    }
 }

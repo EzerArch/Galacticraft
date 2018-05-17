@@ -1,11 +1,11 @@
 package micdoodle8.mods.galacticraft.planets.mars;
 
 import com.google.common.collect.ImmutableList;
+import micdoodle8.mods.galacticraft.api.client.IItemMeshDefinitionCustom;
 import micdoodle8.mods.galacticraft.api.vector.Vector3;
 import micdoodle8.mods.galacticraft.api.world.IGalacticraftWorldProvider;
 import micdoodle8.mods.galacticraft.core.Constants;
 import micdoodle8.mods.galacticraft.core.client.CloudRenderer;
-import micdoodle8.mods.galacticraft.core.client.render.tile.TileEntityBubbleProviderRenderer;
 import micdoodle8.mods.galacticraft.core.util.ClientUtil;
 import micdoodle8.mods.galacticraft.core.wrappers.ModelTransformWrapper;
 import micdoodle8.mods.galacticraft.planets.GalacticraftPlanets;
@@ -23,6 +23,7 @@ import micdoodle8.mods.galacticraft.planets.mars.client.render.item.ItemModelRoc
 import micdoodle8.mods.galacticraft.planets.mars.client.render.tile.TileEntityTreasureChestRenderer;
 import micdoodle8.mods.galacticraft.planets.mars.dimension.WorldProviderMars;
 import micdoodle8.mods.galacticraft.planets.mars.entities.*;
+import micdoodle8.mods.galacticraft.planets.mars.items.ItemSchematicTier2;
 import micdoodle8.mods.galacticraft.planets.mars.items.MarsItems;
 import micdoodle8.mods.galacticraft.planets.mars.tile.*;
 import net.minecraft.block.state.IBlockState;
@@ -67,7 +68,7 @@ public class MarsModuleClient implements IPlanetsModuleClient
     @Override
     public void preInit(FMLPreInitializationEvent event)
     {
-        addPlanetVariants("mars", "ore_copper_mars", "ore_tin_mars", "ore_desh_mars", "ore_iron_mars", "cobblestone", "mars_surface", "mars_middle", "dungeon_brick", "desh_block", "mars_stone", "dungeon_spawner");
+        addPlanetVariants("mars", "ore_copper_mars", "ore_tin_mars", "ore_desh_mars", "ore_iron_mars", "cobblestone", "mars_surface", "mars_middle", "dungeon_brick", "desh_block", "mars_stone");
         addPlanetVariants("cavern_vines", "vine_0", "vine_1", "vine_2");
         addPlanetVariants("item_basic_mars", "raw_desh", "desh_stick", "ingot_desh", "reinforced_plate_t2", "slimeling_cargo", "compressed_desh", "fluid_manip");
         addPlanetVariants("schematic", "schematic_rocket_t3", "schematic_rocket_cargo", "schematic_astro_miner");
@@ -101,7 +102,7 @@ public class MarsModuleClient implements IPlanetsModuleClient
     {
         Item sludge = Item.getItemFromBlock(MarsBlocks.blockSludge);
         ModelBakery.registerItemVariants(sludge, new ResourceLocation(GalacticraftPlanets.TEXTURE_PREFIX + "sludge"));
-        ModelLoader.setCustomMeshDefinition(sludge, (ItemStack stack) -> sludgeLocation);
+        ModelLoader.setCustomMeshDefinition(sludge, IItemMeshDefinitionCustom.create((ItemStack stack) -> sludgeLocation));
         ModelLoader.setCustomStateMapper(MarsBlocks.blockSludge, new StateMapperBase()
         {
             @Override
@@ -167,12 +168,14 @@ public class MarsModuleClient implements IPlanetsModuleClient
 //        // Tile Entity Renderers
         ClientRegistry.bindTileEntitySpecialRenderer(TileEntityTreasureChestMars.class, new TileEntityTreasureChestRenderer());
 //            ClientRegistry.bindTileEntitySpecialRenderer(TileEntityCryogenicChamber.class, new TileEntityCryogenicChamberRenderer(chamberModel));
-        ClientRegistry.bindTileEntitySpecialRenderer(TileEntityTerraformer.class, new TileEntityBubbleProviderRenderer<>(0.25F, 1.0F, 0.25F));
+//        ClientRegistry.bindTileEntitySpecialRenderer(TileEntityTerraformer.class, new TileEntityBubbleProviderRenderer<>(0.25F, 1.0F, 0.25F));
 //
 //        // Entities
 
         // Add Armor Renderer Prefix
 //        RenderingRegistry.addNewArmourRendererPrefix("desh");
+        
+        ItemSchematicTier2.registerTextures();
     }
 
     public static void registerBlockRenderers()
@@ -200,6 +203,7 @@ public class MarsModuleClient implements IPlanetsModuleClient
         ClientUtil.registerBlockJson(GalacticraftPlanets.TEXTURE_PREFIX, MarsBlocks.treasureChestTier2);
         ClientUtil.registerBlockJson(GalacticraftPlanets.TEXTURE_PREFIX, MarsBlocks.marsBricksStairs);
         ClientUtil.registerBlockJson(GalacticraftPlanets.TEXTURE_PREFIX, MarsBlocks.marsCobblestoneStairs);
+        ClientUtil.registerBlockJson(GalacticraftPlanets.TEXTURE_PREFIX, MarsBlocks.bossSpawner);
         ClientUtil.registerItemJson(GalacticraftPlanets.TEXTURE_PREFIX, MarsItems.marsItemBasic, 0, "raw_desh");
         ClientUtil.registerItemJson(GalacticraftPlanets.TEXTURE_PREFIX, MarsItems.marsItemBasic, 1, "desh_stick");
         ClientUtil.registerItemJson(GalacticraftPlanets.TEXTURE_PREFIX, MarsItems.marsItemBasic, 2, "ingot_desh");

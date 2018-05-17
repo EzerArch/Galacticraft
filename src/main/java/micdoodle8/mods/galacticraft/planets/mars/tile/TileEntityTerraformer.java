@@ -4,9 +4,10 @@ import io.netty.buffer.ByteBuf;
 import micdoodle8.mods.galacticraft.api.block.ITerraformableBlock;
 import micdoodle8.mods.galacticraft.api.tile.IDisableableMachine;
 import micdoodle8.mods.galacticraft.api.transmission.NetworkType;
+import micdoodle8.mods.galacticraft.api.vector.Vector3;
 import micdoodle8.mods.galacticraft.core.energy.item.ItemElectricBase;
 import micdoodle8.mods.galacticraft.core.energy.tile.TileBaseElectricBlockWithInventory;
-import micdoodle8.mods.galacticraft.core.entities.IBubbleProvider;
+import micdoodle8.mods.galacticraft.core.entities.IBubbleProviderColored;
 import micdoodle8.mods.galacticraft.core.util.ConfigManagerCore;
 import micdoodle8.mods.galacticraft.core.util.FluidUtil;
 import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
@@ -16,6 +17,7 @@ import micdoodle8.mods.miccore.Annotations.NetworkedField;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockBush;
 import net.minecraft.block.BlockSapling;
+import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
 import net.minecraft.inventory.ISidedInventory;
@@ -24,7 +26,6 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.AxisAlignedBB;
 import net.minecraft.util.BlockPos;
 import net.minecraft.util.EnumFacing;
-import net.minecraft.util.IChatComponent;
 import net.minecraftforge.fluids.*;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -32,7 +33,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import java.util.ArrayList;
 import java.util.List;
 
-public class TileEntityTerraformer extends TileBaseElectricBlockWithInventory implements ISidedInventory, IDisableableMachine, IBubbleProvider, IFluidHandler
+public class TileEntityTerraformer extends TileBaseElectricBlockWithInventory implements ISidedInventory, IDisableableMachine, IBubbleProviderColored, IFluidHandler
 {
     private final int tankCapacity = 2000;
     @NetworkedField(targetSide = Side.CLIENT)
@@ -61,7 +62,7 @@ public class TileEntityTerraformer extends TileBaseElectricBlockWithInventory im
 
     public TileEntityTerraformer()
     {
-        this.storage.setMaxExtract(ConfigManagerCore.hardMode ? 90 : 45);
+        this.storage.setMaxExtract(ConfigManagerCore.hardMode ? 60 : 30);
     }
 
     public int getScaledWaterLevel(int i)
@@ -101,19 +102,10 @@ public class TileEntityTerraformer extends TileBaseElectricBlockWithInventory im
 
         if (!this.worldObj.isRemote)
         {
-            if (this.containingItems[0] != null)
+            final FluidStack liquid = FluidUtil.getFluidContained(this.containingItems[0]);
+            if (FluidUtil.isFluidStrict(liquid, FluidRegistry.WATER.getName()))
             {
-                final FluidStack liquid = FluidContainerRegistry.getFluidForFilledItem(this.containingItems[0]);
-
-                if (liquid != null && liquid.getFluid().getName().equals(FluidRegistry.WATER.getName()))
-                {
-                    if (this.waterTank.getFluid() == null || this.waterTank.getFluid().amount + liquid.amount <= this.waterTank.getCapacity())
-                    {
-                        this.waterTank.fill(liquid, true);
-
-                        this.containingItems[0] = FluidUtil.getUsedContainer(this.containingItems[0]);
-                    }
-                }
+                FluidUtil.loadFromContainer(waterTank, FluidRegistry.WATER, containingItems, 0, liquid.amount);
             }
 
             this.active = this.bubbleSize == this.MAX_SIZE && this.hasEnoughEnergyToRun && this.getFirstBonemealStack() != null && this.waterTank.getFluid() != null && this.waterTank.getFluid().amount > 0;
@@ -524,7 +516,7 @@ public class TileEntityTerraformer extends TileBaseElectricBlockWithInventory im
         }
         if (slotID == 1)
         {
-            return ((ItemElectricBase) itemstack.getItem()).getElectricityStored(itemstack) <= 0;
+            return ItemElectricBase.isElectricItemEmpty(itemstack);
         }
 
         return false;
@@ -649,7 +641,7 @@ public class TileEntityTerraformer extends TileBaseElectricBlockWithInventory im
     @Override
     public boolean canFill(EnumFacing from, Fluid fluid)
     {
-        return fluid != null && "water".equals(fluid.getName()) && from != this.getElectricInputDirection();
+        return (fluid == null || "water".equals(fluid.getName())) && from != this.getElectricInputDirection();
     }
 
     @Override
@@ -672,12 +664,6 @@ public class TileEntityTerraformer extends TileBaseElectricBlockWithInventory im
     }
 
     @Override
-    public IChatComponent getDisplayName()
-    {
-        return null;
-    }
-
-    @Override
     @SideOnly(Side.CLIENT)
     public AxisAlignedBB getRenderBoundingBox()
     {
@@ -697,9 +683,20 @@ public class TileEntityTerraformer extends TileBaseElectricBlockWithInventory im
     }
 
     @Override
+    public Vector3 getColor()
+    {
+        return new Vector3(0.125F, 0.5F, 0.125F);
+    }
+
+    @Override
     public EnumFacing getFront()
     {
-        return this.worldObj.getBlockState(getPos()).getValue(BlockMachineMars.FACING);
+        IBlockState state = this.worldObj.getBlockState(getPos()); 
+        if (state.getBlock() instanceof BlockMachineMars)
+        {
+            return state.getValue(BlockMachineMars.FACING);
+        }
+        return EnumFacing.NORTH;
     }
 
     @Override

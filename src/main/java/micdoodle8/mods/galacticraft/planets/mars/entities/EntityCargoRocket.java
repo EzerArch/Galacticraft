@@ -6,6 +6,7 @@ import micdoodle8.mods.galacticraft.api.entity.IWorldTransferCallback;
 import micdoodle8.mods.galacticraft.api.prefab.entity.EntityAutoRocket;
 import micdoodle8.mods.galacticraft.api.vector.Vector3;
 import micdoodle8.mods.galacticraft.api.world.IGalacticraftWorldProvider;
+import micdoodle8.mods.galacticraft.core.Constants;
 import micdoodle8.mods.galacticraft.core.GalacticraftCore;
 import micdoodle8.mods.galacticraft.core.util.ConfigManagerCore;
 import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
@@ -77,7 +78,7 @@ public class EntityCargoRocket extends EntityAutoRocket implements IRocketType, 
     @Override
     public void onUpdate()
     {
-        if (this.launchPhase == EnumLaunchPhase.LAUNCHED.ordinal() && this.hasValidFuel())
+        if (this.launchPhase >= EnumLaunchPhase.LAUNCHED.ordinal() && this.hasValidFuel())
         {
             double motionScalar = this.timeSinceLaunch / 250;
 
@@ -86,11 +87,11 @@ public class EntityCargoRocket extends EntityAutoRocket implements IRocketType, 
             double modifier = this.getCargoFilledAmount();
             motionScalar *= 5.0D / modifier;
 
-            if (!this.landing)
+            if (this.launchPhase != EnumLaunchPhase.LANDING.ordinal())
             {
                 if (motionScalar != 0.0)
                 {
-                    this.motionY = -motionScalar * Math.cos((this.rotationPitch - 180) * Math.PI / 180.0D);
+                    this.motionY = -motionScalar * Math.cos((this.rotationPitch - 180) / Constants.RADIANS_TO_DEGREES_D);
                 }
             }
 
@@ -135,7 +136,7 @@ public class EntityCargoRocket extends EntityAutoRocket implements IRocketType, 
             this.rumble++;
         }
 
-        if (this.launchPhase == EnumLaunchPhase.IGNITED.ordinal() || this.launchPhase == EnumLaunchPhase.LAUNCHED.ordinal())
+        if (this.launchPhase >= EnumLaunchPhase.IGNITED.ordinal())
         {
             this.performHurtAnimation();
 
@@ -170,11 +171,12 @@ public class EntityCargoRocket extends EntityAutoRocket implements IRocketType, 
 
     protected void spawnParticles(boolean launched)
     {
-        double x1 = 2 * Math.cos(this.rotationYaw * Math.PI / 180.0D) * Math.sin(this.rotationPitch * Math.PI / 180.0D);
-        double z1 = 2 * Math.sin(this.rotationYaw * Math.PI / 180.0D) * Math.sin(this.rotationPitch * Math.PI / 180.0D);
-        double y1 = 2 * Math.cos((this.rotationPitch - 180) * Math.PI / 180.0D);
+        double sinPitch = Math.sin(this.rotationPitch / Constants.RADIANS_TO_DEGREES_D);
+        double x1 = 2 * Math.cos(this.rotationYaw / Constants.RADIANS_TO_DEGREES_D) * sinPitch;
+        double z1 = 2 * Math.sin(this.rotationYaw / Constants.RADIANS_TO_DEGREES_D) * sinPitch;
+        double y1 = 2 * Math.cos((this.rotationPitch - 180) / Constants.RADIANS_TO_DEGREES_D);
 
-        if (this.landing && this.targetVec != null)
+        if (this.launchPhase == EnumLaunchPhase.LANDING.ordinal() && this.targetVec != null)
         {
             double modifier = this.posY - this.targetVec.getY();
             modifier = Math.max(modifier, 1.0);
@@ -212,6 +214,10 @@ public class EntityCargoRocket extends EntityAutoRocket implements IRocketType, 
     @Override
     public void getNetworkedData(ArrayList<Object> list)
     {
+        if (this.worldObj.isRemote)
+        {
+            return;
+        }
         list.add(this.rocketType != null ? this.rocketType.getIndex() : 0);
         super.getNetworkedData(list);
         list.add(this.posX * 8000.0D);
@@ -249,7 +255,7 @@ public class EntityCargoRocket extends EntityAutoRocket implements IRocketType, 
                     {
                         GCLog.debug("Cargo rocket arrived at destination dimension, going into landing mode.");
                         e.setPosition(this.targetVec.getX() + 0.5F, this.targetVec.getY() + 800, this.targetVec.getZ() + 0.5F);
-                        ((EntityCargoRocket) e).landing = true;
+                        ((EntityCargoRocket) e).setLaunchPhase(EnumLaunchPhase.LANDING);
             			//No setDead() following successful transferEntityToDimension() - see javadoc on that
                     }
                     else
@@ -268,7 +274,7 @@ public class EntityCargoRocket extends EntityAutoRocket implements IRocketType, 
             {
                 GCLog.debug("Cargo rocket going into landing mode in same destination.");
                 this.setPosition(this.targetVec.getX() + 0.5F, this.targetVec.getY() + 800, this.targetVec.getZ() + 0.5F);
-                this.landing = true;
+                this.setLaunchPhase(EnumLaunchPhase.LANDING);
                 return;
             }
         }
@@ -328,20 +334,10 @@ public class EntityCargoRocket extends EntityAutoRocket implements IRocketType, 
         if (this.targetVec != null)
         {
             this.setPosition(this.targetVec.getX() + 0.5F, this.targetVec.getY() + 800, this.targetVec.getZ() + 0.5F);
-            this.landing = true;
+            this.setLaunchPhase(EnumLaunchPhase.LANDING);
         }
         else
         {
-            this.setDead();
-        }
-    }
-
-    @Override
-    public void onPadDestroyed()
-    {
-        if (!this.isDead && this.launchPhase != EnumLaunchPhase.LAUNCHED.ordinal())
-        {
-            this.dropShipAsItem();
             this.setDead();
         }
     }
@@ -378,31 +374,7 @@ public class EntityCargoRocket extends EntityAutoRocket implements IRocketType, 
     @Override
     public double getOnPadYOffset()
     {
-        return 0D;//-0.25D;
-    }
-
-    @Override
-    public int getField(int id)
-    {
-        return 0;
-    }
-
-    @Override
-    public void setField(int id, int value)
-    {
-
-    }
-
-    @Override
-    public int getFieldCount()
-    {
-        return 0;
-    }
-
-    @Override
-    public void clear()
-    {
-
+        return -0.05D;
     }
 
     @Override

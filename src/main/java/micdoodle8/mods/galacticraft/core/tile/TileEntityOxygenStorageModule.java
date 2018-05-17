@@ -3,7 +3,7 @@ package micdoodle8.mods.galacticraft.core.tile;
 import micdoodle8.mods.galacticraft.api.item.IItemOxygenSupply;
 import micdoodle8.mods.galacticraft.core.GCBlocks;
 import micdoodle8.mods.galacticraft.core.blocks.BlockMachine2;
-import micdoodle8.mods.galacticraft.core.network.IPacketReceiver;
+import micdoodle8.mods.galacticraft.core.inventory.IInventoryDefaults;
 import micdoodle8.mods.galacticraft.core.util.FluidUtil;
 import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
 import net.minecraft.block.state.IBlockState;
@@ -13,7 +13,6 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.EnumFacing;
-import net.minecraft.util.IChatComponent;
 import net.minecraftforge.fluids.Fluid;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidTankInfo;
@@ -23,7 +22,7 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Set;
 
-public class TileEntityOxygenStorageModule extends TileEntityOxygen implements IPacketReceiver, ISidedInventory, IFluidHandler
+public class TileEntityOxygenStorageModule extends TileEntityOxygen implements IInventoryDefaults, ISidedInventory, IFluidHandler, IMachineSides
 {
     public final Set<EntityPlayer> playersUsing = new HashSet<EntityPlayer>();
     public int scaledOxygenLevel;
@@ -130,6 +129,8 @@ public class TileEntityOxygenStorageModule extends TileEntityOxygen implements I
                 this.containingItems[var5] = ItemStack.loadItemStackFromNBT(var4);
             }
         }
+        
+        this.readMachineSidesFromNBT(par1NBTTagCompound);  //Needed by IMachineSides
     }
 
     @Override
@@ -149,8 +150,9 @@ public class TileEntityOxygenStorageModule extends TileEntityOxygen implements I
                 list.appendTag(var4);
             }
         }
-
         par1NBTTagCompound.setTag("Items", list);
+
+        this.addMachineSidesToNBT(par1NBTTagCompound);  //Needed by IMachineSides
     }
 
     @Override
@@ -209,19 +211,7 @@ public class TileEntityOxygenStorageModule extends TileEntityOxygen implements I
         {
             return EnumFacing.NORTH;
         }
-        return this.worldObj.getBlockState(getPos()).getValue(BlockMachine2.FACING);
-    }
-
-    @Override
-    public EnumSet<EnumFacing> getOxygenInputDirections()
-    {
-        return EnumSet.of(getFront().rotateY());
-    }
-
-    @Override
-    public EnumSet<EnumFacing> getOxygenOutputDirections()
-    {
-        return EnumSet.of(getFront().rotateY().getOpposite());
+        return state.getValue(BlockMachine2.FACING);
     }
 
     @Override
@@ -312,16 +302,6 @@ public class TileEntityOxygenStorageModule extends TileEntityOxygen implements I
     }
 
     @Override
-    public void openInventory(EntityPlayer player)
-    {
-    }
-
-    @Override
-    public void closeInventory(EntityPlayer player)
-    {
-    }
-
-    @Override
     public boolean hasCustomName()
     {
         return true;
@@ -358,36 +338,6 @@ public class TileEntityOxygenStorageModule extends TileEntityOxygen implements I
             return FluidUtil.isEmptyContainer(itemstack);
         }
         return false;
-    }
-
-    @Override
-    public int getField(int id)
-    {
-        return 0;
-    }
-
-    @Override
-    public void setField(int id, int value)
-    {
-
-    }
-
-    @Override
-    public int getFieldCount()
-    {
-        return 0;
-    }
-
-    @Override
-    public void clear()
-    {
-
-    }
-
-    @Override
-    public IChatComponent getDisplayName()
-    {
-        return null;
     }
 
     //IFluidHandler methods - to allow this to accept Liquid Oxygen
@@ -448,4 +398,102 @@ public class TileEntityOxygenStorageModule extends TileEntityOxygen implements I
 //        return tankInfo;
         return super.getTankInfo(from);
     }
+
+    @Override
+    public EnumSet<EnumFacing> getOxygenInputDirections()
+    {
+        EnumFacing dir;
+        switch (this.getSide(MachineSide.ELECTRIC_IN))
+        {
+        case REAR:
+            dir = getFront().getOpposite();
+            break;
+        case TOP:
+            dir = EnumFacing.UP;
+            break;
+        case BOTTOM:
+            dir = EnumFacing.DOWN;
+            break;
+        case RIGHT:
+            dir = getFront().rotateYCCW();
+            break;
+        case LEFT:
+        default:
+            dir = getFront().rotateY();
+        }
+        return EnumSet.of(dir);
+    }
+
+    @Override
+    public EnumSet<EnumFacing> getOxygenOutputDirections()
+    {
+        EnumFacing dir;
+        switch (this.getSide(MachineSide.PIPE_OUT))
+        {
+        case REAR:
+            dir = getFront().getOpposite();
+            break;
+        case TOP:
+            dir = EnumFacing.UP;
+            break;
+        case BOTTOM:
+            dir = EnumFacing.DOWN;
+            break;
+        case LEFT:
+            dir = getFront().rotateY();
+            break;
+        case RIGHT:
+        default:
+            dir = getFront().rotateYCCW();
+        }
+        return EnumSet.of(dir);
+    }
+
+    //------------------
+    //Added these methods and field to implement IMachineSides properly 
+    //------------------
+    @Override
+    public MachineSide[] listConfigurableSides()
+    {
+        //Have to use Electric_In for compatibility with other BlockMachine2, as all use same blockstate
+        return new MachineSide[] { MachineSide.ELECTRIC_IN, MachineSide.PIPE_OUT };
+    }
+
+    @Override
+    public Face[] listDefaultFaces()
+    {
+        return new Face[] { Face.LEFT, Face.RIGHT };
+    }
+
+    private MachineSidePack[] machineSides;
+
+    @Override
+    public MachineSidePack[] getAllMachineSides()
+    {
+        if (this.machineSides == null)
+        {
+            this.initialiseSides();
+        }
+
+        return this.machineSides;
+    }
+
+    @Override
+    public void setupMachineSides(int length)
+    {
+        this.machineSides = new MachineSidePack[length];
+    }
+    
+    @Override
+    public void onLoad()
+    {
+        this.clientOnLoad();
+    }
+    
+    @Override
+    public IMachineSidesProperties getConfigurationType()
+    {
+        return BlockMachine2.MACHINESIDES_RENDERTYPE;
+    }
+    //------------------END OF IMachineSides implementation
 }

@@ -27,12 +27,12 @@ import java.util.List;
 
 public class BlockWallGC extends Block /* Do not extend BlockWall */ implements ISortableBlock
 {
-    public static PropertyBool UP = PropertyBool.create("up");
-    public static PropertyBool NORTH = PropertyBool.create("north");
-    public static PropertyBool EAST = PropertyBool.create("east");
-    public static PropertyBool SOUTH = PropertyBool.create("south");
-    public static PropertyBool WEST = PropertyBool.create("west");
-    public static PropertyEnum VARIANT = PropertyEnum.create("variant", BlockType.class);
+    public final static PropertyBool UP = PropertyBool.create("up");
+    public final static PropertyBool NORTH = PropertyBool.create("north");
+    public final static PropertyBool EAST = PropertyBool.create("east");
+    public final static PropertyBool SOUTH = PropertyBool.create("south");
+    public final static PropertyBool WEST = PropertyBool.create("west");
+    public final static PropertyEnum<BlockType> VARIANT = PropertyEnum.create("variant", BlockType.class);
 
     public BlockWallGC(String name)
     {
@@ -128,7 +128,7 @@ public class BlockWallGC extends Block /* Do not extend BlockWall */ implements 
 
     @Override
     @SideOnly(Side.CLIENT)
-    public void getSubBlocks(Item item, CreativeTabs creativeTabs, List list)
+    public void getSubBlocks(Item item, CreativeTabs creativeTabs, List<ItemStack> list)
     {
         for (int i = 0; i < (GalacticraftCore.isPlanetsLoaded ? 6 : 4); ++i)
         {

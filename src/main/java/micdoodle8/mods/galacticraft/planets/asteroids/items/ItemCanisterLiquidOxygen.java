@@ -17,7 +17,7 @@ import java.util.List;
 public class ItemCanisterLiquidOxygen extends ItemCanisterGeneric implements IItemOxygenSupply, ISortableItem
 {
     //    protected IIcon[] icons = new IIcon[7];
-    private static HashMap<ItemStack, Integer> craftingvalues = new HashMap();
+    private static HashMap<ItemStack, Integer> craftingvalues = new HashMap<>();
 
     public ItemCanisterLiquidOxygen(String assetName)
     {
@@ -65,7 +65,6 @@ public class ItemCanisterLiquidOxygen extends ItemCanisterGeneric implements IIt
         return super.getIconFromDamage(damage);
     }*/
 
-    @SuppressWarnings({ "unchecked", "rawtypes" })
     @Override
     @SideOnly(Side.CLIENT)
     public void addInformation(ItemStack par1ItemStack, EntityPlayer par2EntityPlayer, List<String> tooltip, boolean par4)

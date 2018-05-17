@@ -2,6 +2,7 @@ package micdoodle8.mods.galacticraft.core.inventory;
 
 import micdoodle8.mods.galacticraft.api.item.IItemElectric;
 import micdoodle8.mods.galacticraft.api.item.IItemOxygenSupply;
+import micdoodle8.mods.galacticraft.core.energy.EnergyUtil;
 import micdoodle8.mods.galacticraft.core.energy.tile.TileBaseElectricBlock;
 import micdoodle8.mods.galacticraft.core.items.ItemOxygenTank;
 import micdoodle8.mods.galacticraft.core.tile.TileEntityOxygenCompressor;
@@ -57,6 +58,7 @@ public class ContainerOxygenCompressor extends Container
         {
             final ItemStack stack = slot.getStack();
             var2 = stack.copy();
+            boolean movedToMachineSlot = false;
 
             if (par1 < 3)
             {
@@ -67,12 +69,13 @@ public class ContainerOxygenCompressor extends Container
             }
             else
             {
-                if (stack.getItem() instanceof IItemElectric)
+                if (EnergyUtil.isElectricItem(stack.getItem()))
                 {
                     if (!this.mergeItemStack(stack, 1, 2, false))
                     {
                         return null;
                     }
+                    movedToMachineSlot = true;
                 }
                 else if (stack.getItem() instanceof IItemOxygenSupply)
                 {
@@ -80,6 +83,7 @@ public class ContainerOxygenCompressor extends Container
                     {
                         return null;
                     }
+                    movedToMachineSlot = true;
                 }
                 else if (stack.getItem() instanceof ItemOxygenTank && stack.getItemDamage() > 0)
                 {
@@ -87,6 +91,7 @@ public class ContainerOxygenCompressor extends Container
                     {
                         return null;
                     }
+                    movedToMachineSlot = true;
                 }
                 else
                 {
@@ -106,7 +111,17 @@ public class ContainerOxygenCompressor extends Container
 
             if (stack.stackSize == 0)
             {
-                slot.putStack((ItemStack) null);
+                // Needed where tile has inventoryStackLimit of 1
+                if (movedToMachineSlot && var2.stackSize > 1)
+                {
+                    ItemStack remainder = var2.copy();
+                    --remainder.stackSize;
+                    slot.putStack(remainder);
+                }
+                else
+                {
+                    slot.putStack((ItemStack) null);
+                }
             }
             else
             {

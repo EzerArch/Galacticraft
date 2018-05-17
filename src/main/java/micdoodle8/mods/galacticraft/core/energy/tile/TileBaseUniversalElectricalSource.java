@@ -108,7 +108,7 @@ public class TileBaseUniversalElectricalSource extends TileBaseUniversalElectric
      */
     public void recharge(ItemStack itemStack)
     {
-        if (itemStack != null)
+        if (itemStack != null && itemStack.stackSize == 1)
         {
             Item item = itemStack.getItem();
             float maxExtractSave = this.storage.getMaxExtract();
@@ -212,12 +212,13 @@ public class TileBaseUniversalElectricalSource extends TileBaseUniversalElectric
     {
         if (direction == null && EnergyConfigHandler.isIndustrialCraft2Loaded())
         {
-            TileEntity tile = new BlockVec3(this).getTileEntityOnSide(this.worldObj, this.getElectricalOutputDirectionMain());
+            TileEntity tile = new BlockVec3(this).getTileEntityOnSide(this.worldObj, this.getElectricOutputDirection());
             if (tile instanceof IConductor)
             {
                 //No power provide to IC2 mod if it's a Galacticraft wire on the output.  Galacticraft network will provide the power.
                 return 0.0F;
             }
+            return this.storage.extractEnergyGC(Float.MAX_VALUE, true);
         }
 
         if (this.getElectricalOutputDirections().contains(direction))
@@ -228,13 +229,12 @@ public class TileBaseUniversalElectricalSource extends TileBaseUniversalElectric
         return 0F;
     }
 
-    public EnumFacing getElectricalOutputDirectionMain()
+    public EnumFacing getElectricOutputDirection()
     {
         return null;
     }
 
-    @Override
-    @Annotations.RuntimeInterface(clazz = "cofh.api.energy.IEnergyHandler", modID = "")
+    @Annotations.RuntimeInterface(clazz = "cofh.api.energy.IEnergyProvider", modID = "")
     public int extractEnergy(EnumFacing from, int maxExtract, boolean simulate)
     {
         if (EnergyConfigHandler.disableRFOutput)

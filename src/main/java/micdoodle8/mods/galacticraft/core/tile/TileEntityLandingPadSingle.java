@@ -2,7 +2,6 @@ package micdoodle8.mods.galacticraft.core.tile;
 
 import micdoodle8.mods.galacticraft.core.GCBlocks;
 import net.minecraft.block.state.IBlockState;
-import net.minecraft.init.Blocks;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.BlockPos;
 import net.minecraft.util.ITickable;
@@ -12,12 +11,14 @@ import java.util.ArrayList;
 
 public class TileEntityLandingPadSingle extends TileEntity implements ITickable
 {
+    private int corner = 0;
+
     @Override
     public void update()
     {
-        if (!this.worldObj.isRemote)
+        if (!this.worldObj.isRemote && this.corner == 0)
         {
-            final ArrayList<TileEntity> attachedLaunchPads = new ArrayList<TileEntity>();
+            final ArrayList<TileEntity> attachedLaunchPads = new ArrayList<>();
 
             for (int x = this.getPos().getX() - 1; x < this.getPos().getX() + 2; x++)
             {
@@ -25,7 +26,7 @@ public class TileEntityLandingPadSingle extends TileEntity implements ITickable
                 {
                     final TileEntity tile = this.worldObj.getTileEntity(new BlockPos(x, this.getPos().getY(), z));
 
-                    if (tile instanceof TileEntityLandingPadSingle)
+                    if (tile instanceof TileEntityLandingPadSingle && !tile.isInvalid() && ((TileEntityLandingPadSingle)tile).corner == 0)
                     {
                         attachedLaunchPads.add(tile);
                     }
@@ -36,19 +37,11 @@ public class TileEntityLandingPadSingle extends TileEntity implements ITickable
             {
                 for (final TileEntity tile : attachedLaunchPads)
                 {
-                    tile.invalidate();
-                    tile.getWorld().setBlockState(tile.getPos(), Blocks.air.getDefaultState(), 3);
-                    // ((GCCoreBlockLandingPadFull)GCCoreBlocks.landingPadFull).onBlockAdded(worldObj,
-                    // tile.xCoord, tile.yCoord, tile.zCoord);
+                    this.worldObj.markTileEntityForRemoval(tile);
+                    ((TileEntityLandingPadSingle)tile).corner = 1;
                 }
 
-                this.worldObj.setBlockState(this.getPos(), GCBlocks.landingPadFull.getDefaultState(), 3);
-                final TileEntityLandingPad tilePadFull = (TileEntityLandingPad) this.worldObj.getTileEntity(this.getPos());
-
-                if (tilePadFull != null)
-                {
-                    tilePadFull.onCreate(worldObj, this.getPos());
-                }
+                this.worldObj.setBlockState(this.getPos(), GCBlocks.landingPadFull.getDefaultState(), 2);
             }
         }
     }

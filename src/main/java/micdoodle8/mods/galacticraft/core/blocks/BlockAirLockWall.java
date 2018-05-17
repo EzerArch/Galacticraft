@@ -23,7 +23,7 @@ import java.util.Random;
 
 public class BlockAirLockWall extends BlockBreakable implements IPartialSealableBlock, ISortableBlock
 {
-    public static final PropertyEnum CONNECTION_TYPE = PropertyEnum.create("connection", EnumAirLockSealConnection.class);
+    public static final PropertyEnum<EnumAirLockSealConnection> CONNECTION_TYPE = PropertyEnum.create("connection", EnumAirLockSealConnection.class);
 
     public enum EnumAirLockSealConnection implements IStringSerializable
     {
@@ -158,16 +158,13 @@ public class BlockAirLockWall extends BlockBreakable implements IPartialSealable
         {
             int adjacentCount = 0;
 
-            for (EnumFacing dir : EnumFacing.values())
+            for (EnumFacing dir : EnumFacing.HORIZONTALS)
             {
-                if (dir != EnumFacing.UP && dir != EnumFacing.DOWN)
-                {
-                    Block blockID = worldIn.getBlockState(pos.offset(dir)).getBlock();
+                Block blockID = worldIn.getBlockState(pos.offset(dir)).getBlock();
 
-                    if (blockID == GCBlocks.airLockFrame || blockID == GCBlocks.airLockSeal)
-                    {
-                        adjacentCount++;
-                    }
+                if (blockID == GCBlocks.airLockFrame || blockID == GCBlocks.airLockSeal)
+                {
+                    adjacentCount++;
                 }
             }
 

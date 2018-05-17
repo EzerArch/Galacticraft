@@ -3,6 +3,7 @@ package micdoodle8.mods.galacticraft.planets.asteroids.entities;
 import micdoodle8.mods.galacticraft.api.entity.ICameraZoomEntity;
 import micdoodle8.mods.galacticraft.api.entity.IIgnoreShift;
 import micdoodle8.mods.galacticraft.api.vector.Vector3;
+import micdoodle8.mods.galacticraft.core.GCBlocks;
 import micdoodle8.mods.galacticraft.core.entities.EntityLanderBase;
 import micdoodle8.mods.galacticraft.core.entities.IScaleableFuelLevel;
 import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
@@ -11,6 +12,7 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.AxisAlignedBB;
+import net.minecraft.util.BlockPos;
 import net.minecraft.world.World;
 
 import java.util.Map;
@@ -42,6 +44,13 @@ public class EntityEntryPod extends EntityLanderBase implements IScaleableFuelLe
         return this.height - 2.0D;
     }
 
+    @Override
+    public float getRotateOffset()
+    {
+        //Signal no rotate
+        return -20.0F;
+    }
+    
     @Override
     public boolean shouldSpawnParticles()
     {
@@ -83,7 +92,8 @@ public class EntityEntryPod extends EntityLanderBase implements IScaleableFuelLe
     @Override
     public void onGroundHit()
     {
-
+        BlockPos pos = new BlockPos(this).up(2);
+        this.worldObj.setBlockState(pos, GCBlocks.brightAir.getDefaultState(), 2);
     }
 
     @Override
@@ -205,29 +215,5 @@ public class EntityEntryPod extends EntityLanderBase implements IScaleableFuelLe
     public boolean shouldIgnoreShiftExit()
     {
         return !this.onGround;
-    }
-
-    @Override
-    public int getField(int id)
-    {
-        return 0;
-    }
-
-    @Override
-    public void setField(int id, int value)
-    {
-
-    }
-
-    @Override
-    public int getFieldCount()
-    {
-        return 0;
-    }
-
-    @Override
-    public void clear()
-    {
-
     }
 }

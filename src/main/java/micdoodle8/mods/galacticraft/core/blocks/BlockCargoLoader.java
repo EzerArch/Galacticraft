@@ -1,6 +1,5 @@
 package micdoodle8.mods.galacticraft.core.blocks;
 
-import micdoodle8.mods.galacticraft.core.GCBlocks;
 import micdoodle8.mods.galacticraft.core.GalacticraftCore;
 import micdoodle8.mods.galacticraft.core.energy.tile.TileBaseUniversalElectrical;
 import micdoodle8.mods.galacticraft.core.items.IShiftDescription;
@@ -8,6 +7,7 @@ import micdoodle8.mods.galacticraft.core.tile.TileEntityCargoLoader;
 import micdoodle8.mods.galacticraft.core.tile.TileEntityCargoUnloader;
 import micdoodle8.mods.galacticraft.core.util.EnumSortCategoryBlock;
 import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
+import micdoodle8.mods.galacticraft.core.util.WorldUtil;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.properties.PropertyDirection;
@@ -34,8 +34,8 @@ public class BlockCargoLoader extends BlockAdvancedTile implements IShiftDescrip
 {
     private enum EnumLoaderType implements IStringSerializable
     {
-        CARGO_LOADER(0, "cargo_loader"),
-        CARGO_UNLOADER(1, "cargo_unloader");
+        CARGO_LOADER(METADATA_CARGO_LOADER, "cargo_loader"),
+        CARGO_UNLOADER(METADATA_CARGO_UNLOADER, "cargo_unloader");
 
         private final int meta;
         private final String name;
@@ -51,16 +51,6 @@ public class BlockCargoLoader extends BlockAdvancedTile implements IShiftDescrip
             return this.meta;
         }
 
-        public static EnumLoaderType byMetadata(int meta)
-        {
-            return values()[meta];
-        }
-
-        public static EnumLoaderType byIndex(int index)
-        {
-            return values()[index];
-        }
-
         @Override
         public String getName()
         {
@@ -68,7 +58,7 @@ public class BlockCargoLoader extends BlockAdvancedTile implements IShiftDescrip
         }
     }
 
-    public static final PropertyEnum TYPE = PropertyEnum.create("type", EnumLoaderType.class);
+    public static final PropertyEnum<EnumLoaderType> TYPE = PropertyEnum.create("type", EnumLoaderType.class);
     public static final PropertyDirection FACING = PropertyDirection.create("facing", EnumFacing.Plane.HORIZONTAL);
 
     public static final int METADATA_CARGO_LOADER = 0;
@@ -139,17 +129,8 @@ public class BlockCargoLoader extends BlockAdvancedTile implements IShiftDescrip
     @Override
     public boolean onUseWrench(World world, BlockPos pos, EntityPlayer entityPlayer, EnumFacing side, float hitX, float hitY, float hitZ)
     {
-        int metadata = getMetaFromState(world.getBlockState(pos));
-        int change = world.getBlockState(pos).getValue(FACING).rotateY().getHorizontalIndex();
-
-        world.setBlockState(pos, this.getStateFromMeta(metadata - (metadata % 4) + change), 3);
-
-        TileEntity te = world.getTileEntity(pos);
-        if (te instanceof TileBaseUniversalElectrical)
-        {
-            ((TileBaseUniversalElectrical) te).updateFacing();
-        }
-
+        IBlockState state = world.getBlockState(pos);
+        TileBaseUniversalElectrical.onUseWrenchBlock(state, world, pos, state.getValue(FACING));
         return true;
     }
 
@@ -169,45 +150,20 @@ public class BlockCargoLoader extends BlockAdvancedTile implements IShiftDescrip
         }
 
         worldIn.setBlockState(pos, getStateFromMeta(change), 3);
-
-        for (int dX = -2; dX < 3; dX++)
-        {
-            for (int dZ = -2; dZ < 3; dZ++)
-            {
-                final Block block = worldIn.getBlockState(pos.add(dX, 0, dZ)).getBlock();
-
-                if (block == GCBlocks.landingPadFull)
-                {
-                    worldIn.markBlockForUpdate(pos.add(dX, 0, dZ));
-                }
-            }
-        }
+        WorldUtil.markAdjacentPadForUpdate(worldIn, pos);
     }
 
     @Override
     public void onBlockDestroyedByPlayer(World worldIn, BlockPos pos, IBlockState state)
     {
         super.onBlockDestroyedByPlayer(worldIn, pos, state);
-
-        for (int dX = -2; dX < 3; dX++)
-        {
-            for (int dZ = -2; dZ < 3; dZ++)
-            {
-                BlockPos newPos = new BlockPos(pos.getX() + dX, pos.getY(), pos.getZ() + dZ);
-                final Block block = worldIn.getBlockState(newPos).getBlock();
-
-                if (block == GCBlocks.landingPadFull)
-                {
-                    worldIn.markBlockForUpdate(newPos);
-                }
-            }
-        }
+        WorldUtil.markAdjacentPadForUpdate(worldIn, pos);
     }
 
     @Override
     public int damageDropped(IBlockState state)
     {
-        return ((EnumLoaderType) state.getValue(TYPE)).ordinal();
+        return ((EnumLoaderType) state.getValue(TYPE)).getMeta();
     }
 
     @Override
@@ -233,7 +189,7 @@ public class BlockCargoLoader extends BlockAdvancedTile implements IShiftDescrip
     public IBlockState getStateFromMeta(int meta)
     {
         EnumFacing enumfacing = EnumFacing.getHorizontal(meta % 4);
-        EnumLoaderType type = EnumLoaderType.byMetadata((int) Math.floor(meta / 4.0));
+        EnumLoaderType type = meta >= METADATA_CARGO_UNLOADER ? EnumLoaderType.CARGO_UNLOADER : EnumLoaderType.CARGO_LOADER;
 
         return this.getDefaultState().withProperty(FACING, enumfacing).withProperty(TYPE, type);
     }
@@ -241,7 +197,7 @@ public class BlockCargoLoader extends BlockAdvancedTile implements IShiftDescrip
     @Override
     public int getMetaFromState(IBlockState state)
     {
-        return ((EnumFacing) state.getValue(FACING)).getHorizontalIndex() + ((EnumLoaderType) state.getValue(TYPE)).getMeta() * 4;
+        return ((EnumFacing) state.getValue(FACING)).getHorizontalIndex() + ((EnumLoaderType) state.getValue(TYPE)).getMeta();
     }
 
     @Override

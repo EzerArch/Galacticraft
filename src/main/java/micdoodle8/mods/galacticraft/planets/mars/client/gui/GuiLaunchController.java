@@ -1,12 +1,7 @@
 package micdoodle8.mods.galacticraft.planets.mars.client.gui;
 
-import micdoodle8.mods.galacticraft.api.prefab.entity.EntityAutoRocket.EnumAutoLaunch;
 import micdoodle8.mods.galacticraft.core.GalacticraftCore;
 import micdoodle8.mods.galacticraft.core.client.gui.container.GuiContainerGC;
-import micdoodle8.mods.galacticraft.core.client.gui.element.GuiElementCheckbox;
-import micdoodle8.mods.galacticraft.core.client.gui.element.GuiElementCheckbox.ICheckBoxCallback;
-import micdoodle8.mods.galacticraft.core.client.gui.element.GuiElementDropdown;
-import micdoodle8.mods.galacticraft.core.client.gui.element.GuiElementDropdown.IDropboxCallback;
 import micdoodle8.mods.galacticraft.core.client.gui.element.GuiElementInfoRegion;
 import micdoodle8.mods.galacticraft.core.client.gui.element.GuiElementTextBox;
 import micdoodle8.mods.galacticraft.core.client.gui.element.GuiElementTextBox.ITextBoxCallback;
@@ -16,12 +11,12 @@ import micdoodle8.mods.galacticraft.core.network.PacketSimple.EnumSimplePacket;
 import micdoodle8.mods.galacticraft.core.util.ColorUtil;
 import micdoodle8.mods.galacticraft.core.util.EnumColor;
 import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
+import micdoodle8.mods.galacticraft.core.util.PlayerUtil;
 import micdoodle8.mods.galacticraft.planets.GalacticraftPlanets;
 import micdoodle8.mods.galacticraft.planets.mars.inventory.ContainerLaunchController;
 import micdoodle8.mods.galacticraft.planets.mars.network.PacketSimpleMars;
 import micdoodle8.mods.galacticraft.planets.mars.network.PacketSimpleMars.EnumSimplePacketMars;
 import micdoodle8.mods.galacticraft.planets.mars.tile.TileEntityLaunchController;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiLabel;
 import net.minecraft.client.renderer.RenderHelper;
@@ -30,6 +25,7 @@ import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.util.ChatAllowedCharacters;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.fml.client.FMLClientHandler;
+
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
@@ -39,7 +35,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-public class GuiLaunchController extends GuiContainerGC implements IDropboxCallback, ITextBoxCallback, ICheckBoxCallback
+public class GuiLaunchController extends GuiContainerGC implements ITextBoxCallback
 {
     private static final ResourceLocation launchControllerGui = new ResourceLocation(GalacticraftPlanets.ASSET_PREFIX, "textures/gui/launch_controller.png");
 
@@ -47,9 +43,7 @@ public class GuiLaunchController extends GuiContainerGC implements IDropboxCallb
 
     private GuiButton enableControllerButton;
     private GuiButton hideDestinationFrequency;
-    private GuiElementCheckbox enablePadRemovalButton;
-    private GuiElementCheckbox launchWhenCheckbox;
-    private GuiElementDropdown dropdownTest;
+    private GuiButton openAdvancedConfig;
     private GuiElementTextBox frequency;
     private GuiElementTextBox destinationFrequency;
     private GuiElementInfoRegion electricInfoRegion = new GuiElementInfoRegion(0, 0, 52, 9, null, 0, 0, this);
@@ -70,23 +64,21 @@ public class GuiLaunchController extends GuiContainerGC implements IDropboxCallb
         if (this.launchController.disableCooldown > 0)
         {
             this.enableControllerButton.enabled = false;
-            this.enablePadRemovalButton.enabled = false;
             this.hideDestinationFrequency.enabled = false;
         }
         else
         {
-            boolean isOwner = FMLClientHandler.instance().getClient().thePlayer.getGameProfile().getName().equals(this.launchController.getOwnerName());
+            boolean isOwner = PlayerUtil.getName(this.mc.thePlayer).equals(this.launchController.getOwnerName());
             this.enableControllerButton.enabled = isOwner;
-            this.enablePadRemovalButton.enabled = isOwner;
             this.hideDestinationFrequency.enabled = isOwner;
         }
 
         this.enableControllerButton.displayString = this.launchController.getDisabled(0) ? GCCoreUtil.translate("gui.button.enable.name") : GCCoreUtil.translate("gui.button.disable.name");
         this.hideDestinationFrequency.displayString = !this.launchController.getDisabled(2) ? GCCoreUtil.translate("gui.button.unhide_dest.name") : GCCoreUtil.translate("gui.button.hide_dest.name");
         // Hacky way of rendering buttons properly, possibly bugs here:
-        List buttonList = new ArrayList(this.buttonList);
-        List labelList = new ArrayList(this.labelList);
-        List<GuiElementInfoRegion> infoRegions = new ArrayList(this.infoRegions);
+        List<GuiButton> buttonList = new ArrayList<>(this.buttonList);
+        List<GuiLabel> labelList = new ArrayList<>(this.labelList);
+        List<GuiElementInfoRegion> infoRegions = new ArrayList<>(this.infoRegions);
         this.buttonList.clear();
         this.labelList.clear();
         this.infoRegions.clear();
@@ -125,7 +117,7 @@ public class GuiLaunchController extends GuiContainerGC implements IDropboxCallb
 
         if (Math.random() < 0.025 && !destinationFrequency.isTextFocused)
         {
-            if (!Minecraft.getMinecraft().thePlayer.getGameProfile().getName().equals(this.launchController.getOwnerName()) &&
+            if (!PlayerUtil.getName(this.mc.thePlayer).equals(this.launchController.getOwnerName()) &&
                     !this.launchController.getDisabled(2))
             {
                 // in case the player is not equal to the owner of the controller,
@@ -185,53 +177,42 @@ public class GuiLaunchController extends GuiContainerGC implements IDropboxCallb
         }
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public void initGui()
     {
         super.initGui();
         this.buttonList.clear();
-        final int var5 = (this.width - this.xSize) / 2;
-        final int var6 = (this.height - this.ySize) / 2;
-        this.enableControllerButton = new GuiButton(0, var5 + 70 + 124 - 72, var6 + 16, 48, 20, GCCoreUtil.translate("gui.button.enable.name"));
-        this.enablePadRemovalButton = new GuiElementCheckbox(1, this, this.width / 2 - 78, var6 + 59, GCCoreUtil.translate("gui.message.remove_pad.name"));
-        this.launchWhenCheckbox = new GuiElementCheckbox(2, this, this.width / 2 - 78, var6 + 77, GCCoreUtil.translate("gui.message.launch_when.name") + ": ");
-        this.dropdownTest = new GuiElementDropdown(3, this, var5 + 95, var6 + 77, EnumAutoLaunch.CARGO_IS_UNLOADED.getTitle(), EnumAutoLaunch.CARGO_IS_FULL.getTitle(), EnumAutoLaunch.ROCKET_IS_FUELED.getTitle(), EnumAutoLaunch.INSTANT.getTitle(), EnumAutoLaunch.TIME_10_SECONDS.getTitle(), EnumAutoLaunch.TIME_30_SECONDS.getTitle(), EnumAutoLaunch.TIME_1_MINUTE.getTitle(), EnumAutoLaunch.REDSTONE_SIGNAL.getTitle());
-        this.frequency = new GuiElementTextBox(4, this, var5 + 66, var6 + 16, 48, 20, "", true, 6, false);
-        this.destinationFrequency = new GuiElementTextBox(5, this, var5 + 45, var6 + 16 + 22, 48, 20, "", true, 6, false);
-        this.hideDestinationFrequency = new GuiButton(6, var5 + 95, var6 + 16 + 22, 39, 20, GCCoreUtil.translate("gui.button.hide_dest.name"));
+        final int xLeft = (this.width - this.xSize) / 2;
+        final int yTop = (this.height - this.ySize) / 2;
+        this.enableControllerButton = new GuiButton(0, xLeft + 70 + 124 - 72, yTop + 16, 48, 20, GCCoreUtil.translate("gui.button.enable.name"));
+        this.frequency = new GuiElementTextBox(4, this, xLeft + 66, yTop + 16, 48, 20, "", true, 6, false);
+        this.destinationFrequency = new GuiElementTextBox(5, this, xLeft + 45, yTop + 16 + 22, 48, 20, "", true, 6, false);
+        this.hideDestinationFrequency = new GuiButton(6, xLeft + 95, yTop + 16 + 22, 39, 20, GCCoreUtil.translate("gui.button.hide_dest.name"));
+        this.openAdvancedConfig = new GuiButton(7, xLeft + 48, yTop + 62, 80, 20, GCCoreUtil.translate("gui.launch_controller.advanced") + "...");
         this.buttonList.add(this.enableControllerButton);
-        this.buttonList.add(this.enablePadRemovalButton);
-        this.buttonList.add(this.launchWhenCheckbox);
-        this.buttonList.add(this.dropdownTest);
         this.buttonList.add(this.frequency);
         this.buttonList.add(this.destinationFrequency);
         this.buttonList.add(this.hideDestinationFrequency);
+        this.buttonList.add(this.openAdvancedConfig);
         this.electricInfoRegion.tooltipStrings = new ArrayList<String>();
-        this.electricInfoRegion.xPosition = (this.width - this.xSize) / 2 + 98;
-        this.electricInfoRegion.yPosition = (this.height - this.ySize) / 2 + 113;
+        this.electricInfoRegion.xPosition = xLeft + 98;
+        this.electricInfoRegion.yPosition = yTop + 113;
         this.electricInfoRegion.parentWidth = this.width;
         this.electricInfoRegion.parentHeight = this.height;
         this.infoRegions.add(this.electricInfoRegion);
         List<String> batterySlotDesc = new ArrayList<String>();
         batterySlotDesc.add(GCCoreUtil.translate("gui.battery_slot.desc.0"));
         batterySlotDesc.add(GCCoreUtil.translate("gui.battery_slot.desc.1"));
-        this.infoRegions.add(new GuiElementInfoRegion((this.width - this.xSize) / 2 + 151, (this.height - this.ySize) / 2 + 104, 18, 18, batterySlotDesc, this.width, this.height, this));
+        this.infoRegions.add(new GuiElementInfoRegion(xLeft + 151, yTop + 104, 18, 18, batterySlotDesc, this.width, this.height, this));
         batterySlotDesc = new ArrayList<String>();
         batterySlotDesc.addAll(GCCoreUtil.translateWithSplit("gui.launch_controller.desc.0"));
-        this.infoRegions.add(new GuiElementInfoRegion((this.width - this.xSize) / 2 + 5, (this.height - this.ySize) / 2 + 20, 109, 13, batterySlotDesc, this.width, this.height, this));
+        this.infoRegions.add(new GuiElementInfoRegion(xLeft + 5, yTop + 20, 109, 13, batterySlotDesc, this.width, this.height, this));
         batterySlotDesc = new ArrayList<String>();
         batterySlotDesc.addAll(GCCoreUtil.translateWithSplit("gui.launch_controller.desc.1"));
-        this.infoRegions.add(new GuiElementInfoRegion((this.width - this.xSize) / 2 + 5, (this.height - this.ySize) / 2 + 42, 88, 13, batterySlotDesc, this.width, this.height, this));
-        batterySlotDesc = new ArrayList<String>();
-        batterySlotDesc.addAll(GCCoreUtil.translateWithSplit("gui.launch_controller.desc.2"));
-        this.infoRegions.add(new GuiElementInfoRegion((this.width - this.xSize) / 2 + 10, (this.height - this.ySize) / 2 + 59, 78, 13, batterySlotDesc, this.width, this.height, this));
-        batterySlotDesc = new ArrayList<String>();
-        batterySlotDesc.addAll(GCCoreUtil.translateWithSplit("gui.launch_controller.desc.3"));
-        this.infoRegions.add(new GuiElementInfoRegion((this.width - this.xSize) / 2 + 10, (this.height - this.ySize) / 2 + 77, 82, 13, batterySlotDesc, this.width, this.height, this));
+        this.infoRegions.add(new GuiElementInfoRegion(xLeft + 5, yTop + 42, 87, 13, batterySlotDesc, this.width, this.height, this));
         batterySlotDesc = new ArrayList<String>();
         batterySlotDesc.addAll(GCCoreUtil.translateWithSplit("gui.launch_controller.desc.4"));
-        this.infoRegions.add(new GuiElementInfoRegion((this.width - this.xSize) / 2 + 95, (this.height - this.ySize) / 2 + 38, 38, 20, batterySlotDesc, this.width, this.height, this));
+        this.infoRegions.add(new GuiElementInfoRegion(xLeft + 95, yTop + 38, 38, 20, batterySlotDesc, this.width, this.height, this));
     }
 
     @Override
@@ -243,9 +224,9 @@ public class GuiLaunchController extends GuiContainerGC implements IDropboxCallb
     @Override
     protected void actionPerformed(GuiButton par1GuiButton)
     {
-        if (!FMLClientHandler.instance().getClient().thePlayer.getGameProfile().getName().equals(this.launchController.getOwnerName()))
+        if (!PlayerUtil.getName(this.mc.thePlayer).equals(this.launchController.getOwnerName()))
         {
-            this.onIntruderInteraction();
+            this.cannotEditTimer = 50;
             return;
         }
 
@@ -258,6 +239,9 @@ public class GuiLaunchController extends GuiContainerGC implements IDropboxCallb
                 break;
             case 6:
                 GalacticraftCore.packetPipeline.sendToServer(new PacketSimple(EnumSimplePacket.S_UPDATE_DISABLEABLE_BUTTON, GCCoreUtil.getDimensionID(mc.theWorld), new Object[] { this.launchController.getPos(), 2 }));
+                break;
+            case 7:
+                GalacticraftCore.packetPipeline.sendToServer(new PacketSimpleMars(EnumSimplePacketMars.S_SWITCH_LAUNCH_CONTROLLER_GUI, GCCoreUtil.getDimensionID(mc.theWorld), new Object[] { this.launchController.getPos(), 0 }));
                 break;
             default:
                 break;
@@ -279,7 +263,7 @@ public class GuiLaunchController extends GuiContainerGC implements IDropboxCallb
 
         this.fontRendererObj.drawString(GCCoreUtil.translate("container.inventory"), 8, 115, 4210752);
         displayString = this.getStatus();
-        this.fontRendererObj.drawSplitString(displayString, 60 - this.fontRendererObj.getStringWidth(displayString) / 2, 94, 60, 4210752);
+        this.fontRendererObj.drawString(displayString, this.xSize / 2 - this.fontRendererObj.getStringWidth(displayString) / 2, 86, 4210752);
         //		displayString = ElectricityDisplay.getDisplay(this.launchController.ueWattsPerTick * 20, ElectricUnit.WATT);
         //		this.fontRendererObj.drawString(displayString, this.xSize - 26 - this.fontRendererObj.getStringWidth(displayString), 94, 4210752);
         //		displayString = ElectricityDisplay.getDisplay(this.launchController.getVoltage(), ElectricUnit.VOLTAGE);
@@ -336,47 +320,15 @@ public class GuiLaunchController extends GuiContainerGC implements IDropboxCallb
     }
 
     @Override
-    public boolean canBeClickedBy(GuiElementDropdown dropdown, EntityPlayer player)
-    {
-        if (dropdown.equals(this.dropdownTest))
-        {
-            return player.getGameProfile().getName().equals(this.launchController.getOwnerName());
-        }
-
-        return false;
-    }
-
-    @Override
-    public void onSelectionChanged(GuiElementDropdown dropdown, int selection)
-    {
-        if (dropdown.equals(this.dropdownTest))
-        {
-            this.launchController.launchDropdownSelection = selection;
-            GalacticraftCore.packetPipeline.sendToServer(new PacketSimpleMars(EnumSimplePacketMars.S_UPDATE_ADVANCED_GUI, GCCoreUtil.getDimensionID(mc.theWorld), new Object[] { 1, this.launchController.getPos(), this.launchController.launchDropdownSelection }));
-        }
-    }
-
-    @Override
-    public int getInitialSelection(GuiElementDropdown dropdown)
-    {
-        if (dropdown.equals(this.dropdownTest))
-        {
-            return this.launchController.launchDropdownSelection;
-        }
-
-        return 0;
-    }
-
-    @Override
     public boolean canPlayerEdit(GuiElementTextBox textBox, EntityPlayer player)
     {
-        return player.getGameProfile().getName().equals(this.launchController.getOwnerName());
+        return PlayerUtil.getName(player).equals(this.launchController.getOwnerName());
     }
 
     @Override
     public void onTextChanged(GuiElementTextBox textBox, String newText)
     {
-        if (FMLClientHandler.instance().getClient().thePlayer.getGameProfile().getName().equals(this.launchController.getOwnerName()))
+        if (PlayerUtil.getName(this.mc.thePlayer).equals(this.launchController.getOwnerName()))
         {
             if (textBox.equals(this.frequency))
             {
@@ -400,7 +352,7 @@ public class GuiLaunchController extends GuiContainerGC implements IDropboxCallb
         }
         else if (textBox.equals(this.destinationFrequency))
         {
-            if (Minecraft.getMinecraft().thePlayer.getGameProfile().getName().equals(this.launchController.getOwnerName()) || this.launchController.getDisabled(2))
+            if (PlayerUtil.getName(this.mc.thePlayer).equals(this.launchController.getOwnerName()) || this.launchController.getDisabled(2))
             {
                 return String.valueOf(this.launchController.destFrequency);
             }
@@ -435,48 +387,6 @@ public class GuiLaunchController extends GuiContainerGC implements IDropboxCallb
         }
 
         return 0;
-    }
-
-    @Override
-    public void onSelectionChanged(GuiElementCheckbox checkbox, boolean newSelected)
-    {
-        if (checkbox.equals(this.enablePadRemovalButton))
-        {
-            this.launchController.launchPadRemovalDisabled = !newSelected;
-            GalacticraftCore.packetPipeline.sendToServer(new PacketSimpleMars(EnumSimplePacketMars.S_UPDATE_ADVANCED_GUI, GCCoreUtil.getDimensionID(mc.theWorld), new Object[] { 3, this.launchController.getPos(), this.launchController.launchPadRemovalDisabled ? 1 : 0 }));
-        }
-        else if (checkbox.equals(this.launchWhenCheckbox))
-        {
-            this.launchController.launchSchedulingEnabled = newSelected;
-            GalacticraftCore.packetPipeline.sendToServer(new PacketSimpleMars(EnumSimplePacketMars.S_UPDATE_ADVANCED_GUI, GCCoreUtil.getDimensionID(mc.theWorld), new Object[] { 4, this.launchController.getPos(), this.launchController.launchSchedulingEnabled ? 1 : 0 }));
-        }
-    }
-
-    @Override
-    public boolean canPlayerEdit(GuiElementCheckbox checkbox, EntityPlayer player)
-    {
-        return player.getGameProfile().getName().equals(this.launchController.getOwnerName());
-    }
-
-    @Override
-    public boolean getInitiallySelected(GuiElementCheckbox checkbox)
-    {
-        if (checkbox.equals(this.enablePadRemovalButton))
-        {
-            return !this.launchController.launchPadRemovalDisabled;
-        }
-        else if (checkbox.equals(this.launchWhenCheckbox))
-        {
-            return this.launchController.launchSchedulingEnabled;
-        }
-
-        return false;
-    }
-
-    @Override
-    public void onIntruderInteraction()
-    {
-        this.cannotEditTimer = 50;
     }
 
     @Override

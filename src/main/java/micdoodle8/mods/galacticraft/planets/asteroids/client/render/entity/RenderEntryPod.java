@@ -1,28 +1,27 @@
 package micdoodle8.mods.galacticraft.planets.asteroids.client.render.entity;
 
-import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
+
 import micdoodle8.mods.galacticraft.core.util.ClientUtil;
 import micdoodle8.mods.galacticraft.planets.GalacticraftPlanets;
 import micdoodle8.mods.galacticraft.planets.asteroids.entities.EntityEntryPod;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
+import net.minecraft.client.renderer.culling.ICamera;
 import net.minecraft.client.renderer.entity.Render;
 import net.minecraft.client.renderer.entity.RenderManager;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.renderer.texture.TextureMap;
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
+import net.minecraft.util.AxisAlignedBB;
 import net.minecraft.util.ResourceLocation;
-import net.minecraftforge.client.model.ModelLoaderRegistry;
-import net.minecraftforge.client.model.obj.OBJModel;
+import net.minecraftforge.client.model.IFlexibleBakedModel;
+
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
 
 public class RenderEntryPod extends Render<EntityEntryPod>
 {
-    private OBJModel.OBJBakedModel modelEntryPod;
+    private IFlexibleBakedModel modelEntryPod;
 
     public RenderEntryPod(RenderManager manager)
     {
@@ -35,18 +34,7 @@ public class RenderEntryPod extends Render<EntityEntryPod>
         {
             try
             {
-                OBJModel model = (OBJModel) ModelLoaderRegistry.getModel(new ResourceLocation(GalacticraftPlanets.ASSET_PREFIX, "pod.obj"));
-                model = (OBJModel) model.process(ImmutableMap.of("flip-v", "true"));
-
-                Function<ResourceLocation, TextureAtlasSprite> spriteFunction = new Function<ResourceLocation, TextureAtlasSprite>()
-                {
-                    @Override
-                    public TextureAtlasSprite apply(ResourceLocation location)
-                    {
-                        return Minecraft.getMinecraft().getTextureMapBlocks().getAtlasSprite(location.toString());
-                    }
-                };
-                modelEntryPod = (OBJModel.OBJBakedModel) model.bake(new OBJModel.OBJState(ImmutableList.of("PodBody"), false), DefaultVertexFormats.ITEM, spriteFunction);
+                modelEntryPod = ClientUtil.modelFromOBJ(new ResourceLocation(GalacticraftPlanets.ASSET_PREFIX, "pod.obj"), ImmutableList.of("PodBody"));
             }
             catch (Exception e)
             {
@@ -95,5 +83,12 @@ public class RenderEntryPod extends Render<EntityEntryPod>
     protected ResourceLocation getEntityTexture(EntityEntryPod entityEntryPod)
     {
         return new ResourceLocation("missing");
+    }
+    
+    @Override
+    public boolean shouldRender(EntityEntryPod lander, ICamera camera, double camX, double camY, double camZ)
+    {
+        AxisAlignedBB axisalignedbb = lander.getEntityBoundingBox().expand(1D, 2D, 1D);
+        return lander.isInRangeToRender3d(camX, camY, camZ) && camera.isBoundingBoxInFrustum(axisalignedbb);
     }
 }

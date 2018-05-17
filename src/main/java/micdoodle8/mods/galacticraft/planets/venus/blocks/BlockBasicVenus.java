@@ -7,17 +7,22 @@ import micdoodle8.mods.galacticraft.core.GCItems;
 import micdoodle8.mods.galacticraft.core.GalacticraftCore;
 import micdoodle8.mods.galacticraft.core.blocks.ISortableBlock;
 import micdoodle8.mods.galacticraft.core.util.EnumSortCategoryBlock;
+import micdoodle8.mods.galacticraft.planets.venus.VenusBlocks;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.properties.PropertyEnum;
 import net.minecraft.block.state.BlockState;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.creativetab.CreativeTabs;
+import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.stats.StatList;
+import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.BlockPos;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.IStringSerializable;
@@ -33,7 +38,7 @@ import java.util.Random;
 
 public class BlockBasicVenus extends Block implements IDetectableResource, IPlantableBlock, ITerraformableBlock, ISortableBlock
 {
-    public static final PropertyEnum BASIC_TYPE_VENUS = PropertyEnum.create("basicTypeVenus", EnumBlockBasicVenus.class);
+    public static final PropertyEnum<EnumBlockBasicVenus> BASIC_TYPE_VENUS = PropertyEnum.create("basicTypeVenus", EnumBlockBasicVenus.class);
 
     public enum EnumBlockBasicVenus implements IStringSerializable
     {
@@ -48,7 +53,8 @@ public class BlockBasicVenus extends Block implements IDetectableResource, IPlan
         ORE_GALENA(8, "venus_ore_galena"),
         ORE_QUARTZ(9, "venus_ore_quartz"),
         ORE_SILICON(10, "venus_ore_silicon"),
-        ORE_TIN(11, "venus_ore_tin");
+        ORE_TIN(11, "venus_ore_tin"),
+        LEAD_BLOCK(12, "lead_block");
 
         private final int meta;
         private final String name;
@@ -74,6 +80,11 @@ public class BlockBasicVenus extends Block implements IDetectableResource, IPlan
         {
             return this.name;
         }
+
+        public ItemStack getItemStack()
+        {
+            return new ItemStack(VenusBlocks.venusBlock, 1, this.meta);
+        }
     }
 
     public BlockBasicVenus(String assetName)
@@ -93,14 +104,38 @@ public class BlockBasicVenus extends Block implements IDetectableResource, IPlan
     }
 
     @Override
-    public void breakBlock(World worldIn, BlockPos pos, IBlockState state)
+    public void harvestBlock(World worldIn, EntityPlayer player, BlockPos pos, IBlockState state, TileEntity te)
     {
-        super.breakBlock(worldIn, pos, state);
+        player.triggerAchievement(StatList.mineBlockStatArray[Block.getIdFromBlock(this)]);
+        player.addExhaustion(0.025F);
 
-        EnumBlockBasicVenus type = ((EnumBlockBasicVenus) state.getValue(BASIC_TYPE_VENUS));
-        if (type == EnumBlockBasicVenus.ROCK_MAGMA)
+        if (this.canSilkHarvest(worldIn, pos, worldIn.getBlockState(pos), player) && EnchantmentHelper.getSilkTouchModifier(player))
         {
-            worldIn.setBlockState(pos, Blocks.flowing_lava.getDefaultState());
+            java.util.List<ItemStack> items = new java.util.ArrayList<ItemStack>();
+            ItemStack itemstack = this.createStackedBlock(state);
+
+            if (itemstack != null)
+            {
+                items.add(itemstack);
+            }
+
+            net.minecraftforge.event.ForgeEventFactory.fireBlockHarvesting(items, worldIn, pos, worldIn.getBlockState(pos), 0, 1.0f, true, player);
+
+            for (ItemStack is : items)
+            {
+                spawnAsEntity(worldIn, pos, is);
+            }
+        }
+        else
+        {
+            int i = EnchantmentHelper.getFortuneModifier(player);
+            harvesters.set(player);
+            this.dropBlockAsItem(worldIn, pos, state, i);
+            harvesters.set(null);
+            if ((EnumBlockBasicVenus) state.getValue(BASIC_TYPE_VENUS) == EnumBlockBasicVenus.ROCK_MAGMA)
+            {
+                worldIn.setBlockState(pos, Blocks.flowing_lava.getDefaultState());
+            }
         }
     }
 
@@ -228,6 +263,7 @@ public class BlockBasicVenus extends Block implements IDetectableResource, IPlan
 
             switch (type)
             {
+            case ORE_QUARTZ:
             case ORE_SILICON:
                 i = MathHelper.getRandomIntegerInRange(rand, 2, 5);
                 break;
@@ -290,6 +326,13 @@ public class BlockBasicVenus extends Block implements IDetectableResource, IPlan
     @Override
     public boolean isTerraformable(World world, BlockPos pos)
     {
+        EnumBlockBasicVenus type = ((EnumBlockBasicVenus) world.getBlockState(pos).getValue(BASIC_TYPE_VENUS));
+
+        if (type == EnumBlockBasicVenus.ROCK_HARD || type == EnumBlockBasicVenus.ROCK_SOFT)
+        {
+            return world.getBlockState(pos.offset(EnumFacing.UP)).getBlock().isAir(world, pos);
+        }
+
         return false;
     }
 
@@ -334,6 +377,8 @@ public class BlockBasicVenus extends Block implements IDetectableResource, IPlan
         case DUNGEON_BRICK_1:
         case DUNGEON_BRICK_2:
             return EnumSortCategoryBlock.BRICKS;
+        case LEAD_BLOCK:
+            return EnumSortCategoryBlock.INGOT_BLOCK;
         default:
             return EnumSortCategoryBlock.GENERAL;
         }

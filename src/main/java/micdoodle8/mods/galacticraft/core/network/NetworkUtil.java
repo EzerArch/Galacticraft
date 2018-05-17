@@ -114,11 +114,12 @@ public class NetworkUtil
             }
             else if (dataValue instanceof byte[])
             {
-                buffer.writeInt(((byte[]) dataValue).length);
-                for (int i = 0; i < ((byte[]) dataValue).length; i++)
-                {
-                    buffer.writeByte(((byte[]) dataValue)[i]);
-                }
+                int size = ((byte[]) dataValue).length;
+                buffer.writeInt(size);
+                int pos = buffer.writerIndex();
+                buffer.capacity(pos + size);
+                buffer.setBytes(pos, (byte[]) dataValue);
+                buffer.writerIndex(pos + size);
             }
             else if (dataValue instanceof UUID)
             {
@@ -247,11 +248,9 @@ public class NetworkUtil
             }
             else if (clazz.equals(byte[].class))
             {
-                byte[] bytes = new byte[buffer.readInt()];
-                for (int i = 0; i < bytes.length; i++)
-                {
-                    bytes[i] = buffer.readByte();
-                }
+                int size = buffer.readInt();
+                byte[] bytes = new byte[size];
+                buffer.readBytes(bytes, 0, size);
                 objList.add(bytes);
             }
             else if (clazz.equals(EnergyStorage.class))
@@ -323,7 +322,7 @@ public class NetworkUtil
 
                 for (int i = 0; i < size; i++)
                 {
-                    objList.add(new Footprint(buffer.readInt(), new Vector3(buffer.readFloat(), buffer.readFloat(), buffer.readFloat()), buffer.readFloat(), buffer.readShort(), ByteBufUtils.readUTF8String(buffer)));
+                    objList.add(new Footprint(buffer.readInt(), new Vector3(buffer.readFloat(), buffer.readFloat(), buffer.readFloat()), buffer.readFloat(), buffer.readShort(), ByteBufUtils.readUTF8String(buffer), -1));
                 }
             }
             else if (clazz.equals(EnumFacing.class))
@@ -599,7 +598,9 @@ public class NetworkUtil
         }
         else if (a instanceof Float && b instanceof Float)
         {
-            return DoubleMath.fuzzyEquals((Float) a, (Float) b, 0.01);
+            float af = (Float) a; 
+            float bf = (Float) b; 
+            return af == bf || Math.abs(af - bf) < 0.01F;
         }
         else if (a instanceof Double && b instanceof Double)
         {
@@ -662,8 +663,10 @@ public class NetworkUtil
         }
         else if (a instanceof FluidTank)
         {
-            FluidTank prevTank = (FluidTank) a;
-            FluidTank tank = new FluidTank(prevTank.getFluid(), prevTank.getCapacity());
+            FluidTank prevTank = (FluidTank)a;
+            FluidStack prevFluid = prevTank.getFluid();
+            prevFluid = prevFluid == null ? null : prevFluid.copy();
+            FluidTank tank = new FluidTank(prevFluid, prevTank.getCapacity());
             return tank;
         }
         else

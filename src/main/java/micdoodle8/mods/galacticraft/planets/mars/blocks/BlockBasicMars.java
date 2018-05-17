@@ -1,6 +1,7 @@
 package micdoodle8.mods.galacticraft.planets.mars.blocks;
 
 import com.google.common.base.Predicate;
+
 import micdoodle8.mods.galacticraft.api.block.IDetectableResource;
 import micdoodle8.mods.galacticraft.api.block.IPlantableBlock;
 import micdoodle8.mods.galacticraft.api.block.ITerraformableBlock;
@@ -25,6 +26,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.util.BlockPos;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.IStringSerializable;
+import net.minecraft.util.MathHelper;
 import net.minecraft.util.MovingObjectPosition;
 import net.minecraft.world.Explosion;
 import net.minecraft.world.IBlockAccess;
@@ -38,7 +40,7 @@ import java.util.Random;
 
 public class BlockBasicMars extends Block implements IDetectableResource, IPlantableBlock, ITerraformableBlock, ISortableBlock
 {
-    public static final PropertyEnum BASIC_TYPE = PropertyEnum.create("basicTypeMars", EnumBlockBasic.class);
+    public static final PropertyEnum<EnumBlockBasic> BASIC_TYPE = PropertyEnum.create("basicTypeMars", EnumBlockBasic.class);
 
     public enum EnumBlockBasic implements IStringSerializable
     {
@@ -103,11 +105,15 @@ public class BlockBasicMars extends Block implements IDetectableResource, IPlant
     @Override
     public float getExplosionResistance(World world, BlockPos pos, Entity exploder, Explosion explosion)
     {
-        IBlockState state = world.getBlockState(pos);
+        EnumBlockBasic type = (EnumBlockBasic) world.getBlockState(pos).getValue(BASIC_TYPE);
 
-        if (state.getValue(BASIC_TYPE) == EnumBlockBasic.DUNGEON_BRICK)
+        if (type == EnumBlockBasic.DUNGEON_BRICK)
         {
             return 40.0F;
+        }
+        else if (type == EnumBlockBasic.DESH_BLOCK)
+        {
+            return 60.0F;
         }
 
         return super.getExplosionResistance(world, pos, exploder, explosion);
@@ -173,10 +179,9 @@ public class BlockBasicMars extends Block implements IDetectableResource, IPlant
         return 1;
     }
 
-    @SuppressWarnings({ "rawtypes", "unchecked" })
     @SideOnly(Side.CLIENT)
     @Override
-    public void getSubBlocks(Item par1, CreativeTabs par2CreativeTabs, List par3List)
+    public void getSubBlocks(Item par1, CreativeTabs par2CreativeTabs, List<ItemStack> par3List)
     {
         for (EnumBlockBasic blockBasic : EnumBlockBasic.values())
         {
@@ -306,5 +311,20 @@ public class BlockBasicMars extends Block implements IDetectableResource, IPlant
             return EnumSortCategoryBlock.INGOT_BLOCK;
         }
         return EnumSortCategoryBlock.GENERAL;
+    }
+
+    @Override
+    public int getExpDrop(IBlockAccess world, BlockPos pos, int fortune)
+    {
+        IBlockState state = world.getBlockState(pos);
+        if (state.getBlock() != this) return 0;
+        
+        int meta = this.getMetaFromState(state);
+        if (meta == 2)
+        {
+            Random rand = world instanceof World ? ((World)world).rand : new Random();
+            return MathHelper.getRandomIntegerInRange(rand, 2, 5);
+        }
+        return 0;
     }
 }

@@ -1,6 +1,7 @@
 package micdoodle8.mods.galacticraft.core.entities;
 
 import micdoodle8.mods.galacticraft.api.entity.IEntityBreathable;
+import micdoodle8.mods.galacticraft.core.Constants;
 import micdoodle8.mods.galacticraft.core.GCBlocks;
 import micdoodle8.mods.galacticraft.core.GCItems;
 import micdoodle8.mods.galacticraft.core.util.ConfigManagerCore;
@@ -37,13 +38,13 @@ public class EntityEvolvedSkeleton extends EntitySkeleton implements IEntityBrea
         this.tasks.addTask(1, new EntityAISwimming(this));
         this.tasks.addTask(2, new EntityAIRestrictSun(this));
         this.tasks.addTask(3, new EntityAIFleeSun(this, 1.0D));
-        this.tasks.addTask(3, new EntityAIAvoidEntity(this, EntityWolf.class, 6.0F, 1.0D, 1.2D));
+        this.tasks.addTask(3, new EntityAIAvoidEntity<>(this, EntityWolf.class, 6.0F, 1.0D, 1.2D));
         this.tasks.addTask(4, new EntityAIWander(this, 1.0D));
         this.tasks.addTask(6, new EntityAIWatchClosest(this, EntityPlayer.class, 8.0F));
         this.tasks.addTask(6, new EntityAILookIdle(this));
         this.targetTasks.addTask(1, new EntityAIHurtByTarget(this, false, new Class[0]));
-        this.targetTasks.addTask(2, new EntityAINearestAttackableTarget(this, EntityPlayer.class, true));
-        this.targetTasks.addTask(3, new EntityAINearestAttackableTarget(this, EntityIronGolem.class, true));
+        this.targetTasks.addTask(2, new EntityAINearestAttackableTarget<>(this, EntityPlayer.class, true));
+        this.targetTasks.addTask(3, new EntityAINearestAttackableTarget<>(this, EntityIronGolem.class, true));
 
         if (worldIn != null && !worldIn.isRemote)
         {
@@ -108,7 +109,7 @@ public class EntityEvolvedSkeleton extends EntitySkeleton implements IEntityBrea
 
         if (this.isSprinting())
         {
-            float f = this.rotationYaw * 0.017453292F;
+            float f = this.rotationYaw / Constants.RADIANS_TO_DEGREES;
             this.motionX -= MathHelper.sin(f) * 0.2F;
             this.motionZ += MathHelper.cos(f) * 0.2F;
         }
@@ -140,7 +141,7 @@ public class EntityEvolvedSkeleton extends EntitySkeleton implements IEntityBrea
             this.dropItem(GCItems.canister, 1);
             break;
         default:
-            if (ConfigManagerCore.challengeMode || ConfigManagerCore.challengeMobDropsAndSpawning) this.dropItem(Items.pumpkin_seeds, 1);
+            if (ConfigManagerCore.challengeMobDropsAndSpawning) this.dropItem(Items.pumpkin_seeds, 1);
             break;
         }
     }
@@ -170,7 +171,7 @@ public class EntityEvolvedSkeleton extends EntitySkeleton implements IEntityBrea
             this.dropItem(Items.bone, 1);
 
         //Drop lapis as semi-rare drop if player hit and if dropping bones
-        if (p_70628_1_ && (ConfigManagerCore.challengeMode || ConfigManagerCore.challengeMobDropsAndSpawning) && j > 1 && this.rand.nextInt(12) == 0)
+        if (p_70628_1_ && (ConfigManagerCore.challengeMobDropsAndSpawning) && j > 1 && this.rand.nextInt(12) == 0)
             this.entityDropItem(new ItemStack(Items.dye, 1, 4), 0.0F);
     }
 

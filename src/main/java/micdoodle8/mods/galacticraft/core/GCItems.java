@@ -6,6 +6,7 @@ import com.google.common.collect.Ordering;
 
 import mezz.jei.api.IItemBlacklist;
 import micdoodle8.mods.galacticraft.core.items.*;
+import micdoodle8.mods.galacticraft.core.util.CompatibilityManager;
 import micdoodle8.mods.galacticraft.core.util.ConfigManagerCore;
 import micdoodle8.mods.galacticraft.core.util.EnumSortCategoryItem;
 import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
@@ -17,13 +18,14 @@ import net.minecraft.item.Item.ToolMaterial;
 import net.minecraft.item.ItemArmor.ArmorMaterial;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.common.util.EnumHelper;
-import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraftforge.fml.common.registry.GameRegistry;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.oredict.OreDictionary;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -66,6 +68,7 @@ public class GCItems
     public static Item key;
     public static Item partBuggy;
     public static Item basicItem;
+    public static Item foodItem;
     public static Item battery;
     public static Item infiniteBatery;
     public static Item meteorChunk;
@@ -77,15 +80,19 @@ public class GCItems
     public static Item bucketFuel;
 //	public static Item cheeseBlock;
     public static Item prelaunchChecklist;
+    public static Item dungeonFinder;
+    public static Item ic2compat;
+    public static Item emergencyKit;
 
     //    public static ArmorMaterial addArmorMaterial(String name, String textureName, int durability, int[] reductionAmounts, int enchantability)
     public static ArmorMaterial ARMOR_SENSOR_GLASSES = EnumHelper.addArmorMaterial("SENSORGLASSES", "", 200, new int[] { 0, 0, 0, 0 }, 0);
-    public static ArmorMaterial ARMOR_STEEL = EnumHelper.addArmorMaterial("steel", "", 30, new int[] { 3, 8, 6, 3 }, 12);
+    public static ArmorMaterial ARMOR_STEEL = EnumHelper.addArmorMaterial("steel", "", 30, new int[] { 3, 8, 6, 3 }, 9);
     public static ToolMaterial TOOL_STEEL = EnumHelper.addToolMaterial("steel", 3, 768, 5.0F, 2, 8);
 
     public static ArrayList<Item> hiddenItems = new ArrayList<Item>();
-
+    public static LinkedList<ItemCanisterGeneric> canisterTypes = new LinkedList<ItemCanisterGeneric>();
     public static Map<EnumSortCategoryItem, List<StackSorted>> sortMapItems = Maps.newHashMap();
+    public static HashMap<ItemStack, ItemStack> itemChanges = new HashMap<>(4, 1.0F);
 
     public static void initItems()
     {
@@ -108,7 +115,7 @@ public class GCItems
         GCItems.oxygenVent = new ItemBase("air_vent");
         GCItems.oxygenFan = new ItemBase("air_fan");
         GCItems.oxygenConcentrator = new ItemBase("oxygen_concentrator");
-        GCItems.heavyPlatingTier1 = new ItemBase("heavy_plating");
+        GCItems.heavyPlatingTier1 = new ItemBase("heavy_plating").setSmeltingXP(1F);
         GCItems.rocketEngine = new ItemRocketEngineGC("engine");
         GCItems.partFins = new ItemBase("rocket_fins");
         GCItems.partNoseCone = new ItemBase("nose_cone");
@@ -126,6 +133,7 @@ public class GCItems
         GCItems.key = new ItemKey("key");
         GCItems.partBuggy = new ItemBuggyMaterial("buggymat");
         GCItems.basicItem = new ItemBasic("basic_item");
+        GCItems.foodItem = new ItemFood("food");
         GCItems.battery = new ItemBattery("battery");
         GCItems.infiniteBatery = new ItemBatteryInfinite("infinite_battery");
         GCItems.meteorChunk = new ItemMeteorChunk("meteor_chunk");
@@ -135,10 +143,17 @@ public class GCItems
         GCItems.meteoricIronRaw = new ItemMeteoricIron("meteoric_iron_raw");
         GCItems.itemBasicMoon = new ItemMoon("item_basic_moon");
         GCItems.prelaunchChecklist = new ItemPreLaunchChecklist("prelaunch_checklist");
+        GCItems.dungeonFinder = new ItemBase("dungeonfinder");
+        GCItems.ic2compat = new ItemIC2Compat("ic2compat");
+        GCItems.emergencyKit = new ItemEmergencyKit("emergency_kit"); 
 
         GCItems.registerHarvestLevels();
 
         GCItems.registerItems();
+        GCItems.itemChanges.put(new ItemStack(GCItems.basicItem, 1, 15), new ItemStack(GCItems.foodItem, 1, 0));
+        GCItems.itemChanges.put(new ItemStack(GCItems.basicItem, 1, 16), new ItemStack(GCItems.foodItem, 1, 1));
+        GCItems.itemChanges.put(new ItemStack(GCItems.basicItem, 1, 17), new ItemStack(GCItems.foodItem, 1, 2));
+        GCItems.itemChanges.put(new ItemStack(GCItems.basicItem, 1, 18), new ItemStack(GCItems.foodItem, 1, 3));
 
         for (int i = 0; i < ItemBasic.names.length; i++)
         {
@@ -156,6 +171,16 @@ public class GCItems
 
         OreDictionary.registerOre("compressedMeteoricIron", new ItemStack(GCItems.itemBasicMoon, 1, 1));
         OreDictionary.registerOre("ingotMeteoricIron", new ItemStack(GCItems.itemBasicMoon, 1, 0));
+        if (CompatibilityManager.useAluDust())
+        {
+            OreDictionary.registerOre("dustAluminum", new ItemStack(GCItems.ic2compat, 1, 0));
+            OreDictionary.registerOre("dustAluminium", new ItemStack(GCItems.ic2compat, 1, 0));
+        }
+        if (CompatibilityManager.isIc2Loaded())
+        {
+            OreDictionary.registerOre("crushedAluminum", new ItemStack(GCItems.ic2compat, 1, 2));
+            OreDictionary.registerOre("crushedPurifiedAluminum", new ItemStack(GCItems.ic2compat, 1, 1));
+        }
 
         GalacticraftCore.proxy.registerCanister(new PartialCanister(GCItems.oilCanister, Constants.MOD_ID_CORE, "oil_canister_partial", 7));
         GalacticraftCore.proxy.registerCanister(new PartialCanister(GCItems.fuelCanister, Constants.MOD_ID_CORE, "fuel_canister_partial", 7));
@@ -168,22 +193,15 @@ public class GCItems
      * until it services an FMLLoadCompleteEvent.
      * (Seriously?!)
      */
-    public static void hideItemsJEI()
+    public static void hideItemsJEI(IItemBlacklist jeiHidden)
     {
-        IItemBlacklist jeiHidden = null;
-        
-        try {
-            //Internal.getHelpers().getItemBlacklist()
-            Object helpers = Class.forName("mezz.jei.Internal").getMethod("getHelpers").invoke(null);
-            Object IIB = Class.forName("mezz.jei.JeiHelpers").getMethod("getItemBlacklist").invoke(helpers);
-            if (IIB instanceof IItemBlacklist)
-            {
-                jeiHidden = (IItemBlacklist)IIB;
-            }
-        } catch (Exception e) { e.printStackTrace(); }
-
         if (jeiHidden != null)
         {
+            for (ItemStack item : GCItems.itemChanges.keySet())
+            {
+                jeiHidden.addItemToBlacklist(item.copy());
+            }
+
             for (Item item : GCItems.hiddenItems)
             {
                 jeiHidden.addItemToBlacklist(new ItemStack(item, 1, 0));
@@ -194,7 +212,7 @@ public class GCItems
                 jeiHidden.addItemToBlacklist(new ItemStack(block, 1, 0));
                 if (block == GCBlocks.slabGCDouble)
                 {
-                    for (int j = 1; j < (GalacticraftCore.isPlanetsLoaded ? 6 : 4); j++)
+                    for (int j = 1; j < (GalacticraftCore.isPlanetsLoaded ? 7 : 4); j++)
                         jeiHidden.addItemToBlacklist(new ItemStack(block, 1, j));
                 }
             }
@@ -282,6 +300,7 @@ public class GCItems
         GCItems.registerItem(GCItems.partBuggy);
         GCItems.registerItem(GCItems.buggy);
         GCItems.registerItem(GCItems.basicItem);
+        GCItems.registerItem(GCItems.foodItem);
         GCItems.registerItem(GCItems.battery);
         GCItems.registerItem(GCItems.infiniteBatery);
         GCItems.registerItem(GCItems.meteorChunk);
@@ -292,6 +311,13 @@ public class GCItems
         GCItems.registerItem(GCItems.flag);
         GCItems.registerItem(GCItems.parachute);
         GCItems.registerItem(GCItems.prelaunchChecklist);
+        GCItems.registerItem(GCItems.dungeonFinder);
+        GCItems.registerItem(GCItems.emergencyKit);
+        
+        GCItems.canisterTypes.add((ItemCanisterGeneric) GCItems.fuelCanister);
+        GCItems.canisterTypes.add((ItemCanisterGeneric) GCItems.oilCanister);
+        
+        if (CompatibilityManager.useAluDust()) GCItems.registerItem(GCItems.ic2compat);
     }
 
     public static void registerItem(Item item)
@@ -300,7 +326,7 @@ public class GCItems
         GCCoreUtil.registerGalacticraftItem(name, item);
         GameRegistry.registerItem(item, item.getUnlocalizedName().substring(5));
         GalacticraftCore.proxy.postRegisterItem(item);
-        if (FMLCommonHandler.instance().getEffectiveSide() == Side.CLIENT)
+        if (GCCoreUtil.getEffectiveSide() == Side.CLIENT)
         {
             GCItems.registerSorted(item);
         }

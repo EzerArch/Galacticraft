@@ -1,6 +1,7 @@
 package micdoodle8.mods.galacticraft.core.inventory;
 
 import micdoodle8.mods.galacticraft.api.item.IItemElectric;
+import micdoodle8.mods.galacticraft.core.energy.EnergyUtil;
 import micdoodle8.mods.galacticraft.core.energy.tile.TileBaseElectricBlock;
 import micdoodle8.mods.galacticraft.core.tile.TileEntityFuelLoader;
 import micdoodle8.mods.galacticraft.core.util.FluidUtil;
@@ -55,6 +56,7 @@ public class ContainerFuelLoader extends Container
         {
             final ItemStack var5 = slot.getStack();
             var3 = var5.copy();
+            boolean movedToMachineSlot = false;
 
             if (par2 < 2)
             {
@@ -65,12 +67,13 @@ public class ContainerFuelLoader extends Container
             }
             else
             {
-                if (var5.getItem() instanceof IItemElectric)
+                if (EnergyUtil.isElectricItem(var5.getItem()))
                 {
                     if (!this.mergeItemStack(var5, 0, 1, false))
                     {
                         return null;
                     }
+                    movedToMachineSlot = true;
                 }
                 else
                 {
@@ -80,6 +83,7 @@ public class ContainerFuelLoader extends Container
                         {
                             return null;
                         }
+                        movedToMachineSlot = true;
                     }
                     else if (par2 < 29)
                     {
@@ -97,7 +101,17 @@ public class ContainerFuelLoader extends Container
 
             if (var5.stackSize == 0)
             {
-                slot.putStack((ItemStack) null);
+                // Needed where tile has inventoryStackLimit of 1
+                if (movedToMachineSlot && var3.stackSize > 1)
+                {
+                    ItemStack remainder = var3.copy();
+                    --remainder.stackSize;
+                    slot.putStack(remainder);
+                }
+                else
+                {
+                    slot.putStack((ItemStack) null);
+                }
             }
             else
             {

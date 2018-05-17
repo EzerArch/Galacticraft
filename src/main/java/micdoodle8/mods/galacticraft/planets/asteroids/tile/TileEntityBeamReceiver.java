@@ -1,6 +1,7 @@
 package micdoodle8.mods.galacticraft.planets.asteroids.tile;
 
 import com.google.common.collect.Lists;
+
 import micdoodle8.mods.galacticraft.api.power.EnergySource;
 import micdoodle8.mods.galacticraft.api.power.EnergySource.EnergySourceAdjacent;
 import micdoodle8.mods.galacticraft.api.power.EnergySource.EnergySourceWireless;
@@ -9,14 +10,17 @@ import micdoodle8.mods.galacticraft.api.power.ILaserNode;
 import micdoodle8.mods.galacticraft.api.transmission.tile.IConductor;
 import micdoodle8.mods.galacticraft.api.vector.BlockVec3;
 import micdoodle8.mods.galacticraft.api.vector.Vector3;
+import micdoodle8.mods.galacticraft.core.Constants;
 import micdoodle8.mods.galacticraft.core.energy.EnergyUtil;
 import micdoodle8.mods.galacticraft.core.energy.tile.*;
 import micdoodle8.mods.galacticraft.core.tile.ReceiverMode;
 import micdoodle8.mods.miccore.Annotations.NetworkedField;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.AxisAlignedBB;
 import net.minecraft.util.EnumFacing;
 import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
 public class TileEntityBeamReceiver extends TileEntityBeamOutput implements IEnergyHandlerGC, ILaserNode
 {
@@ -71,7 +75,7 @@ public class TileEntityBeamReceiver extends TileEntityBeamOutput implements IEne
                     }
                 }
             }
-
+            else
             if (this.modeReceive == ReceiverMode.RECEIVE.ordinal() && this.storage.getEnergyStoredGC() > 0)
             {
                 //One Beam Receiver might be powered by multiple transmitters - allow for 5 at maximum transfer rate
@@ -195,7 +199,7 @@ public class TileEntityBeamReceiver extends TileEntityBeamOutput implements IEne
             return 0;
         }
 
-        //TileEntity tile = this.getAttachedTile();
+        this.getAttachedTile();
 
         if (this.facing == null)
         {
@@ -364,5 +368,25 @@ public class TileEntityBeamReceiver extends TileEntityBeamOutput implements IEne
     {
         super.writeToNBT(nbt);
         nbt.setInteger("FacingSide", this.facing.ordinal());
+    }
+
+    private AxisAlignedBB renderAABB;
+    
+    @Override
+    @SideOnly(Side.CLIENT)
+    public AxisAlignedBB getRenderBoundingBox()
+    {
+        if (this.renderAABB == null)
+        {
+            this.renderAABB = new AxisAlignedBB(pos, pos.add(1, 2, 1));
+        }
+        return this.renderAABB;
+    }
+
+    @Override
+    @SideOnly(Side.CLIENT)
+    public double getMaxRenderDistanceSquared()
+    {
+        return Constants.RENDERDISTANCE_SHORT;
     }
 }

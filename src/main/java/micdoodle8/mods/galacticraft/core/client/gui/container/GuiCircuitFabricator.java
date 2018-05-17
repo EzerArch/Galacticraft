@@ -70,6 +70,7 @@ public class GuiCircuitFabricator extends GuiContainerGC
 
         String str = GCCoreUtil.translate("gui.message.status.name") + ":";
         this.fontRendererObj.drawString(str, 115 - this.fontRendererObj.getStringWidth(str) / 2, 80, 4210752);
+        displayText = this.tileEntity.getGUIstatus(displayText, null, true);
         this.fontRendererObj.drawString(displayText, 115 - this.fontRendererObj.getStringWidth(displayText) / 2, 90, 4210752);
         this.fontRendererObj.drawString(GCCoreUtil.translate("container.inventory"), 8, this.ySize - 93, 4210752);
 //		str = "" + this.tileEntity.storage.getMaxExtract();
@@ -87,6 +88,9 @@ public class GuiCircuitFabricator extends GuiContainerGC
         int containerWidth = (this.width - this.xSize) / 2;
         int containerHeight = (this.height - this.ySize) / 2;
         this.drawTexturedModalRect(containerWidth, containerHeight, 0, 0, this.xSize, this.ySize);
+        this.drawTexturedModalRect(containerWidth + 5, containerHeight + 68, 176, 47, 18, 18);
+        this.drawTexturedModalRect(containerWidth + 5, containerHeight + 89, 194, 47, 9, 8);
+        this.drawTexturedModalRect(containerWidth + 17, containerHeight + 88, 176, 65, 56, 9);
         int scale;
 
         List<String> electricityDesc = new ArrayList<String>();
@@ -96,7 +100,7 @@ public class GuiCircuitFabricator extends GuiContainerGC
 
         if (this.tileEntity.processTicks > 0)
         {
-            scale = (int) ((double) this.tileEntity.processTicks / (double) TileEntityCircuitFabricator.PROCESS_TIME_REQUIRED * 100);
+            scale = (this.tileEntity.processTicks * 100) / this.tileEntity.getProcessTimeRequired();
         }
         else
         {
@@ -110,7 +114,7 @@ public class GuiCircuitFabricator extends GuiContainerGC
 
         if (this.tileEntity.processTicks > 0)
         {
-            scale = (int) ((double) this.tileEntity.processTicks / (double) TileEntityCircuitFabricator.PROCESS_TIME_REQUIRED * 51);
+            scale = (this.tileEntity.processTicks * 51) / this.tileEntity.getProcessTimeRequired();
             this.drawTexturedModalRect(containerWidth + 88, containerHeight + 20, 176, 17 + this.tileEntity.processTicks % 9 / 3 * 10, scale, 10);
         }
 

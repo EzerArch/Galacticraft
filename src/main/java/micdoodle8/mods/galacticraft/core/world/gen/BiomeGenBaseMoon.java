@@ -1,31 +1,24 @@
 package micdoodle8.mods.galacticraft.core.world.gen;
 
-import micdoodle8.mods.galacticraft.core.entities.EntityEvolvedCreeper;
-import micdoodle8.mods.galacticraft.core.entities.EntityEvolvedSkeleton;
-import micdoodle8.mods.galacticraft.core.entities.EntityEvolvedSpider;
-import micdoodle8.mods.galacticraft.core.entities.EntityEvolvedZombie;
+import java.util.Random;
+
+import micdoodle8.mods.galacticraft.api.world.BiomeGenBaseGC;
 import micdoodle8.mods.galacticraft.core.util.ConfigManagerCore;
+import net.minecraft.world.World;
 import net.minecraft.world.biome.BiomeDecorator;
 import net.minecraft.world.biome.BiomeGenBase;
+import net.minecraft.world.chunk.ChunkPrimer;
 
-public class BiomeGenBaseMoon extends BiomeGenBase
+public class BiomeGenBaseMoon extends BiomeGenBaseGC
 {
     public static final BiomeGenBase moonFlat = new BiomeGenFlatMoon(ConfigManagerCore.biomeIDbase).setBiomeName("Moon");
 
     BiomeGenBaseMoon(int var1)
     {
         super(var1);
-        this.spawnableMonsterList.clear();
-        this.spawnableWaterCreatureList.clear();
-        this.spawnableCreatureList.clear();
-        this.spawnableCaveCreatureList.clear();
-        this.spawnableMonsterList.add(new SpawnListEntry(EntityEvolvedZombie.class, 8, 2, 3));
-        this.spawnableMonsterList.add(new SpawnListEntry(EntityEvolvedSpider.class, 8, 2, 3));
-        this.spawnableMonsterList.add(new SpawnListEntry(EntityEvolvedSkeleton.class, 8, 2, 3));
-        this.spawnableMonsterList.add(new SpawnListEntry(EntityEvolvedCreeper.class, 8, 2, 3));
         this.rainfall = 0F;
     }
-
+    
     @Override
     public BiomeDecorator createBiomeDecorator()
     {
@@ -42,5 +35,13 @@ public class BiomeGenBaseMoon extends BiomeGenBase
     public float getSpawningChance()
     {
         return 0.1F;
+    }
+    
+    @Override
+    public void genTerrainBlocks(World worldIn, Random rand, ChunkPrimer chunkPrimerIn, int x, int z, double noiseVal)
+    {
+        this.fillerBlock = ChunkProviderMoon.BLOCK_LOWER;
+        this.topBlock = ChunkProviderMoon.BLOCK_TOP;
+        super.genTerrainBlocks(worldIn, rand, chunkPrimerIn, x, z, noiseVal);
     }
 }

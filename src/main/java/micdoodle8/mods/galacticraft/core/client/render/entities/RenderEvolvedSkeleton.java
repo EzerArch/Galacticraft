@@ -1,6 +1,7 @@
 package micdoodle8.mods.galacticraft.core.client.render.entities;
 
 import micdoodle8.mods.galacticraft.core.Constants;
+import micdoodle8.mods.galacticraft.core.client.gui.overlay.OverlaySensorGlasses;
 import micdoodle8.mods.galacticraft.core.client.model.ModelEvolvedSkeleton;
 import micdoodle8.mods.galacticraft.core.entities.EntityEvolvedSkeleton;
 import net.minecraft.client.model.ModelSkeleton;
@@ -22,7 +23,7 @@ public class RenderEvolvedSkeleton extends RenderBiped<EntityEvolvedSkeleton>
     private static final ResourceLocation powerTexture = new ResourceLocation(Constants.ASSET_PREFIX, "textures/model/power.png");
 
     private final ModelEvolvedSkeleton model = new ModelEvolvedSkeleton(0.2F);
-    private static int isBG2Loaded = 0;
+    private boolean texSwitch;
 
     public RenderEvolvedSkeleton(RenderManager manager)
     {
@@ -30,36 +31,41 @@ public class RenderEvolvedSkeleton extends RenderBiped<EntityEvolvedSkeleton>
         this.addLayer(new LayerHeldItem(this));
         this.addLayer(new LayerBipedArmor(this)
         {
-            protected void func_177177_a()
+            @Override
+            protected void initArmor()
             {
                 this.field_177189_c = new ModelSkeleton(0.5F, true);
                 this.field_177186_d = new ModelSkeleton(1.0F, true);
             }
         });
-
-        //Compatibility with BattleGear2
-        try
-        {
-            Class<?> clazz = Class.forName("mods.battlegear2.MobHookContainerClass");
-
-            //accessing this: public static final int Skell_Arrow_Datawatcher = 25;
-            RenderEvolvedSkeleton.isBG2Loaded = clazz.getField("Skell_Arrow_Datawatcher").getInt(null);
-        }
-        catch (Exception e)
-        {
-        }
     }
 
     @Override
     protected ResourceLocation getEntityTexture(EntityEvolvedSkeleton par1Entity)
     {
-        return RenderEvolvedSkeleton.skeletonTexture;
+        return texSwitch ? OverlaySensorGlasses.altTexture : RenderEvolvedSkeleton.skeletonTexture;
     }
 
     @Override
     protected void preRenderCallback(EntityEvolvedSkeleton par1EntityLiving, float par2)
     {
         GL11.glScalef(1.2F, 1.2F, 1.2F);
+        if (texSwitch)
+        {
+            OverlaySensorGlasses.preRenderMobs();
+        }
+    }
+
+    @Override
+    public void doRender(EntityEvolvedSkeleton entity, double par2, double par4, double par6, float par8, float par9)
+    {
+        texSwitch = false;
+        super.doRender(entity, par2, par4, par6, par8, par9);
+        if (OverlaySensorGlasses.overrideMobTexture())
+        {
+            texSwitch = true;
+            super.doRender(entity, par2, par4, par6, par8, par9);
+        }
     }
     
     @Override

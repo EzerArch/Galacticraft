@@ -82,7 +82,7 @@ public class TeleportTypeAsteroids implements ITeleportType
                 BlockVec3 bv3 = null;
                 if (world.provider instanceof WorldProviderAsteroids)
                 {
-                    bv3 = ((WorldProviderAsteroids) world.provider).getClosestAsteroidXZ(x, 0, z);
+                    bv3 = ((WorldProviderAsteroids) world.provider).getClosestAsteroidXZ(x, 0, z, true);
                 }
 
                 if (bv3 != null)
@@ -325,6 +325,7 @@ public class TeleportTypeAsteroids implements ITeleportType
                 {
                     EntityEntryPod entryPod = new EntityEntryPod(player);
 
+                    entryPod.forceSpawn = true;
                     newWorld.spawnEntityInWorld(entryPod);
                 }
 
@@ -357,7 +358,7 @@ public class TeleportTypeAsteroids implements ITeleportType
         rocketStacks[i++] = new ItemStack(MarsItems.marsItemBasic, 16, 2); //Desh ingot
         rocketStacks[i++] = new ItemStack(GCItems.basicItem, 8, 13); //Basic Wafer
         rocketStacks[i++] = new ItemStack(GCItems.basicItem, 2, 1); //Solar Panels
-        rocketStacks[i++] = new ItemStack(GCItems.basicItem, 16, 15);  //Canned food
+        rocketStacks[i++] = new ItemStack(GCItems.foodItem, 16, 0);  //Canned food
         rocketStacks[i++] = new ItemStack(Items.egg, 12);
 
         rocketStacks[i++] = new ItemStack(Items.spawn_egg, 2, EntityList.classToIDMapping.get(EntityCow.class));

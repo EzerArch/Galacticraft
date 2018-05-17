@@ -1,6 +1,7 @@
 package micdoodle8.mods.galacticraft.core.client.render.entities.layer;
 
 import micdoodle8.mods.galacticraft.core.Constants;
+import micdoodle8.mods.galacticraft.core.GalacticraftCore;
 import micdoodle8.mods.galacticraft.core.client.model.ModelPlayerGC;
 import micdoodle8.mods.galacticraft.core.wrappers.PlayerGearData;
 import net.minecraft.client.entity.AbstractClientPlayer;
@@ -60,13 +61,13 @@ public class LayerOxygenTanks implements LayerRenderer<AbstractClientPlayer>
     {
         if (!player.isInvisible())
         {
-            PlayerGearData gearData = ModelPlayerGC.getGearData(player);
+            PlayerGearData gearData = GalacticraftCore.proxy.getGearData(player);
 
             if (gearData != null)
             {
                 boolean wearingLeftTankGreen = gearData.getLeftTank() == Constants.GEAR_ID_OXYGEN_TANK_LIGHT;
                 boolean wearingLeftTankOrange = gearData.getLeftTank() == Constants.GEAR_ID_OXYGEN_TANK_MEDIUM;
-                boolean wearingLeftTankRed = gearData.getLeftTank() == Constants.GEAR_ID_OXYGEN_TANK_HEAVY || gearData.getRightTank() == Constants.GEAR_ID_OXYGEN_TANK_INFINITE;
+                boolean wearingLeftTankRed = gearData.getLeftTank() == Constants.GEAR_ID_OXYGEN_TANK_HEAVY || gearData.getLeftTank() == Constants.GEAR_ID_OXYGEN_TANK_INFINITE;
                 boolean wearingRightTankGreen = gearData.getRightTank() == Constants.GEAR_ID_OXYGEN_TANK_LIGHT;
                 boolean wearingRightTankOrange = gearData.getRightTank() == Constants.GEAR_ID_OXYGEN_TANK_MEDIUM;
                 boolean wearingRightTankRed = gearData.getRightTank() == Constants.GEAR_ID_OXYGEN_TANK_HEAVY || gearData.getRightTank() == Constants.GEAR_ID_OXYGEN_TANK_INFINITE;

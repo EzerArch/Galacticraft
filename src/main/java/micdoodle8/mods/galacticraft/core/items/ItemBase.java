@@ -3,6 +3,7 @@ package micdoodle8.mods.galacticraft.core.items;
 import micdoodle8.mods.galacticraft.core.GCItems;
 import micdoodle8.mods.galacticraft.core.GalacticraftCore;
 import micdoodle8.mods.galacticraft.core.proxy.ClientProxyCore;
+import micdoodle8.mods.galacticraft.core.util.EnumColor;
 import micdoodle8.mods.galacticraft.core.util.EnumSortCategoryItem;
 import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
 import net.minecraft.creativetab.CreativeTabs;
@@ -17,6 +18,8 @@ import java.util.List;
 
 public class ItemBase extends Item implements ISortableItem
 {
+    float smeltingXP = -1F;
+    
     public ItemBase(String assetName)
     {
         super();
@@ -37,7 +40,6 @@ public class ItemBase extends Item implements ISortableItem
         return ClientProxyCore.galacticraftItem;
     }
 
-    @SuppressWarnings({ "unchecked", "rawtypes" })
     @Override
     @SideOnly(Side.CLIENT)
     public void addInformation(ItemStack par1ItemStack, EntityPlayer par2EntityPlayer, List<String> tooltip, boolean par4)
@@ -46,11 +48,27 @@ public class ItemBase extends Item implements ISortableItem
         {
             tooltip.add(GCCoreUtil.translate("item.tier1.desc"));
         }
+        else if (par1ItemStack != null && this == GCItems.dungeonFinder)
+        {
+            tooltip.add(EnumColor.RED + GCCoreUtil.translate("gui.creative_only.desc"));
+        }
     }
 
     @Override
     public EnumSortCategoryItem getCategory(int meta)
     {
         return EnumSortCategoryItem.GENERAL;
+    }
+
+    public Item setSmeltingXP(float f)
+    {
+        this.smeltingXP = f;
+        return this;
+    }
+    
+    @Override
+    public float getSmeltingExperience(ItemStack item)
+    {
+        return this.smeltingXP;
     }
 }

@@ -1,29 +1,27 @@
 package micdoodle8.mods.galacticraft.core.tile;
 
 import micdoodle8.mods.galacticraft.api.item.IKeyable;
+import micdoodle8.mods.galacticraft.core.Constants;
 import micdoodle8.mods.galacticraft.core.GalacticraftCore;
-import micdoodle8.mods.galacticraft.core.network.IPacketReceiver;
 import micdoodle8.mods.galacticraft.core.network.PacketSimple;
 import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
 import micdoodle8.mods.miccore.Annotations;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
-import net.minecraft.inventory.Container;
-import net.minecraft.inventory.ContainerChest;
-import net.minecraft.inventory.IInventory;
-import net.minecraft.inventory.InventoryLargeChest;
+import net.minecraft.inventory.*;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.*;
 import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
 import java.util.Iterator;
 import java.util.List;
 
-public class TileEntityTreasureChest extends TileEntityAdvanced implements ITickable, IInventory, IKeyable, IPacketReceiver
+public class TileEntityTreasureChest extends TileEntityAdvanced implements ITickable, IInventory, IKeyable, ISidedInventory
 {
     private ItemStack[] chestContents = new ItemStack[27];
     public boolean adjacentChestChecked;
@@ -31,9 +29,11 @@ public class TileEntityTreasureChest extends TileEntityAdvanced implements ITick
     public float prevLidAngle;
     public int numPlayersUsing;
     private int ticksSinceSync;
+    private AxisAlignedBB renderAABB;
 
     @Annotations.NetworkedField(targetSide = Side.CLIENT)
     public boolean locked = true;
+    @Annotations.NetworkedField(targetSide = Side.CLIENT)
     public int tier = 1;
 
     public TileEntityTreasureChest()
@@ -157,7 +157,7 @@ public class TileEntityTreasureChest extends TileEntityAdvanced implements ITick
     public void setCustomName(String name)
     {
     }
-
+    
     @Override
     public void readFromNBT(NBTTagCompound compound)
     {
@@ -518,5 +518,41 @@ public class TileEntityTreasureChest extends TileEntityAdvanced implements ITick
         }
 
         return chest;
+    }
+
+    @Override
+    @SideOnly(Side.CLIENT)
+    public AxisAlignedBB getRenderBoundingBox()
+    {
+        if (this.renderAABB == null)
+        {
+            this.renderAABB = new AxisAlignedBB(pos, pos.add(1, 2, 1));
+        }
+        return this.renderAABB;
+    }
+    
+    @Override
+    @SideOnly(Side.CLIENT)
+    public double getMaxRenderDistanceSquared()
+    {
+        return Constants.RENDERDISTANCE_MEDIUM;
+    }
+
+    @Override
+    public int[] getSlotsForFace(EnumFacing side)
+    {
+        return new int[0];
+    }
+
+    @Override
+    public boolean canInsertItem(int index, ItemStack itemStackIn, EnumFacing direction)
+    {
+        return false;
+    }
+
+    @Override
+    public boolean canExtractItem(int index, ItemStack stack, EnumFacing direction)
+    {
+        return false;
     }
 }

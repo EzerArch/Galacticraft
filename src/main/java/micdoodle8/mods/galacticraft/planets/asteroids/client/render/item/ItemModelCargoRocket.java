@@ -1,5 +1,6 @@
 package micdoodle8.mods.galacticraft.planets.asteroids.client.render.item;
 
+import micdoodle8.mods.galacticraft.core.Constants;
 import micdoodle8.mods.galacticraft.core.util.ClientUtil;
 import micdoodle8.mods.galacticraft.core.wrappers.ModelTransformWrapper;
 import net.minecraft.client.renderer.block.model.ItemCameraTransforms.TransformType;
@@ -31,7 +32,7 @@ public class ItemModelCargoRocket extends ModelTransformWrapper
             mul.setTranslation(new Vector3f(-0.18F, -0.25F, 0.0F));
             ret.mul(mul);
             mul.setIdentity();
-            mul.rotY((float) (Math.PI / 2.0F));
+            mul.rotY(Constants.halfPI);
             ret.mul(mul);
             mul.setIdentity();
             mul.rotX((float) (Math.PI / 4.0F));
@@ -51,7 +52,6 @@ public class ItemModelCargoRocket extends ModelTransformWrapper
             ret.mul(mul);
             return ret;
         }
-
         if (cameraTransformType == TransformType.FIRST_PERSON)
         {
             Vector3f trans = new Vector3f(0.5F, 0.5F, -1.5F);
@@ -62,7 +62,7 @@ public class ItemModelCargoRocket extends ModelTransformWrapper
             mul.setScale(4.0F);
             ret.mul(mul);
             mul.setIdentity();
-            mul.rotX((float) (Math.PI / 2.0F));
+            mul.rotX(Constants.halfPI);
             ret.mul(mul);
             mul.setIdentity();
             mul.rotZ(-0.65F);
@@ -78,10 +78,9 @@ public class ItemModelCargoRocket extends ModelTransformWrapper
             ret.mul(mul);
             return ret;
         }
-
         if (cameraTransformType == TransformType.THIRD_PERSON)
         {
-            Vector3f trans = new Vector3f(0.3F, -0.5F, -0.8F);
+            Vector3f trans = new Vector3f(0.3F, -0.5F, -0.6F);
             Matrix4f ret = new Matrix4f();
             ret.setIdentity();
             Matrix4f mul = new Matrix4f();
@@ -105,7 +104,35 @@ public class ItemModelCargoRocket extends ModelTransformWrapper
             ret.mul(mul);
             return ret;
         }
-
+        if (cameraTransformType == TransformType.GROUND)
+        {
+            Matrix4f ret = new Matrix4f();
+            ret.setIdentity();
+            Matrix4f mul = new Matrix4f();
+            mul.setIdentity();
+            mul.setScale(0.35F);
+            ret.mul(mul);
+            mul.setIdentity();
+            mul.setTranslation(new Vector3f(0.25F, 0.25F, 0.25F));
+            ret.mul(mul);
+            return ret;
+        }
+        if (cameraTransformType == TransformType.FIXED)
+        {
+            Matrix4f ret = new Matrix4f();
+            ret.setIdentity();
+            Matrix4f mul = new Matrix4f();
+            mul.setIdentity();
+            mul.setScale(0.225F);
+            ret.mul(mul);
+            mul.setIdentity();
+            mul.rotY(3.15F);
+            ret.mul(mul);
+            mul.setIdentity();
+            mul.setTranslation(new Vector3f(0.25F, -1.0F, 0.25F));
+            ret.mul(mul);
+            return ret;
+        }
         return null;
     }
 }

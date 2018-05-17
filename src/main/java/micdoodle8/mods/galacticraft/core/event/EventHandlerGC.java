@@ -22,6 +22,7 @@ import micdoodle8.mods.galacticraft.core.client.gui.container.GuiPositionedConta
 import micdoodle8.mods.galacticraft.core.dimension.WorldProviderSpaceStation;
 import micdoodle8.mods.galacticraft.core.entities.EntityEvolvedZombie;
 import micdoodle8.mods.galacticraft.core.entities.EntityLanderBase;
+import micdoodle8.mods.galacticraft.core.entities.EntityMeteor;
 import micdoodle8.mods.galacticraft.core.entities.player.GCPlayerStats;
 import micdoodle8.mods.galacticraft.core.entities.player.GCPlayerStatsClient;
 import micdoodle8.mods.galacticraft.core.network.PacketSimple;
@@ -32,6 +33,7 @@ import micdoodle8.mods.galacticraft.core.util.*;
 import micdoodle8.mods.galacticraft.core.world.ChunkLoadingCallback;
 import micdoodle8.mods.galacticraft.core.wrappers.PlayerGearData;
 import micdoodle8.mods.galacticraft.planets.asteroids.AsteroidsModule;
+import micdoodle8.mods.galacticraft.planets.mars.network.PacketSimpleMars;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockGravel;
 import net.minecraft.block.BlockLiquid;
@@ -45,11 +47,11 @@ import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.multiplayer.WorldClient;
 import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.monster.EntityEnderman;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.init.Blocks;
 import net.minecraft.item.Item;
+import net.minecraft.item.ItemBucket;
 import net.minecraft.item.ItemFireball;
 import net.minecraft.item.ItemFlintAndSteel;
 import net.minecraft.item.ItemStack;
@@ -72,6 +74,7 @@ import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.living.ZombieEvent.SummonAidEvent;
 import net.minecraftforge.event.entity.player.FillBucketEvent;
 import net.minecraftforge.event.entity.player.PlayerDropsEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.event.terraingen.PopulateChunkEvent;
 import net.minecraftforge.event.terraingen.TerrainGen;
@@ -90,7 +93,7 @@ import java.util.*;
 
 public class EventHandlerGC
 {
-    public static Map<Block, Item> bucketList = new HashMap<Block, Item>();
+    public static Map<Block, Item> bucketList = new HashMap<Block, Item>(4, 1F);
     public static boolean bedActivated;
 
     @SubscribeEvent
@@ -184,6 +187,16 @@ public class EventHandlerGC
     }
 
     @SubscribeEvent
+    public void blockBreakSpeed(PlayerEvent.BreakSpeed event)
+    {
+        EntityPlayer p = event.entityPlayer;
+        if (!p.onGround && p.worldObj.provider instanceof IZeroGDimension && !ConfigManagerCore.hardMode && event.originalSpeed < 5.0F)
+        {
+            event.newSpeed = event.originalSpeed * 5.0F;
+        }
+    }
+    
+    @SubscribeEvent
     public void onPlayerClicked(PlayerInteractEvent event)
     {
         //Skip events triggered from Thaumcraft Golems and other non-players
@@ -260,7 +273,7 @@ public class EventHandlerGC
                             event.setCanceled(((IKeyable) tileClicked).onActivatedWithoutKey(event.entityPlayer, event.face));
                         }
                     }
-                    else
+                    else if (!event.entityPlayer.isSneaking())
                     {
                         event.setCanceled(((IKeyable) tileClicked).onActivatedWithoutKey(event.entityPlayer, event.face));
                     }
@@ -304,17 +317,12 @@ public class EventHandlerGC
             return;
         }
 
-        if (entityLiving.ticksExisted % 100 == 0)
+        if (entityLiving.ticksExisted % ConfigManagerCore.suffocationCooldown == 0)
         {
             if (entityLiving.worldObj.provider instanceof IGalacticraftWorldProvider)
             {
                 if (!(entityLiving instanceof EntityPlayer) && (!(entityLiving instanceof IEntityBreathable) || !((IEntityBreathable) entityLiving).canBreath()) && !((IGalacticraftWorldProvider) entityLiving.worldObj.provider).hasBreathableAtmosphere())
                 {
-                    if ((ConfigManagerCore.challengeMode || ConfigManagerCore.challengeMobDropsAndSpawning) && entityLiving instanceof EntityEnderman)
-                    {
-                        return;
-                    }
-
                     if (!OxygenUtil.isAABBInBreathableAirBlock(entityLiving))
                     {
                         GCCoreOxygenSuffocationEvent suffocationEvent = new GCCoreOxygenSuffocationEvent.Pre(entityLiving);
@@ -325,7 +333,7 @@ public class EventHandlerGC
                             return;
                         }
 
-                        entityLiving.attackEntityFrom(DamageSourceGC.oxygenSuffocation, 1);
+                        entityLiving.attackEntityFrom(DamageSourceGC.oxygenSuffocation, Math.max(ConfigManagerCore.suffocationDamage / 2, 1));
 
                         GCCoreOxygenSuffocationEvent suffocationEventPost = new GCCoreOxygenSuffocationEvent.Post(entityLiving);
                         MinecraftForge.EVENT_BUS.post(suffocationEventPost);
@@ -338,6 +346,12 @@ public class EventHandlerGC
     @SubscribeEvent
     public void entityUpdateCancelInFreefall(EntityEvent.CanUpdate event)
     {
+        if (event.entity instanceof EntityMeteor)
+        {
+            event.canUpdate = true;
+            return;
+        }
+        
         if (event.entity.worldObj.provider instanceof IZeroGDimension)
         {
             if (((IZeroGDimension)event.entity.worldObj.provider).inFreefall(event.entity))
@@ -367,6 +381,10 @@ public class EventHandlerGC
     @SubscribeEvent
     public void onBucketFill(FillBucketEvent event)
     {
+        if (event.current == null || !(event.current.getItem() instanceof ItemBucket))
+        {
+            return;
+        }
         MovingObjectPosition pos = event.target;
         ItemStack ret = fillBucket(event.world, pos);
 
@@ -392,7 +410,7 @@ public class EventHandlerGC
         final int worldX = event.chunkX << 4;
         final int worldZ = event.chunkZ << 4;
 
-        EventHandlerGC.generateOil(event.world, event.rand, worldX + event.rand.nextInt(16), worldZ + event.rand.nextInt(16), false);
+        EventHandlerGC.generateOil(event.world, event.rand, worldX + 15, worldZ + 15, false);
     }
 
     public static boolean oilPresent(World world, Random rand, int x, int z, BlockVec3 pos)
@@ -425,7 +443,7 @@ public class EventHandlerGC
         long j1 = rand.nextInt() / 2L * 2L + 1L;
         rand.setSeed(x * i1 + z * j1 ^ world.getSeed());
 
-        double randMod = Math.min(0.2D, 0.08D * ConfigManagerCore.oilGenFactor);
+        double randMod = Math.min(0.2D, 0.05D * ConfigManagerCore.oilGenFactor);
 
         if (biomegenbase.minHeight >= 0.45F)
         {
@@ -446,14 +464,18 @@ public class EventHandlerGC
         if (flag1 || flag2)
         {
             pos.y = 17 + rand.nextInt(10) + rand.nextInt(5);
-            pos.x = x + rand.nextInt(16);
-            pos.z = z + rand.nextInt(16);
+            pos.x = x + 8 - rand.nextInt(16);  //do not change without thinking about chunk loading, see notes in generateOil()
+            pos.z = z + 8 - rand.nextInt(16);  //do not change without thinking about chunk loading, see notes in generateOil()
             return true;
         }
 
         return false;
     }
 
+    /**
+     * xx, zz are the central position of 4 chunks: the chunk currently being populated + 1 in the x,z plane 
+     * We must not stray more than 1 chunk away from this position, that's 16 blocks
+     */
     public static void generateOil(World world, Random rand, int xx, int zz, boolean testFirst)
     {
         BlockVec3 pos = new BlockVec3();
@@ -464,6 +486,10 @@ public class EventHandlerGC
             int z = pos.z;
             int r = 3 + rand.nextInt(5);
 
+            //The method loads blocks in the range (x - r - 1) to (x + r + 1) - whatever the randoms, all these positions must be inside the +/-1 chunk range
+            //This can be minimum xx - 7 - 7 - 1, that's OK!
+            //This can be maximum xx + 8 + 7 + 1, that's also OK!
+            
             if (testFirst && checkOilPresent(world, x, cy, z, r))
             {
                 return;
@@ -471,15 +497,15 @@ public class EventHandlerGC
 
             final int r2 = r * r;
 
+            IBlockState crudeOil = GCBlocks.crudeOil.getDefaultState();
             for (int bx = -r; bx <= r; bx++)
             {
                 for (int by = -r + 2; by <= r - 2; by++)
                 {
+                    int xySquared = bx * bx + by * by * 3;
                     for (int bz = -r; bz <= r; bz++)
                     {
-                        final int d2 = bx * bx + by * by * 3 + bz * bz;
-
-                        if (d2 <= r2)
+                        if (xySquared + bz * bz <= r2)
                         {
                             if (EventHandlerGC.checkBlock(world, new BlockPos(bx + x - 1, by + cy, bz + z)))
                             {
@@ -506,7 +532,7 @@ public class EventHandlerGC
                                 continue;
                             }
 
-                            world.setBlockState(new BlockPos(bx + x, by + cy, bz + z), GCBlocks.crudeOil.getDefaultState(), 2);
+                            world.setBlockState(new BlockPos(bx + x, by + cy, bz + z), crudeOil, 2);
                         }
                     }
                 }
@@ -522,11 +548,10 @@ public class EventHandlerGC
         {
             for (int by = -r + 2; by <= r - 2; by++)
             {
+                int xySquared = bx * bx + by * by * 3;
                 for (int bz = -r; bz <= r; bz++)
                 {
-                    final int d2 = bx * bx + by * by * 3 + bz * bz;
-
-                    if (d2 <= r2)
+                    if (xySquared + bz * bz <= r2)
                     {
                         if (EventHandlerGC.checkBlock(world, new BlockPos(bx + x - 1, by + cy, bz + z)))
                         {
@@ -661,12 +686,12 @@ public class EventHandlerGC
     @SideOnly(Side.CLIENT)
     private static ISchematicPage getNextSchematic(int currentIndex)
     {
-        final HashMap<Integer, Integer> idList = new HashMap<Integer, Integer>();
-
         EntityPlayerSP player = PlayerUtil.getPlayerBaseClientFromPlayer(FMLClientHandler.instance().getClient().thePlayer, false);
         GCPlayerStatsClient stats = GCPlayerStatsClient.get(player);
 
-        for (int i = 0; i < stats.getUnlockedSchematics().size(); i++)
+        final int size = stats.getUnlockedSchematics().size();
+        final HashMap<Integer, Integer> idList = new HashMap<Integer, Integer>(size, 1F);
+        for (int i = 0; i < size; i++)
         {
             idList.put(i, stats.getUnlockedSchematics().get(i).getPageID());
         }
@@ -698,12 +723,12 @@ public class EventHandlerGC
     @SideOnly(Side.CLIENT)
     private static ISchematicPage getLastSchematic(int currentIndex)
     {
-        final HashMap<Integer, Integer> idList = new HashMap<Integer, Integer>();
-
         EntityPlayerSP player = PlayerUtil.getPlayerBaseClientFromPlayer(FMLClientHandler.instance().getClient().thePlayer, false);
         GCPlayerStatsClient stats = GCPlayerStatsClient.get(player);
 
-        for (int i = 0; i < stats.getUnlockedSchematics().size(); i++)
+        final int size = stats.getUnlockedSchematics().size();
+        final HashMap<Integer, Integer> idList = new HashMap<Integer, Integer>(size, 1F);
+        for (int i = 0; i < size; i++)
         {
             idList.put(i, stats.getUnlockedSchematics().get(i).getPageID());
         }
@@ -820,9 +845,14 @@ public class EventHandlerGC
 
         if (c != null)
         {
-            EventWakePlayer event0 = new EventWakePlayer(player, c, false, true, true, true);
+            EventWakePlayer event0 = new EventWakePlayer(player, c, true, true, false, true);
             MinecraftForge.EVENT_BUS.post(event0);
-            player.wakeUpPlayer(false, true, true);
+            player.wakeUpPlayer(true, true, false);
+
+            if (player.worldObj.isRemote && GalacticraftCore.isPlanetsLoaded)
+            {
+                GalacticraftCore.packetPipeline.sendToServer(new PacketSimpleMars(PacketSimpleMars.EnumSimplePacketMars.S_WAKE_PLAYER, GCCoreUtil.getDimensionID(player.worldObj), new Object[] {}));
+            }
         }
     }
 
@@ -853,7 +883,7 @@ public class EventHandlerGC
         {
             WorldClient worldclient = Minecraft.getMinecraft().theWorld;
 
-            if (worldclient.provider instanceof IGalacticraftWorldProvider && ((IGalacticraftWorldProvider) worldclient.provider).getCelestialBody().atmosphere.size() == 0 && event.block.getMaterial() == Material.air && !((IGalacticraftWorldProvider) worldclient.provider).hasBreathableAtmosphere())
+            if (worldclient.provider instanceof IGalacticraftWorldProvider && ((IGalacticraftWorldProvider) worldclient.provider).hasNoAtmosphere() && event.block.getMaterial() == Material.air && !((IGalacticraftWorldProvider) worldclient.provider).hasBreathableAtmosphere())
             {
                 Vec3 vec = worldclient.getFogColor(1.0F);
                 event.red = (float) vec.xCoord;
@@ -892,7 +922,7 @@ public class EventHandlerGC
             //Only modify standard game sounds, not music
             if (event.result.getAttenuationType() != ISound.AttenuationType.NONE)
             {
-                PlayerGearData gearData = ClientProxyCore.playerItemData.get(player.getGameProfile().getName());
+                PlayerGearData gearData = ClientProxyCore.playerItemData.get(PlayerUtil.getName(player));
 
                 float x = event.result.getXPosF();
                 float y = event.result.getYPosF();

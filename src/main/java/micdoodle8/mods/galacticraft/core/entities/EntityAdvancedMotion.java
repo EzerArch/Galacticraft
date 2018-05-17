@@ -2,9 +2,8 @@ package micdoodle8.mods.galacticraft.core.entities;
 
 import io.netty.buffer.ByteBuf;
 import micdoodle8.mods.galacticraft.api.vector.Vector3;
+import micdoodle8.mods.galacticraft.core.Constants;
 import micdoodle8.mods.galacticraft.core.GalacticraftCore;
-import micdoodle8.mods.galacticraft.core.network.IPacketReceiver;
-import micdoodle8.mods.galacticraft.core.network.PacketDynamic;
 import micdoodle8.mods.galacticraft.core.network.PacketEntityUpdate;
 import micdoodle8.mods.galacticraft.core.network.PacketEntityUpdate.IEntityFullSync;
 import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
@@ -28,7 +27,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Random;
 
-public abstract class EntityAdvancedMotion extends InventoryEntity implements IPacketReceiver, IControllableEntity, IEntityFullSync
+public abstract class EntityAdvancedMotion extends InventoryEntity implements IControllableEntity, IEntityFullSync
 {
     protected long ticks = 0;
 
@@ -93,8 +92,8 @@ public abstract class EntityAdvancedMotion extends InventoryEntity implements IP
     {
         if (this.riddenByEntity != null)
         {
-            final double var1 = Math.cos(this.rotationYaw * Math.PI / 180.0D + 114.8) * -0.5D;
-            final double var3 = Math.sin(this.rotationYaw * Math.PI / 180.0D + 114.8) * -0.5D;
+            final double var1 = Math.cos(this.rotationYaw / Constants.RADIANS_TO_DEGREES_D + 114.8) * -0.5D;
+            final double var3 = Math.sin(this.rotationYaw / Constants.RADIANS_TO_DEGREES_D + 114.8) * -0.5D;
             this.riddenByEntity.setPosition(this.posX + var1, this.posY + this.getMountedYOffset() + this.riddenByEntity.getYOffset(), this.posZ + var3);
         }
     }
@@ -213,6 +212,11 @@ public abstract class EntityAdvancedMotion extends InventoryEntity implements IP
 
     public abstract Vector3 getMotionVec();
 
+    /**
+     * Can be called in the superclass init method
+     * before the subclass fields have been initialised!
+     * Therefore include null checks!!!
+     */
     public abstract ArrayList<Object> getNetworkedData();
 
     /**
@@ -282,11 +286,6 @@ public abstract class EntityAdvancedMotion extends InventoryEntity implements IP
     @Override
     public void onUpdate()
     {
-        if (this.ticks >= Long.MAX_VALUE)
-        {
-            this.ticks = 1;
-        }
-
         this.ticks++;
 
         super.onUpdate();
@@ -311,10 +310,10 @@ public abstract class EntityAdvancedMotion extends InventoryEntity implements IP
             }
             else
             {
-                x = this.posX + this.motionX;
-                y = this.posY + this.motionY;
-                z = this.posZ + this.motionZ;
-                this.setPosition(x, y, z);
+//                x = this.posX + this.motionX;
+//                y = this.posY + this.motionY;
+//                z = this.posZ + this.motionZ;
+//                this.setPosition(x, y, z);
             }
         }
 
@@ -348,8 +347,9 @@ public abstract class EntityAdvancedMotion extends InventoryEntity implements IP
             this.motionX = mot.x;
             this.motionY = mot.y;
             this.motionZ = mot.z;
-            this.moveEntity(this.motionX, this.motionY, this.motionZ);
         }
+        //Necessary on both server and client to achieve a correct this.onGround setting
+        this.moveEntity(this.motionX, this.motionY, this.motionZ);
 
         if (this.onGround && !this.lastOnGround)
         {
@@ -367,16 +367,6 @@ public abstract class EntityAdvancedMotion extends InventoryEntity implements IP
             {
                 GalacticraftCore.packetPipeline.sendToAllAround(new PacketEntityUpdate(this), new TargetPoint(GCCoreUtil.getDimensionID(this.worldObj), this.posX, this.posY, this.posZ, 50.0D));
             }
-        }
-
-        if (!this.worldObj.isRemote && this.ticks % 5 == 0)
-        {
-            GalacticraftCore.packetPipeline.sendToAllAround(new PacketDynamic(this), new TargetPoint(GCCoreUtil.getDimensionID(this.worldObj), this.posX, this.posY, this.posZ, 50.0D));
-        }
-
-        if (this.worldObj.isRemote && this.ticks % 5 == 0)
-        {
-            GalacticraftCore.packetPipeline.sendToServer(new PacketDynamic(this));
         }
 
         this.prevPosX = this.posX;

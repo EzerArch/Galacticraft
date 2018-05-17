@@ -28,6 +28,12 @@ public class ItemPreLaunchChecklist extends Item implements ISortableItem
     }
 
     @Override
+    public boolean isItemTool(ItemStack stack)
+    {
+        return false;
+    }
+
+    @Override
     public CreativeTabs getCreativeTab()
     {
         return GalacticraftCore.galacticraftItemsTab;
@@ -40,7 +46,6 @@ public class ItemPreLaunchChecklist extends Item implements ISortableItem
         return ClientProxyCore.galacticraftItem;
     }
 
-    @SuppressWarnings({ "unchecked", "rawtypes" })
     @Override
     @SideOnly(Side.CLIENT)
     public void addInformation(ItemStack par1ItemStack, EntityPlayer par2EntityPlayer, List<String> tooltip, boolean par4)

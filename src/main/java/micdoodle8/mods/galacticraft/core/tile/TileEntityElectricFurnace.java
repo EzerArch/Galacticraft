@@ -5,24 +5,24 @@ import micdoodle8.mods.galacticraft.core.blocks.BlockMachineTiered;
 import micdoodle8.mods.galacticraft.core.energy.item.ItemElectricBase;
 import micdoodle8.mods.galacticraft.core.energy.tile.EnergyStorageTile;
 import micdoodle8.mods.galacticraft.core.energy.tile.TileBaseElectricBlockWithInventory;
-import micdoodle8.mods.galacticraft.core.network.IPacketReceiver;
 import micdoodle8.mods.galacticraft.core.util.ConfigManagerCore;
 import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
 import micdoodle8.mods.miccore.Annotations.NetworkedField;
 import net.minecraft.block.Block;
+import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.init.Items;
 import net.minecraft.inventory.ISidedInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.crafting.FurnaceRecipes;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.EnumFacing;
-import net.minecraft.util.IChatComponent;
 import net.minecraftforge.fml.relauncher.Side;
 
 import java.util.HashSet;
 import java.util.Set;
 
-public class TileEntityElectricFurnace extends TileBaseElectricBlockWithInventory implements ISidedInventory, IPacketReceiver
+public class TileEntityElectricFurnace extends TileBaseElectricBlockWithInventory implements ISidedInventory, IMachineSides
 {
     //The electric furnace is 50% faster than a vanilla Furnace
     //but at a cost of some inefficiency:
@@ -39,7 +39,7 @@ public class TileEntityElectricFurnace extends TileBaseElectricBlockWithInventor
     @NetworkedField(targetSide = Side.CLIENT)
     public int processTicks = 0;
 
-    private ItemStack[] containingItems = new ItemStack[3];
+    private ItemStack[] containingItems = new ItemStack[4];
     public final Set<EntityPlayer> playersUsing = new HashSet<EntityPlayer>();
 
     private boolean initialised = false;
@@ -99,10 +99,10 @@ public class TileEntityElectricFurnace extends TileBaseElectricBlockWithInventor
             {
                 if (this.hasEnoughEnergyToRun)
                 {
-                    //50% extra speed boost for Tier 2 machine if powered by Tier 2 power
-                    if (this.tierGC == 2)
+                    //100% extra speed boost for Tier 2 machine if powered by Tier 2 power
+                    if (this.tierGC >= 2)
                     {
-                        this.processTimeRequired = 200 / (1 + this.poweredByTierGC);
+                        this.processTimeRequired = PROCESS_TIME_REQUIRED / 2 / this.poweredByTierGC;
                     }
 
                     if (this.processTicks == 0)
@@ -131,6 +131,13 @@ public class TileEntityElectricFurnace extends TileBaseElectricBlockWithInventor
             {
                 this.processTicks = 0;
             }
+        } else
+        {
+            //Smoother client side animation before the networked fields get updated
+            if (this.processTicks > 0 && this.processTicks < this.processTimeRequired)
+            {
+                this.processTicks--;
+            }
         }
     }
 
@@ -139,25 +146,41 @@ public class TileEntityElectricFurnace extends TileBaseElectricBlockWithInventor
      */
     public boolean canProcess()
     {
-        if (this.containingItems[1] == null || FurnaceRecipes.instance().getSmeltingResult(this.containingItems[1]) == null)
+        if (this.containingItems[1] == null)
+        {
+            return false;
+        }
+        ItemStack result = FurnaceRecipes.instance().getSmeltingResult(this.containingItems[1]);
+        if (result == null)
         {
             return false;
         }
 
-        if (this.containingItems[2] != null)
+        if (this.tierGC == 1)
         {
-            if (!this.containingItems[2].isItemEqual(FurnaceRecipes.instance().getSmeltingResult(this.containingItems[1])))
+            if (this.containingItems[2] != null)
             {
-                return false;
+                return (this.containingItems[2].isItemEqual(result) && this.containingItems[2].stackSize < 64);
             }
-
-            if (this.containingItems[2].stackSize + 1 > 64)
-            {
-                return false;
-            }
+    
+            return true;
         }
-
-        return true;
+        
+        //Electric Arc Furnace
+        if (this.containingItems[2] == null || this.containingItems[3] == null)
+        {
+            return true;
+        }
+        int space = 0;
+        if (this.containingItems[2].isItemEqual(result))
+        {
+            space = 64 - this.containingItems[2].stackSize;
+        }
+        if (this.containingItems[3].isItemEqual(result))
+        {
+            space += 64 - this.containingItems[3].stackSize;
+        }
+        return space >= 2;
     }
 
     /**
@@ -169,30 +192,57 @@ public class TileEntityElectricFurnace extends TileBaseElectricBlockWithInventor
         if (this.canProcess())
         {
             ItemStack resultItemStack = FurnaceRecipes.instance().getSmeltingResult(this.containingItems[1]);
-
-            if (this.containingItems[2] == null)
+            boolean doubleResult = false;
+            if (this.tierGC > 1)
             {
-                this.containingItems[2] = resultItemStack.copy();
-                if (this.tierGC > 1)
+                String nameSmelted = this.containingItems[1].getUnlocalizedName().toLowerCase();
+                if ((resultItemStack.getUnlocalizedName().toLowerCase().contains("ingot") || resultItemStack.getItem() == Items.quartz) && (nameSmelted.contains("ore") || nameSmelted.contains("raw") || nameSmelted.contains("moon") || nameSmelted.contains("mars") || nameSmelted.contains("shard")))
                 {
-                    String nameSmelted = this.containingItems[1].getUnlocalizedName().toLowerCase();
-                    if (resultItemStack.getUnlocalizedName().toLowerCase().contains("ingot") && (nameSmelted.contains("ore") || nameSmelted.contains("raw") || nameSmelted.contains("moon") || nameSmelted.contains("mars") || nameSmelted.contains("shard")))
+                    doubleResult = true;
+                }
+            }
+
+            if (doubleResult)
+            {
+                int space2 = 0;
+                int space3 = 0;
+                if (this.containingItems[2] == null)
+                {
+                    this.containingItems[2] = resultItemStack.copy();
+                    this.containingItems[2].stackSize += resultItemStack.stackSize;
+                    space2 = 2;
+                }
+                else if (this.containingItems[2].isItemEqual(resultItemStack))
+                {
+                    space2 = (64 - this.containingItems[2].stackSize) / resultItemStack.stackSize;
+                    if (space2 > 2) space2 = 2;
+                    this.containingItems[2].stackSize += resultItemStack.stackSize * space2;
+                }
+                if (space2 < 2)
+                {
+                    if (this.containingItems[3] == null)
                     {
-                        this.containingItems[2].stackSize += resultItemStack.stackSize;
+                        this.containingItems[3] = resultItemStack.copy();
+                        if (space2 == 0)
+                        {
+                            this.containingItems[3].stackSize += resultItemStack.stackSize;
+                        }
+                    }
+                    else if (this.containingItems[3].isItemEqual(resultItemStack))
+                    {
+                        space3 = (64 - this.containingItems[3].stackSize) / resultItemStack.stackSize;
+                        if (space3 > 2 - space2) space3 = 2 - space2;
+                        this.containingItems[3].stackSize += resultItemStack.stackSize * space3;
                     }
                 }
+            }
+            else if (this.containingItems[2] == null)
+            {
+                this.containingItems[2] = resultItemStack.copy();
             }
             else if (this.containingItems[2].isItemEqual(resultItemStack))
             {
                 this.containingItems[2].stackSize += resultItemStack.stackSize;
-                if (this.tierGC > 1)
-                {
-                    String nameSmelted = this.containingItems[1].getUnlocalizedName().toLowerCase();
-                    if (resultItemStack.getUnlocalizedName().toLowerCase().contains("ingot") && (nameSmelted.contains("ore") || nameSmelted.contains("raw") || nameSmelted.contains("moon") || nameSmelted.contains("mars") || nameSmelted.contains("shard")))
-                    {
-                        this.containingItems[2].stackSize += resultItemStack.stackSize;
-                    }
-                }
             }
 
             this.containingItems[1].stackSize--;
@@ -219,6 +269,8 @@ public class TileEntityElectricFurnace extends TileBaseElectricBlockWithInventor
         }
         this.processTicks = par1NBTTagCompound.getInteger("smeltingTicks");
         this.containingItems = this.readStandardItemsFromNBT(par1NBTTagCompound);
+        
+        this.readMachineSidesFromNBT(par1NBTTagCompound);  //Needed by IMachineSides
     }
 
     @Override
@@ -231,8 +283,16 @@ public class TileEntityElectricFurnace extends TileBaseElectricBlockWithInventor
         super.writeToNBT(par1NBTTagCompound);
         par1NBTTagCompound.setInteger("smeltingTicks", this.processTicks);
         this.writeStandardItemsToNBT(par1NBTTagCompound);
+        
+        this.addMachineSidesToNBT(par1NBTTagCompound);  //Needed by IMachineSides
     }
 
+    @Override
+    public int getSizeInventory()
+    {
+        return this.tierGC == 1 && this.initialised ? 3 : 4;
+    }
+   
     @Override
     protected ItemStack[] getContainingItems()
     {
@@ -268,6 +328,10 @@ public class TileEntityElectricFurnace extends TileBaseElectricBlockWithInventor
     @Override
     public int[] getSlotsForFace(EnumFacing side)
     {
+        if (this.tierGC == 2)
+        {
+            return new int[] { 0, 1, 2, 3 };
+        }
         return new int[] { 0, 1, 2 };
     }
 
@@ -280,7 +344,7 @@ public class TileEntityElectricFurnace extends TileBaseElectricBlockWithInventor
     @Override
     public boolean canExtractItem(int slotID, ItemStack par2ItemStack, EnumFacing par3)
     {
-        return slotID == 2;
+        return slotID == 2 || this.tierGC == 2 && slotID == 3;
     }
 
     @Override
@@ -296,20 +360,79 @@ public class TileEntityElectricFurnace extends TileBaseElectricBlockWithInventor
     }
 
     @Override
-    public IChatComponent getDisplayName()
-    {
-        return null;
-    }
-
-    @Override
     public EnumFacing getFront()
     {
-        return this.worldObj.getBlockState(getPos()).getValue(BlockMachineTiered.FACING);
+        IBlockState state = this.worldObj.getBlockState(getPos()); 
+        if (state.getBlock() instanceof BlockMachineTiered)
+        {
+            return state.getValue(BlockMachineTiered.FACING);
+        }
+        return EnumFacing.NORTH;
     }
 
     @Override
     public EnumFacing getElectricInputDirection()
     {
-        return getFront().rotateY();
+        switch (this.getSide(MachineSide.ELECTRIC_IN))
+        {
+        case RIGHT:
+            return getFront().rotateYCCW();
+        case REAR:
+            return getFront().getOpposite();
+        case TOP:
+            return EnumFacing.UP;
+        case BOTTOM:
+            return EnumFacing.DOWN;
+        case LEFT:
+        default:
+            return getFront().rotateY();
+        }
     }
+
+    //------------------
+    //Added these methods and field to implement IMachineSides properly 
+    //------------------
+    @Override
+    public MachineSide[] listConfigurableSides()
+    {
+        return new MachineSide[] { MachineSide.ELECTRIC_IN };
+    }
+
+    @Override
+    public Face[] listDefaultFaces()
+    {
+        return new Face[] { Face.LEFT };
+    }
+    
+    private MachineSidePack[] machineSides;
+
+    @Override
+    public MachineSidePack[] getAllMachineSides()
+    {
+        if (this.machineSides == null)
+        {
+            this.initialiseSides();
+        }
+
+        return this.machineSides;
+    }
+
+    @Override
+    public void setupMachineSides(int length)
+    {
+        this.machineSides = new MachineSidePack[length];
+    }
+    
+    @Override
+    public void onLoad()
+    {
+        this.clientOnLoad();
+    }
+    
+    @Override
+    public IMachineSidesProperties getConfigurationType()
+    {
+        return BlockMachineTiered.MACHINESIDES_RENDERTYPE;
+    }
+    //------------------END OF IMachineSides implementation
 }

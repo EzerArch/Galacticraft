@@ -66,6 +66,7 @@ public class ContainerCrafting extends Container
             list.add(((Slot)this.inventorySlots.get(i)).getStack());
         }
         
+        //Override this method to trick vanilla networking into carrying our memory at end of its packets 
         for (int i = 0; i < 9; i++)
             list.add(this.tileEntity.memory[i]);
 
@@ -81,6 +82,7 @@ public class ContainerCrafting extends Container
             if (i < 46)
                 this.getSlot(i).putStack(stacks[i]);
             else if (i < 55)
+                //Read memory clientside from the end of the vanilla packet, see getInventory() 
                 this.tileEntity.memory[i - 46] = stacks[i];
         }
     }
@@ -184,8 +186,8 @@ public class ContainerCrafting extends Container
 
     private boolean mergeToCrafting(ItemStack stack, boolean b)
     {
-        List<Slot> acceptSlots = new LinkedList();
-        List<Integer> acceptQuantity = new LinkedList();
+        List<Slot> acceptSlots = new LinkedList<>();
+        List<Integer> acceptQuantity = new LinkedList<>();
         int minQuantity = 64;
         int acceptTotal = 0;
         for (int i = 1; i < 10; i++)
@@ -324,13 +326,12 @@ public class ContainerCrafting extends Container
                     stack.stackSize += target.stackSize - target.getMaxStackSize();
                     target.stackSize = target.getMaxStackSize();
                 }
-                slot.onSlotChanged();
                 if (stack.stackSize < 0)
                 {
-                    GCLog.info("Shift clicking - slot " + slot.slotNumber + " emptied the whole stack: " + stack.stackSize);
                     target.stackSize += stack.stackSize;
                     stack.stackSize = 0;
                 }
+                slot.onSlotChanged();
                 if (stack.stackSize == 0)
                     break;
             }
@@ -341,32 +342,9 @@ public class ContainerCrafting extends Container
 
     private boolean matchesCrafting(ItemStack itemstack1)
     {
-        if (CraftingManager.getInstance().findMatchingRecipe(this.craftMatrix, this.tileEntity.getWorld()) != null)
-        {
-            boolean fullMatch = true;
-            for (int i = 0; i < 9; i++)
-            {
-               if (this.tileEntity.getMemory(i) != null && this.craftMatrix.getStackInSlot(i) != null && !matchingStacks(this.craftMatrix.getStackInSlot(i), this.tileEntity.getMemory(i)))
-               {
-                   fullMatch = false;
-                   break;
-               }
-            }
-            if (!fullMatch)
-            {
-            for (int i = 0; i < 9; i++)
-            {
-               if (matchingStacks(itemstack1, this.craftMatrix.getStackInSlot(i)))
-               {
-                   for (int j = 0; j < 9; j++)
-                   {
-                       this.memory[j] = ItemStack.copyItemStack(this.craftMatrix.getStackInSlot(j));
-                   }
-                   return true;
-               }
-            }
-            }
-        }
+        if (this.tileEntity.overrideMemory(itemstack1, this.memory))
+            return true;
+
         for (int i = 0; i < 9; i++)
         {
            if (matchingStacks(itemstack1, this.tileEntity.getMemory(i)) && (this.craftMatrix.getStackInSlot(i) == null || this.craftMatrix.getStackInSlot(i).stackSize < itemstack1.getMaxStackSize()))
@@ -383,7 +361,7 @@ public class ContainerCrafting extends Container
     
     private boolean matchingStacks(ItemStack stack, ItemStack target)
     {
-        return target != null && target.getItem() == stack.getItem() && (!stack.getHasSubtypes() || stack.getMetadata() == target.getMetadata()) && ItemStack.areItemStackTagsEqual(stack, target) && target.isStackable() && target.stackSize < target.getMaxStackSize();
+        return target != null && target.getItem() == stack.getItem() && (!stack.getHasSubtypes() || stack.getMetadata() == target.getMetadata()) && ItemStack.areItemStackTagsEqual(stack, target) && (target.isStackable() && target.stackSize < target.getMaxStackSize() || target.stackSize == 0);
     }
 
     /**

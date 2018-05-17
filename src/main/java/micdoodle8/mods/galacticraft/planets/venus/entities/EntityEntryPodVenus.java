@@ -46,6 +46,13 @@ public class EntityEntryPodVenus extends EntityLanderBase implements IScaleableF
     }
 
     @Override
+    public float getRotateOffset()
+    {
+        //flag no rotate
+        return -20F;
+    }
+
+    @Override
     public boolean shouldSpawnParticles()
     {
         return false;
@@ -80,12 +87,12 @@ public class EntityEntryPodVenus extends EntityLanderBase implements IScaleableF
             {
                 this.motionY -= 0.002D;
 
-                if (this.motionY < -0.5F)
+                if (this.motionY < -0.7F)
                 {
                     this.motionY *= 0.994F;
                 }
 
-                if (this.posY <= 382.0F)
+                if (this.posY <= 242.0F)
                 {
                     if (groundPosY == null)
                     {
@@ -96,6 +103,8 @@ public class EntityEntryPodVenus extends EntityLanderBase implements IScaleableF
                     {
                         this.motionY *= 0.995F;
                     }
+                    else
+                        this.motionY *= 0.9995F;
                 }
             }
         }
@@ -231,30 +240,6 @@ public class EntityEntryPodVenus extends EntityLanderBase implements IScaleableF
     public boolean shouldIgnoreShiftExit()
     {
         return !this.onGround;
-    }
-
-    @Override
-    public int getField(int id)
-    {
-        return 0;
-    }
-
-    @Override
-    public void setField(int id, int value)
-    {
-
-    }
-
-    @Override
-    public int getFieldCount()
-    {
-        return 0;
-    }
-
-    @Override
-    public void clear()
-    {
-
     }
 
     public Integer getGroundPosY()

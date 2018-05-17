@@ -3,6 +3,7 @@ package micdoodle8.mods.galacticraft.core.tile;
 import micdoodle8.mods.galacticraft.api.vector.Vector3;
 import micdoodle8.mods.galacticraft.core.Constants;
 import micdoodle8.mods.galacticraft.core.GCBlocks;
+import micdoodle8.mods.galacticraft.core.util.PlayerUtil;
 import micdoodle8.mods.miccore.Annotations.NetworkedField;
 import net.minecraft.block.material.Material;
 import net.minecraft.entity.player.EntityPlayer;
@@ -11,7 +12,6 @@ import net.minecraft.util.AxisAlignedBB;
 import net.minecraft.util.BlockPos;
 import net.minecraftforge.fml.relauncher.Side;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class TileEntityAirLockController extends TileEntityAirLock
@@ -37,8 +37,8 @@ public class TileEntityAirLockController extends TileEntityAirLock
     @NetworkedField(targetSide = Side.CLIENT)
     public boolean active;
     public boolean lastActive;
-    public ArrayList<BlockPos> otherAirLocks;
-    public ArrayList<BlockPos> lastOtherAirLocks;
+    private int otherAirLocks;
+    private int lastOtherAirLocks;
     private AirLockProtocol protocol;
     private AirLockProtocol lastProtocol;
 
@@ -47,7 +47,6 @@ public class TileEntityAirLockController extends TileEntityAirLock
         this.lastProtocol = this.protocol;
     }
 
-    @SuppressWarnings("rawtypes")
     @Override
     public void update()
     {
@@ -92,7 +91,7 @@ public class TileEntityAirLockController extends TileEntityAirLock
                     boolean foundPlayer = false;
                     for (EntityPlayer p : playersWithin)
                     {
-                        if (p.getGameProfile().getName().equalsIgnoreCase(this.playerToOpenFor))
+                        if (PlayerUtil.getName(p).equalsIgnoreCase(this.playerToOpenFor))
                         {
                             foundPlayer = true;
                             break;
@@ -124,16 +123,26 @@ public class TileEntityAirLockController extends TileEntityAirLock
                 }
                 else if (this.active || this.lastActive)
                 {
+                    this.lastOtherAirLocks = this.otherAirLocks;
                     this.otherAirLocks = this.protocol.calculate(this.horizontalModeEnabled);
 
-                    if (this.active && (this.otherAirLocks != null ||
-                            this.lastOtherAirLocks != null && (this.otherAirLocks != this.lastOtherAirLocks || this.otherAirLocks.size() != this.lastOtherAirLocks.size() )))
+                    if (this.active)
                     {
-                        this.sealAirLock();
+                        if (this.otherAirLocks != this.lastOtherAirLocks || !this.lastActive)
+                        {
+                            this.unsealAirLock();
+                            if (this.otherAirLocks >= 0)
+                            {
+                                this.sealAirLock();
+                            }
+                        }
                     }
-                    else if (!this.active && this.lastActive || this.otherAirLocks == null && this.lastOtherAirLocks != null)
+                    else
                     {
-                        this.unsealAirLock();
+                        if (this.lastActive)
+                        {
+                            this.unsealAirLock();
+                        }
                     }
                 }
 
@@ -143,14 +152,13 @@ public class TileEntityAirLockController extends TileEntityAirLock
                 }
 
                 this.lastActive = this.active;
-                this.lastOtherAirLocks = this.otherAirLocks;
                 this.lastProtocol = this.protocol;
                 this.lastHorizontalModeEnabled = this.horizontalModeEnabled;
             }
         }
     }
 
-    public void sealAirLock()
+    private void sealAirLock()
     {
         int x = (this.lastProtocol.maxX + this.lastProtocol.minX) / 2;
         int y = (this.lastProtocol.maxY + this.lastProtocol.minY) / 2;

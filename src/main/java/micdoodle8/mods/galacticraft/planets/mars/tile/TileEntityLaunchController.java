@@ -12,6 +12,7 @@ import micdoodle8.mods.galacticraft.core.energy.tile.TileBaseElectricBlockWithIn
 import micdoodle8.mods.galacticraft.core.tile.TileEntityLandingPad;
 // import micdoodle8.mods.galacticraft.core.util.ConfigManagerCore;
 import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
+import micdoodle8.mods.galacticraft.core.util.GCLog;
 // import micdoodle8.mods.galacticraft.core.util.GCLog;
 import micdoodle8.mods.galacticraft.core.world.ChunkLoadingCallback;
 import micdoodle8.mods.galacticraft.core.world.IChunkLoader;
@@ -21,19 +22,18 @@ import micdoodle8.mods.galacticraft.planets.mars.network.PacketSimpleMars;
 import micdoodle8.mods.galacticraft.planets.mars.network.PacketSimpleMars.EnumSimplePacketMars;
 import micdoodle8.mods.miccore.Annotations.NetworkedField;
 import net.minecraft.block.Block;
+import net.minecraft.block.state.IBlockState;
 import net.minecraft.inventory.ISidedInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.BlockPos;
 import net.minecraft.util.EnumFacing;
-import net.minecraft.util.IChatComponent;
 import net.minecraft.world.ChunkCoordIntPair;
 import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.common.ForgeChunkManager;
 import net.minecraftforge.common.ForgeChunkManager.Ticket;
-import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraftforge.fml.relauncher.Side;
 
 import java.util.ArrayList;
@@ -69,12 +69,12 @@ public class TileEntityLaunchController extends TileBaseElectricBlockWithInvento
     public boolean requiresClientUpdate;
     public Object attachedDock = null;
     private boolean frequencyCheckNeeded = false;
-//    private static Map<Integer, Long> tickCounts = new HashMap();
-//    private static Map<Integer, Integer> instanceCounts = new HashMap();
+//    private static Map<Integer, Long> tickCounts = new HashMap<>();
+//    private static Map<Integer, Integer> instanceCounts = new HashMap<>();
 
     public TileEntityLaunchController()
     {
-        this.storage.setMaxExtract(10);
+        this.storage.setMaxExtract(6);
         this.noRedstoneControl = true;
     }
 
@@ -85,29 +85,6 @@ public class TileEntityLaunchController extends TileBaseElectricBlockWithInvento
 
         if (!this.worldObj.isRemote)
         {
-//            if (ConfigManagerCore.enableDebug)
-//            {
-//            	int dim = this.worldObj);
-//            	Long tickCount = tickCounts.get(dim);
-//            	if (tickCount == null)
-//            	{
-//            		tickCount = 0L;
-//            		tickCounts.put(dim, tickCount);
-//            		instanceCounts.put(dim, 0);
-//            	}
-//            	int instanceCount = instanceCounts.get(dim);
-//	        	if (this.worldObj.getTotalWorldTime() > tickCount)
-//	            {
-//	            	tickCount = this.worldObj.getTotalWorldTime();
-//	            	if (tickCount % 20L == 0L) GCLog.debug("Dim " + dim + ": Number of Launch Controllers updating each tick: " + instanceCount);
-//	            	instanceCount = 1;
-//	            }
-//	            else
-//	            	instanceCount++;
-//	        	tickCounts.put(dim, tickCount);
-//	        	instanceCounts.put(dim, instanceCount);
-//            }
-        	
       		this.controlEnabled = this.launchSchedulingEnabled && this.hasEnoughEnergyToRun && !this.getDisabled(0);
         	
         	if (this.frequencyCheckNeeded)
@@ -254,7 +231,7 @@ public class TileEntityLaunchController extends TileBaseElectricBlockWithInvento
         this.launchPadRemovalDisabled = nbt.getBoolean("LaunchPadRemovalDisabled");
         this.launchSchedulingEnabled = nbt.getBoolean("LaunchPadSchedulingEnabled");
         this.hideTargetDestination = nbt.getBoolean("HideTargetDestination");
-        this.requiresClientUpdate = true;
+        this.requiresClientUpdate = GCCoreUtil.getEffectiveSide() == Side.SERVER;
     }
 
     @Override
@@ -369,10 +346,10 @@ public class TileEntityLaunchController extends TileBaseElectricBlockWithInvento
     {
         this.frequency = frequency;
 
-        if (this.frequency >= 0 && FMLCommonHandler.instance().getMinecraftServerInstance() != null)
+        if (this.frequency >= 0)
         {
             this.frequencyValid = true;
-            WorldServer[] servers = FMLCommonHandler.instance().getMinecraftServerInstance().worldServers;
+            WorldServer[] servers = GCCoreUtil.getWorldServerList(this.worldObj);
 
             worldLoop:
             for (int i = 0; i < servers.length; i++)
@@ -395,6 +372,7 @@ public class TileEntityLaunchController extends TileBaseElectricBlockWithInvento
 
                             if (launchController2.frequency == this.frequency)
                             {
+                                GCLog.debug("Launch Controller frequency conflict at " + tile2.getPos() + " on dim: " + GCCoreUtil.getDimensionID(tile2));
                                 this.frequencyValid = false;
                                 break worldLoop;
                             }
@@ -421,12 +399,12 @@ public class TileEntityLaunchController extends TileBaseElectricBlockWithInvento
 
     public void checkDestFrequencyValid()
     {
-        if (!this.worldObj.isRemote && FMLCommonHandler.instance().getMinecraftServerInstance() != null)
+        if (!this.worldObj.isRemote)
         {
             this.destFrequencyValid = false;
             if (this.destFrequency >= 0)
             {
-                WorldServer[] servers = FMLCommonHandler.instance().getMinecraftServerInstance().worldServers;
+                WorldServer[] servers = GCCoreUtil.getWorldServerList(this.worldObj);
                 for (int i = 0; i < servers.length; i++)
                 {
                     WorldServer world = servers[i];
@@ -497,12 +475,6 @@ public class TileEntityLaunchController extends TileBaseElectricBlockWithInvento
         }
     }
 
-    @Override
-    public IChatComponent getDisplayName()
-    {
-        return null;
-    }
-
     public void setAttachedPad(IFuelDock pad)
     {
         this.attachedDock = pad;
@@ -511,7 +483,12 @@ public class TileEntityLaunchController extends TileBaseElectricBlockWithInvento
     @Override
     public EnumFacing getFront()
     {
-        return this.worldObj.getBlockState(getPos()).getValue(BlockMachineMars.FACING);
+        IBlockState state = this.worldObj.getBlockState(getPos()); 
+        if (state.getBlock() instanceof BlockMachineMars)
+        {
+            return state.getValue(BlockMachineMars.FACING);
+        }
+        return EnumFacing.NORTH;
     }
 
     @Override

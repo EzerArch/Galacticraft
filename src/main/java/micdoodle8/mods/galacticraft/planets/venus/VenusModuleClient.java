@@ -1,5 +1,6 @@
 package micdoodle8.mods.galacticraft.planets.venus;
 
+import micdoodle8.mods.galacticraft.api.client.IItemMeshDefinitionCustom;
 import micdoodle8.mods.galacticraft.api.vector.Vector3;
 import micdoodle8.mods.galacticraft.core.Constants;
 import micdoodle8.mods.galacticraft.core.util.ClientUtil;
@@ -63,9 +64,9 @@ public class VenusModuleClient implements IPlanetsModuleClient
     @Override
     public void preInit(FMLPreInitializationEvent event)
     {
-        addPlanetVariants("venus", "venus_rock_0", "venus_rock_1", "venus_rock_2", "venus_rock_3", "dungeon_brick_venus_1", "dungeon_brick_venus_2", "venus_ore_aluminum", "venus_ore_copper", "venus_ore_galena", "venus_ore_quartz", "venus_ore_silicon", "venus_ore_tin");
+        addPlanetVariants("venus", "venus_rock_0", "venus_rock_1", "venus_rock_2", "venus_rock_3", "dungeon_brick_venus_1", "dungeon_brick_venus_2", "venus_ore_aluminum", "venus_ore_copper", "venus_ore_galena", "venus_ore_quartz", "venus_ore_silicon", "venus_ore_tin", "lead_block");
         addPlanetVariants("thermal_padding_t2", "thermal_helm_t2", "thermal_chestplate_t2", "thermal_leggings_t2", "thermal_boots_t2");
-        addPlanetVariants("basic_item_venus", "shield_controller", "ingot_lead");
+        addPlanetVariants("basic_item_venus", "shield_controller", "ingot_lead", "radioisotope_core", "thermal_fabric");
         addPlanetVariants("web_torch", "web_torch_0", "web_torch_1");
         MinecraftForge.EVENT_BUS.register(this);
         RenderingRegistry.registerEntityRenderingHandler(EntityJuicer.class, (RenderManager manager) -> new RenderJuicer(manager));
@@ -90,7 +91,7 @@ public class VenusModuleClient implements IPlanetsModuleClient
     {
         Item sludge = Item.getItemFromBlock(VenusBlocks.sulphuricAcid);
         ModelBakery.registerItemVariants(sludge, new ResourceLocation(GalacticraftPlanets.TEXTURE_PREFIX + "sulphuric_acid"));
-        ModelLoader.setCustomMeshDefinition(sludge, (ItemStack stack) -> sulphuricAcidLocation);
+        ModelLoader.setCustomMeshDefinition(sludge, IItemMeshDefinitionCustom.create((ItemStack stack) -> sulphuricAcidLocation));
         ModelLoader.setCustomStateMapper(VenusBlocks.sulphuricAcid, new StateMapperBase()
         {
             @Override
@@ -152,6 +153,7 @@ public class VenusModuleClient implements IPlanetsModuleClient
         ClientUtil.registerBlockJson(GalacticraftPlanets.TEXTURE_PREFIX, VenusBlocks.venusBlock, 9, "venus_ore_quartz");
         ClientUtil.registerBlockJson(GalacticraftPlanets.TEXTURE_PREFIX, VenusBlocks.venusBlock, 10, "venus_ore_silicon");
         ClientUtil.registerBlockJson(GalacticraftPlanets.TEXTURE_PREFIX, VenusBlocks.venusBlock, 11, "venus_ore_tin");
+        ClientUtil.registerBlockJson(GalacticraftPlanets.TEXTURE_PREFIX, VenusBlocks.venusBlock, 12, "lead_block");
         ClientUtil.registerBlockJson(GalacticraftPlanets.TEXTURE_PREFIX, VenusBlocks.spout, 0, "spout");
         ClientUtil.registerBlockJson(GalacticraftPlanets.TEXTURE_PREFIX, VenusBlocks.treasureChestTier3, 0, "treasure_t3");
         ClientUtil.registerBlockJson(GalacticraftPlanets.TEXTURE_PREFIX, VenusBlocks.torchWeb, 0, "web_torch_0");
@@ -159,12 +161,15 @@ public class VenusModuleClient implements IPlanetsModuleClient
         ClientUtil.registerBlockJson(GalacticraftPlanets.TEXTURE_PREFIX, VenusBlocks.geothermalGenerator, 0, "geothermal_generator");
         ClientUtil.registerBlockJson(GalacticraftPlanets.TEXTURE_PREFIX, VenusBlocks.crashedProbe);
         ClientUtil.registerBlockJson(GalacticraftPlanets.TEXTURE_PREFIX, VenusBlocks.scorchedRock);
+        ClientUtil.registerBlockJson(GalacticraftPlanets.TEXTURE_PREFIX, VenusBlocks.bossSpawner);
         ClientUtil.registerItemJson(GalacticraftPlanets.TEXTURE_PREFIX, VenusItems.thermalPaddingTier2, 0, "thermal_helm_t2");
         ClientUtil.registerItemJson(GalacticraftPlanets.TEXTURE_PREFIX, VenusItems.thermalPaddingTier2, 1, "thermal_chestplate_t2");
         ClientUtil.registerItemJson(GalacticraftPlanets.TEXTURE_PREFIX, VenusItems.thermalPaddingTier2, 2, "thermal_leggings_t2");
         ClientUtil.registerItemJson(GalacticraftPlanets.TEXTURE_PREFIX, VenusItems.thermalPaddingTier2, 3, "thermal_boots_t2");
         ClientUtil.registerItemJson(GalacticraftPlanets.TEXTURE_PREFIX, VenusItems.basicItem, 0, "shield_controller");
         ClientUtil.registerItemJson(GalacticraftPlanets.TEXTURE_PREFIX, VenusItems.basicItem, 1, "ingot_lead");
+        ClientUtil.registerItemJson(GalacticraftPlanets.TEXTURE_PREFIX, VenusItems.basicItem, 2, "radioisotope_core");
+        ClientUtil.registerItemJson(GalacticraftPlanets.TEXTURE_PREFIX, VenusItems.basicItem, 3, "thermal_fabric");
         ClientUtil.registerItemJson(GalacticraftPlanets.TEXTURE_PREFIX, VenusItems.key, 0, "key_t3");
     }
 

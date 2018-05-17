@@ -11,7 +11,6 @@ import micdoodle8.mods.galacticraft.planets.mars.items.ItemBlockMars;
 import net.minecraft.block.Block;
 import net.minecraft.item.ItemBlock;
 import net.minecraft.item.ItemStack;
-import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraftforge.fml.common.registry.GameRegistry;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.oredict.OreDictionary;
@@ -62,8 +61,8 @@ public class MarsBlocks
 
     public static void setHarvestLevels()
     {
-        setHarvestLevel(MarsBlocks.marsBlock, "pickaxe", 2, 0); //Copper ore
-        setHarvestLevel(MarsBlocks.marsBlock, "pickaxe", 2, 1); //Tin ore
+        setHarvestLevel(MarsBlocks.marsBlock, "pickaxe", 1, 0); //Copper ore
+        setHarvestLevel(MarsBlocks.marsBlock, "pickaxe", 1, 1); //Tin ore
         setHarvestLevel(MarsBlocks.marsBlock, "pickaxe", 3, 2); //Desh ore
         setHarvestLevel(MarsBlocks.marsBlock, "pickaxe", 1, 3); //Iron ore
         setHarvestLevel(MarsBlocks.marsBlock, "pickaxe", 0, 4); //Cobblestone
@@ -82,7 +81,7 @@ public class MarsBlocks
         String name = block.getUnlocalizedName().substring(5);
         GCCoreUtil.registerGalacticraftBlock(name, block);
         GameRegistry.registerBlock(block, itemClass, name);
-        if (FMLCommonHandler.instance().getEffectiveSide() == Side.CLIENT)
+        if (GCCoreUtil.getEffectiveSide() == Side.CLIENT)
         {
             GCBlocks.registerSorted(block);
         }
@@ -108,5 +107,6 @@ public class MarsBlocks
         OreDictionary.registerOre("oreTin", new ItemStack(MarsBlocks.marsBlock, 1, 1));
         OreDictionary.registerOre("oreIron", new ItemStack(MarsBlocks.marsBlock, 1, 3));
         OreDictionary.registerOre("oreDesh", new ItemStack(MarsBlocks.marsBlock, 1, 2));
+        OreDictionary.registerOre("blockDesh", new ItemStack(MarsBlocks.marsBlock, 1, 8));
     }
 }

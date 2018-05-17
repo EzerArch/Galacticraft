@@ -33,12 +33,17 @@ public class ItemCanisterOxygenInfinite extends Item implements IItemOxygenSuppl
     }
 
     @Override
+    public boolean isItemTool(ItemStack stack)
+    {
+        return false;
+    }
+
+    @Override
     public boolean hasEffect(ItemStack stack)
     {
         return true;
     }
 
-    @SuppressWarnings({ "unchecked", "rawtypes" })
     @Override
     public void addInformation(ItemStack par1ItemStack, EntityPlayer par2EntityPlayer, List<String> tooltip, boolean par4)
     {

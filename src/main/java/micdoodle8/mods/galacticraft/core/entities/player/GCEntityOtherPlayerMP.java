@@ -1,96 +1,83 @@
 package micdoodle8.mods.galacticraft.core.entities.player;
 
 import com.mojang.authlib.GameProfile;
+
+import micdoodle8.mods.galacticraft.api.entity.ICameraZoomEntity;
+import micdoodle8.mods.galacticraft.api.item.IHoldableItem;
+import micdoodle8.mods.galacticraft.api.prefab.entity.EntitySpaceshipBase;
+import micdoodle8.mods.galacticraft.api.world.IZeroGDimension;
+import micdoodle8.mods.galacticraft.core.client.EventHandlerClient;
+import micdoodle8.mods.galacticraft.core.proxy.ClientProxyCore;
+import micdoodle8.mods.galacticraft.core.util.ConfigManagerCore;
 import net.minecraft.client.entity.EntityOtherPlayerMP;
+import net.minecraft.client.network.NetworkPlayerInfo;
+import net.minecraft.util.BlockPos;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.world.World;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
 public class GCEntityOtherPlayerMP extends EntityOtherPlayerMP
 {
-    //	private ResourceLocation galacticraftCape; TODO Capes
-//	private ThreadDownloadImageData galacticraftCapeImageData;
-//
+    private boolean checkedCape = false;
+    private ResourceLocation galacticraftCape = null;
+
     public GCEntityOtherPlayerMP(World par1World, GameProfile profile)
     {
         super(par1World, profile);
     }
-//
-//    public void func_152121_a(MinecraftProfileTexture.Type p_152121_1_, ResourceLocation p_152121_2_)
-//    {
-//        super.func_152121_a(p_152121_1_, p_152121_2_);
-//        this.setupCustomSkin();
-//    }
-//
-//    public ResourceLocation getLocationCape()
-//    {
-//        ResourceLocation location = super.getLocationCape();
-//        boolean b = this.galacticraftCapeImageData != null && this.galacticraftCapeImageData.getGlTextureId() != -1;
-//
-//        if ((ConfigManagerCore.overrideCapes || location == null) && this.galacticraftCape != null)
-//        {
-//
-//            return null;
-//        }
-//
-//        return this.locationCape;
-//    }
-//
-//	protected void setupCustomSkin()
-//	{
-//		if (ClientProxyCore.capeMap.containsKey(this.getGameProfile().getName()))
-//		{
-//			this.galacticraftCape = GCEntityOtherPlayerMP.getLocationCape2(this.getGameProfile().getName());
-//			this.galacticraftCapeImageData = GCEntityOtherPlayerMP.getDownloadImage(this.galacticraftCape, EntityClientPlayerMP.getCapeURL(this.getGameProfile().getName()));
-//		}
-//	}
-//
-//	public static ResourceLocation getLocationCape2(String par0Str)
-//	{
-//		return new ResourceLocation("cloaksGC/" + StringUtils.stripControlCodes(par0Str));
-//	}
-//
-//	private static ThreadDownloadImageData getDownloadImage(ResourceLocation par0ResourceLocation, String par1Str)
-//	{
-//		TextureManager texturemanager = Minecraft.getMinecraft().getTextureManager();
-//		Object object = texturemanager.getTexture(par0ResourceLocation);
-//
-//		if (object == null)
-//		{
-//			object = new ThreadDownloadImageData(null, par1Str, null, null);
-//			texturemanager.loadTexture(par0ResourceLocation, (ITextureObject) object);
-//		}
-//
-//		return (ThreadDownloadImageData) object;
-//	}
-//
-//	public static String getCapeURL(String par0Str)
-//	{
-//		return ClientProxyCore.capeMap.get(par0Str);
-//	}
-//
-//	@Override
-//	public ResourceLocation getLocationCape()
-//	{
-//		if ((ConfigManagerCore.overrideCapes || super.getLocationCape() == null) && this.galacticraftCape != null)
-//		{
-//			return this.galacticraftCape;
-//		}
-//
-//		return super.getLocationCape();
-//	}
-//
-//	@Override
-//	public ThreadDownloadImageData getTextureCape()
-//	{
-//		if ((ConfigManagerCore.overrideCapes || !super.getTextureCape().isTextureUploaded()) && this.galacticraftCape != null)
-//		{
-//			return this.galacticraftCapeImageData;
-//		}
-//
-//		return super.getTextureCape();
-//	}
-//
-//    public boolean func_152122_n()
-//    {
-//        return this.galacticraftCape != null || super.func_152122_n();
-//    }
+
+    @Override
+    public ResourceLocation getLocationCape()
+    {
+        if (this.ridingEntity instanceof EntitySpaceshipBase)
+        {
+            // Don't draw any cape if riding a rocket (the cape renders outside the rocket model!)
+            return null;
+        }
+        
+        ResourceLocation vanillaCape = super.getLocationCape();
+
+        if (!this.checkedCape)
+        {
+            NetworkPlayerInfo networkplayerinfo = this.getPlayerInfo();
+            this.galacticraftCape = ClientProxyCore.capeMap.get(networkplayerinfo.getGameProfile().getName());
+            this.checkedCape = true;
+        }
+
+        if ((ConfigManagerCore.overrideCapes || vanillaCape == null) && galacticraftCape != null)
+        {
+            return galacticraftCape;
+        }
+
+        return vanillaCape;
+    }
+
+    @Override
+    @SideOnly(Side.CLIENT)
+    public int getBrightnessForRender(float partialTicks)
+    {
+        double height = this.posY + (double)this.getEyeHeight();
+        if (height > 255D) height = 255D;
+        BlockPos blockpos = new BlockPos(this.posX, height, this.posZ);
+        return this.worldObj.isBlockLoaded(blockpos) ? this.worldObj.getCombinedLight(blockpos, 0) : 0;
+    }
+
+    @Override
+    public boolean isSneaking()
+    {
+        if (EventHandlerClient.sneakRenderOverride && !(this.worldObj.provider instanceof IZeroGDimension))
+        {
+            if (this.onGround && this.inventory.getCurrentItem() != null && this.inventory.getCurrentItem().getItem() instanceof IHoldableItem && !(this.ridingEntity instanceof ICameraZoomEntity))
+            {
+                IHoldableItem holdableItem = (IHoldableItem) this.inventory.getCurrentItem().getItem();
+
+                if (holdableItem.shouldCrouch(this))
+                {
+                    return true;
+                }
+            }
+        }
+        return super.isSneaking();
+    }
 }

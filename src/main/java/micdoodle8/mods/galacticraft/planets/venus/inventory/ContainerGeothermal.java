@@ -1,6 +1,7 @@
 package micdoodle8.mods.galacticraft.planets.venus.inventory;
 
 import micdoodle8.mods.galacticraft.api.item.IItemElectric;
+import micdoodle8.mods.galacticraft.core.energy.EnergyUtil;
 import micdoodle8.mods.galacticraft.core.inventory.SlotSpecific;
 import micdoodle8.mods.galacticraft.planets.venus.tile.TileEntityGeothermalGenerator;
 import net.minecraft.entity.player.EntityPlayer;
@@ -54,6 +55,7 @@ public class ContainerGeothermal extends Container
         {
             final ItemStack stack = slot.getStack();
             var2 = stack.copy();
+            boolean movedToMachineSlot = false;
 
             if (par1 == 0)
             {
@@ -64,12 +66,13 @@ public class ContainerGeothermal extends Container
             }
             else
             {
-                if (stack.getItem() instanceof IItemElectric)
+                if (EnergyUtil.isElectricItem(stack.getItem()))
                 {
                     if (!this.mergeItemStack(stack, 0, 1, false))
                     {
                         return null;
                     }
+                    movedToMachineSlot = true;
                 }
                 else
                 {
@@ -89,7 +92,17 @@ public class ContainerGeothermal extends Container
 
             if (stack.stackSize == 0)
             {
-                slot.putStack(null);
+                // Needed where tile has inventoryStackLimit of 1
+                if (movedToMachineSlot && var2.stackSize > 1)
+                {
+                    ItemStack remainder = var2.copy();
+                    --remainder.stackSize;
+                    slot.putStack(remainder);
+                }
+                else
+                {
+                    slot.putStack((ItemStack) null);
+                }
             }
             else
             {

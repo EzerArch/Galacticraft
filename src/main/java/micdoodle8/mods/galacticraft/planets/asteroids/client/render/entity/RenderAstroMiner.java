@@ -7,9 +7,10 @@ import org.lwjgl.opengl.GL11;
 
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 
 import micdoodle8.mods.galacticraft.api.vector.BlockVec3;
+import micdoodle8.mods.galacticraft.core.Constants;
+import micdoodle8.mods.galacticraft.core.client.model.OBJLoaderGC;
 import micdoodle8.mods.galacticraft.core.perlin.NoiseModule;
 import micdoodle8.mods.galacticraft.core.perlin.generator.Gradient;
 import micdoodle8.mods.galacticraft.core.util.ClientUtil;
@@ -20,6 +21,7 @@ import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.WorldRenderer;
+import net.minecraft.client.renderer.culling.ICamera;
 import net.minecraft.client.renderer.entity.Render;
 import net.minecraft.client.renderer.entity.RenderManager;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
@@ -28,7 +30,7 @@ import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.MathHelper;
 import net.minecraft.util.ResourceLocation;
-import net.minecraftforge.client.model.ModelLoaderRegistry;
+import net.minecraftforge.client.model.IModel;
 import net.minecraftforge.client.model.obj.OBJModel;
 import net.minecraftforge.fml.client.FMLClientHandler;
 
@@ -60,9 +62,7 @@ public class RenderAstroMiner extends Render<EntityAstroMiner>
         {
             try
             {
-                OBJModel model = (OBJModel) ModelLoaderRegistry.getModel(new ResourceLocation(GalacticraftPlanets.ASSET_PREFIX, "astro_miner_full.obj"));
-                model = (OBJModel) model.process(ImmutableMap.of("flip-v", "true"));
-
+                IModel model = OBJLoaderGC.instance.loadModel(new ResourceLocation(GalacticraftPlanets.ASSET_PREFIX, "astro_miner_full.obj"));
                 Function<ResourceLocation, TextureAtlasSprite> spriteFunction = location -> Minecraft.getMinecraft().getTextureMapBlocks().getAtlasSprite(location.toString());
                 this.mainModel = (OBJModel.OBJBakedModel) model.bake(new OBJModel.OBJState(ImmutableList.of("Hull", "Lasers"), false), DefaultVertexFormats.ITEM, spriteFunction);
                 this.hoverPadMain = (OBJModel.OBJBakedModel) model.bake(new OBJModel.OBJState(ImmutableList.of("HoverPad"), false), DefaultVertexFormats.ITEM, spriteFunction);
@@ -71,9 +71,7 @@ public class RenderAstroMiner extends Render<EntityAstroMiner>
                 this.modellaser3 = (OBJModel.OBJBakedModel) model.bake(new OBJModel.OBJState(ImmutableList.of("Main_Laser_Center"), false), DefaultVertexFormats.ITEM, spriteFunction);
                 this.modellasergl = (OBJModel.OBJBakedModel) model.bake(new OBJModel.OBJState(ImmutableList.of("Main_Laser_Left_Guard"), false), DefaultVertexFormats.ITEM, spriteFunction);
 
-                model = (OBJModel) ModelLoaderRegistry.getModel(new ResourceLocation(GalacticraftPlanets.ASSET_PREFIX, "astro_miner_full_off.obj"));
-                model = (OBJModel) model.process(ImmutableMap.of("flip-v", "true"));
-
+                model = OBJLoaderGC.instance.loadModel(new ResourceLocation(GalacticraftPlanets.ASSET_PREFIX, "astro_miner_full_off.obj"));
                 this.mainModelInactive = (OBJModel.OBJBakedModel) model.bake(new OBJModel.OBJState(ImmutableList.of("Hull", "Lasers", "HoverPad"), false), DefaultVertexFormats.ITEM, spriteFunction);
             }
             catch (Exception e)
@@ -161,22 +159,22 @@ public class RenderAstroMiner extends Render<EntityAstroMiner>
         switch (astroMiner.facing)
         {
         case DOWN:
-            partBlock = (float) (astroMiner.posY % 1D);
+            partBlock = (float) (astroMiner.posY % 2D);
             break;
         case UP:
-            partBlock = 1F - (float) (astroMiner.posY % 1D);
+            partBlock = 1F - (float) (astroMiner.posY % 2D);
             break;
         case NORTH:
-            partBlock = (float) (astroMiner.posZ % 1D);
+            partBlock = (float) (astroMiner.posZ % 2D);
             break;
         case SOUTH:
-            partBlock = 1F - (float) (astroMiner.posZ % 1D);
+            partBlock = 1F - (float) (astroMiner.posZ % 2D);
             break;
         case WEST:
-            partBlock = (float) (astroMiner.posX % 1D);
+            partBlock = (float) (astroMiner.posX % 2D);
             break;
         case EAST:
-            partBlock = 1F - (float) (astroMiner.posX % 1D);
+            partBlock = 1F - (float) (astroMiner.posX % 2D);
             break;
         default:
             partBlock = 0F;
@@ -217,23 +215,32 @@ public class RenderAstroMiner extends Render<EntityAstroMiner>
             GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
             GlStateManager.color(sinOfTheTime, sinOfTheTime, sinOfTheTime, 0.6F);
             ClientUtil.drawBakedModel(this.hoverPadGlow);
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_NEAREST);
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_NEAREST);
 
             if (ais < EntityAstroMiner.AISTATE_DOCKING)
             {
+                //This is the scanning lasers:
                 FMLClientHandler.instance().getClient().renderEngine.bindTexture(scanTexture);
                 final Tessellator tess = Tessellator.getInstance();
                 GlStateManager.color(0, 0.6F, 1.0F, 0.2F);
                 WorldRenderer worldRenderer = tess.getWorldRenderer();
+                float scanProgress = (MathHelper.cos(partBlock * 0.012F * 6.283F)) * 0.747F;
+                float scanAngle = 0.69866F - scanProgress * scanProgress;
+                float scanEndX = 38.77F * MathHelper.sin(scanAngle);
+                float scanEndY = 32F;
+                float scanEndZ = 38.77F * MathHelper.cos(scanAngle);
+                scanEndZ += 20F;
                 worldRenderer.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX);
                 worldRenderer.pos(15.6F, -0.6F, -20F).tex(0D, 0D).endVertex();
-                worldRenderer.pos(37.8F, 31.4F, -45F - partBlock).tex(1D, 0D).endVertex();
-                worldRenderer.pos(37.8F, -32.6F, -45F - partBlock).tex(1D, 1D).endVertex();
+                worldRenderer.pos(15.6F + scanEndX, scanEndY - 0.6F, -scanEndZ).tex(1D, 0D).endVertex();
+                worldRenderer.pos(15.6F + scanEndX, -0.6F - scanEndY, -scanEndZ).tex(1D, 1D).endVertex();
                 worldRenderer.pos(15.6F, -0.7F, -20F).tex(0D, 1D).endVertex();
                 tess.draw();
                 worldRenderer.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX);
                 worldRenderer.pos(-15.6F, -0.6F, -20F).tex(0D, 0D).endVertex();
-                worldRenderer.pos(-37.8F, 31.4F, -45F - partBlock).tex(1D, 0D).endVertex();
-                worldRenderer.pos(-37.8F, -32.6F, -45F - partBlock).tex(1D, 1D).endVertex();
+                worldRenderer.pos(-15.6F - scanEndX, scanEndY - 0.6F, -scanEndZ).tex(1D, 0D).endVertex();
+                worldRenderer.pos(-15.6F - scanEndX, -0.6F - scanEndY, -scanEndZ).tex(1D, 1D).endVertex();
                 worldRenderer.pos(-15.6F, -0.7F, -20F).tex(0D, 1D).endVertex();
                 tess.draw();
 
@@ -298,8 +305,6 @@ public class RenderAstroMiner extends Render<EntityAstroMiner>
                 }
                 GlStateManager.popMatrix();
             }
-            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_NEAREST);
-            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_NEAREST);
             GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
             GlStateManager.disableBlend();
             GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
@@ -423,8 +428,8 @@ public class RenderAstroMiner extends Render<EntityAstroMiner>
         GlStateManager.color(1.0F, 0.79F, 0.79F, 0.17F);
         float bb = 1.7F;
         float cc = 0.4F;
-        float radiansYaw = entity.rotationYaw * 0.017453292F;
-        float radiansPitch = entity.rotationPitch * 0.017453292F / 4F;
+        float radiansYaw = entity.rotationYaw / Constants.RADIANS_TO_DEGREES;
+        float radiansPitch = entity.rotationPitch / Constants.RADIANS_TO_DEGREES / 4F;
         float mainLaserX = bb * MathHelper.sin(radiansYaw) * MathHelper.cos(radiansPitch);
         float mainLaserY = cc + bb * MathHelper.sin(radiansPitch);
         float mainLaserZ = bb * MathHelper.cos(radiansYaw) * MathHelper.cos(radiansPitch);
@@ -436,9 +441,9 @@ public class RenderAstroMiner extends Render<EntityAstroMiner>
         float xD = mainLaserX - 0.5F;
         float yD = mainLaserY - 0.5F;
         float zD = mainLaserZ - 0.5F;
-        Math.abs(xD);
-        Math.abs(yD);
-        Math.abs(zD);
+//        Math.abs(xD);
+//        Math.abs(yD);
+//        Math.abs(zD);
 
         float xx, yy, zz;
 
@@ -593,5 +598,11 @@ public class RenderAstroMiner extends Render<EntityAstroMiner>
     protected ResourceLocation getEntityTexture(EntityAstroMiner entity)
     {
         return TextureMap.locationBlocksTexture;
+    }
+    
+    @Override
+    public boolean shouldRender(EntityAstroMiner miner, ICamera camera, double camX, double camY, double camZ)
+    {
+        return miner.isInRangeToRender3d(camX, camY, camZ);
     }
 }

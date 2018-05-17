@@ -1,31 +1,27 @@
 package micdoodle8.mods.galacticraft.core.tile;
 
 import micdoodle8.mods.galacticraft.api.recipe.CompressorRecipes;
+import micdoodle8.mods.galacticraft.api.recipe.ShapedRecipesGC;
+import micdoodle8.mods.galacticraft.api.recipe.ShapelessOreRecipeGC;
+import micdoodle8.mods.galacticraft.core.inventory.IInventoryDefaults;
 import micdoodle8.mods.galacticraft.core.inventory.PersistantInventoryCrafting;
-import micdoodle8.mods.galacticraft.core.network.IPacketReceiver;
 import micdoodle8.mods.galacticraft.core.util.ConfigManagerCore;
 import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
 import micdoodle8.mods.miccore.Annotations.NetworkedField;
-import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Items;
-import net.minecraft.inventory.IInventory;
 import net.minecraft.inventory.ISidedInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.crafting.IRecipe;
-import net.minecraft.item.crafting.ShapedRecipes;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.tileentity.TileEntityFurnace;
 import net.minecraft.util.EnumFacing;
-import net.minecraft.util.IChatComponent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.oredict.OreDictionary;
-import net.minecraftforge.oredict.ShapelessOreRecipe;
-
 import java.util.*;
 
-public class TileEntityIngotCompressor extends TileEntityAdvanced implements IInventory, ISidedInventory, IPacketReceiver
+public class TileEntityIngotCompressor extends TileEntityAdvanced implements IInventoryDefaults, ISidedInventory
 {
     public static final int PROCESS_TIME_REQUIRED = 200;
     @NetworkedField(targetSide = Side.CLIENT)
@@ -110,22 +106,7 @@ public class TileEntityIngotCompressor extends TileEntityAdvanced implements IIn
             }
         }
 
-        if (this.ticks >= Long.MAX_VALUE)
-        {
-            this.ticks = 0;
-        }
-
         this.ticks++;
-    }
-
-    @Override
-    public void openInventory(EntityPlayer player)
-    {
-    }
-
-    @Override
-    public void closeInventory(EntityPlayer player)
-    {
     }
 
     public void updateInput()
@@ -156,9 +137,9 @@ public class TileEntityIngotCompressor extends TileEntityAdvanced implements IIn
     {
         for (IRecipe recipe : CompressorRecipes.getRecipeList())
         {
-            if (recipe instanceof ShapedRecipes)
+            if (recipe instanceof ShapedRecipesGC)
             {
-                for (ItemStack itemstack1 : ((ShapedRecipes) recipe).recipeItems)
+                for (ItemStack itemstack1 : ((ShapedRecipesGC) recipe).recipeItems)
                 {
                     if (stack.getItem() == itemstack1.getItem() && (itemstack1.getItemDamage() == 32767 || stack.getItemDamage() == itemstack1.getItemDamage()))
                     {
@@ -166,10 +147,9 @@ public class TileEntityIngotCompressor extends TileEntityAdvanced implements IIn
                     }
                 }
             }
-            else if (recipe instanceof ShapelessOreRecipe)
+            else if (recipe instanceof ShapelessOreRecipeGC)
             {
-                @SuppressWarnings("unchecked")
-                ArrayList<Object> required = new ArrayList<Object>(((ShapelessOreRecipe) recipe).getInput());
+                ArrayList<Object> required = new ArrayList<Object>(((ShapelessOreRecipeGC) recipe).getInput());
 
                 Iterator<Object> req = required.iterator();
 
@@ -237,18 +217,8 @@ public class TileEntityIngotCompressor extends TileEntityAdvanced implements IIn
             {
                 if (this.containingItems[1].stackSize + resultItemStack.stackSize > 64)
                 {
-                    for (int i = 0; i < this.containingItems[1].stackSize + resultItemStack.stackSize - 64; i++)
-                    {
-                        float var = 0.7F;
-                        double dx = this.worldObj.rand.nextFloat() * var + (1.0F - var) * 0.5D;
-                        double dy = this.worldObj.rand.nextFloat() * var + (1.0F - var) * 0.5D;
-                        double dz = this.worldObj.rand.nextFloat() * var + (1.0F - var) * 0.5D;
-                        EntityItem entityitem = new EntityItem(this.worldObj, this.getPos().getX() + dx, this.getPos().getY() + dy, this.getPos().getZ() + dz, new ItemStack(resultItemStack.getItem(), 1, resultItemStack.getItemDamage()));
-
-                        entityitem.setPickupDelay(10);
-
-                        this.worldObj.spawnEntityInWorld(entityitem);
-                    }
+                    resultItemStack.stackSize += this.containingItems[1].stackSize - 64;
+                    GCCoreUtil.spawnItem(this.worldObj, this.getPos(), resultItemStack);
                     this.containingItems[1].stackSize = 64;
                 }
                 else
@@ -569,41 +539,5 @@ public class TileEntityIngotCompressor extends TileEntityAdvanced implements IIn
     public boolean isNetworkedTile()
     {
         return true;
-    }
-
-    @Override
-    public int getField(int id)
-    {
-        return 0;
-    }
-
-    @Override
-    public void setField(int id, int value)
-    {
-
-    }
-
-    @Override
-    public int getFieldCount()
-    {
-        return 0;
-    }
-
-    @Override
-    public void clear()
-    {
-
-    }
-
-    @Override
-    public boolean hasCustomName()
-    {
-        return false;
-    }
-
-    @Override
-    public IChatComponent getDisplayName()
-    {
-        return null;
     }
 }

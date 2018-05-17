@@ -24,14 +24,13 @@ public class GuiSchematicBuggy extends GuiPositionedContainer implements ISchema
         this.ySize = 221;
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public void initGui()
     {
         super.initGui();
         this.buttonList.clear();
-        this.buttonList.add(new GuiButton(0, this.width / 2 - 130, this.height / 2 - 30 + 27 - 12, 40, 20, GCCoreUtil.translate("gui.button.back.name")));
-        this.buttonList.add(new GuiButton(1, this.width / 2 - 130, this.height / 2 - 30 + 27 + 12, 40, 20, GCCoreUtil.translate("gui.button.next.name")));
+        this.buttonList.add(new GuiButton(0, this.width / 2 - 130, this.height / 2 - 110, 40, 20, GCCoreUtil.translate("gui.button.back.name")));
+        this.buttonList.add(new GuiButton(1, this.width / 2 - 130, this.height / 2 - 110 + 25, 40, 20, GCCoreUtil.translate("gui.button.next.name")));
     }
 
     @Override
@@ -64,7 +63,7 @@ public class GuiSchematicBuggy extends GuiPositionedContainer implements ISchema
         GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
         this.mc.renderEngine.bindTexture(GuiSchematicBuggy.buggyBenchTexture);
         final int var5 = (this.width - this.xSize) / 2;
-        final int var6 = (this.height - 220) / 2;
+        final int var6 = (this.height - 221) / 2;
         this.drawTexturedModalRect(var5, var6, 0, 0, this.xSize, 220);
     }
 

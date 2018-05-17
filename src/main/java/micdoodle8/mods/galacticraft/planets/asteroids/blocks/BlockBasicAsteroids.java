@@ -19,6 +19,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.util.BlockPos;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.IStringSerializable;
+import net.minecraft.util.MathHelper;
 import net.minecraft.util.MovingObjectPosition;
 import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
@@ -32,7 +33,7 @@ import java.util.Random;
 
 public class BlockBasicAsteroids extends Block implements IDetectableResource, IPlantableBlock, ITerraformableBlock, ISortableBlock
 {
-    public static final PropertyEnum BASIC_TYPE = PropertyEnum.create("basicTypeAsteroids", EnumBlockBasic.class);
+    public static final PropertyEnum<EnumBlockBasic> BASIC_TYPE = PropertyEnum.create("basicTypeAsteroids", EnumBlockBasic.class);
 
     public enum EnumBlockBasic implements IStringSerializable
     {
@@ -41,7 +42,9 @@ public class BlockBasicAsteroids extends Block implements IDetectableResource, I
         ASTEROID_2(2, "asteroid_rock_2"),
         ORE_ALUMINUM(3, "ore_aluminum_asteroids"),
         ORE_ILMENITE(4, "ore_ilmenite_asteroids"),
-        ORE_IRON(5, "ore_iron_asteroids");
+        ORE_IRON(5, "ore_iron_asteroids"),
+        DECO(6, "asteroid_deco"),
+        TITANIUM_BLOCK(7, "titanium_block");
 
         private final int meta;
         private final String name;
@@ -134,10 +137,9 @@ public class BlockBasicAsteroids extends Block implements IDetectableResource, I
         }
     }
 
-    @SuppressWarnings({ "unchecked", "rawtypes" })
     @SideOnly(Side.CLIENT)
     @Override
-    public void getSubBlocks(Item par1, CreativeTabs par2CreativeTabs, List par3List)
+    public void getSubBlocks(Item par1, CreativeTabs par2CreativeTabs, List<ItemStack> par3List)
     {
         int var4;
 
@@ -224,7 +226,26 @@ public class BlockBasicAsteroids extends Block implements IDetectableResource, I
         case 4:
         case 5:
             return EnumSortCategoryBlock.ORE;
+        case 6:
+            return EnumSortCategoryBlock.DECORATION;
+        case 7:
+            return EnumSortCategoryBlock.INGOT_BLOCK;
         }
         return EnumSortCategoryBlock.GENERAL;
+    }
+
+    @Override
+    public int getExpDrop(IBlockAccess world, BlockPos pos, int fortune)
+    {
+        IBlockState state = world.getBlockState(pos);
+        if (state.getBlock() != this) return 0;
+        
+        int meta = this.getMetaFromState(state);
+        if (meta == 4)
+        {
+            Random rand = world instanceof World ? ((World)world).rand : new Random();
+            return MathHelper.getRandomIntegerInRange(rand, 2, 3);
+        }
+        return 0;
     }
 }

@@ -1,6 +1,7 @@
 package micdoodle8.mods.galacticraft.planets.asteroids.world.gen;
 
 import micdoodle8.mods.galacticraft.api.vector.BlockVec3;
+import micdoodle8.mods.galacticraft.api.world.ChunkProviderBase;
 import micdoodle8.mods.galacticraft.core.GCBlocks;
 import micdoodle8.mods.galacticraft.core.perlin.NoiseModule;
 import micdoodle8.mods.galacticraft.core.perlin.generator.Billowed;
@@ -11,20 +12,18 @@ import micdoodle8.mods.galacticraft.planets.asteroids.blocks.AsteroidBlocks;
 import micdoodle8.mods.galacticraft.planets.asteroids.dimension.WorldProviderAsteroids;
 import micdoodle8.mods.galacticraft.planets.asteroids.world.gen.base.MapGenAbandonedBase;
 import net.minecraft.block.*;
+import net.minecraft.block.BlockFlower.EnumFlowerType;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.EnumCreatureType;
 import net.minecraft.init.Blocks;
 import net.minecraft.util.BlockPos;
-import net.minecraft.util.IProgressUpdate;
 import net.minecraft.world.ChunkCoordIntPair;
-import net.minecraft.world.EnumSkyBlock;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.BiomeGenBase;
 import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.chunk.ChunkPrimer;
 import net.minecraft.world.chunk.IChunkProvider;
 import net.minecraft.world.chunk.storage.ExtendedBlockStorage;
-import net.minecraft.world.gen.ChunkProviderGenerate;
 import net.minecraft.world.gen.feature.WorldGenFlowers;
 import net.minecraft.world.gen.feature.WorldGenLakes;
 import net.minecraft.world.gen.feature.WorldGenTallGrass;
@@ -32,10 +31,11 @@ import net.minecraft.world.gen.feature.WorldGenTrees;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 
-public class ChunkProviderAsteroids extends ChunkProviderGenerate
+public class ChunkProviderAsteroids extends ChunkProviderBase
 {
     final Block ASTEROID_STONE = AsteroidBlocks.blockBasic;
     final byte ASTEROID_STONE_META_0 = 0;
@@ -115,7 +115,7 @@ public class ChunkProviderAsteroids extends ChunkProviderGenerate
     private static final int LAVA_CHANCE = 2;
     private static final int GLOWSTONE_CHANCE = 20;
 
-    private ArrayList<AsteroidData> largeAsteroids = new ArrayList<AsteroidData>();
+    private LinkedList<AsteroidData> largeAsteroids = new LinkedList<AsteroidData>();
     private int largeCount = 0;
     private static HashSet<BlockVec3> chunksDone = new HashSet<BlockVec3>();
     private int largeAsteroidsLastChunkX;
@@ -124,7 +124,6 @@ public class ChunkProviderAsteroids extends ChunkProviderGenerate
 
     public ChunkProviderAsteroids(World par1World, long par2, boolean par4)
     {
-        super(par1World, par2, par4, "");
         this.worldObj = par1World;
         this.rand = new Random(par2);
 
@@ -303,10 +302,21 @@ public class ChunkProviderAsteroids extends ChunkProviderGenerate
         double shellThickness = 0;
         int terrainY = 0;
         int terrainYY = 0;
+
+        IBlockState asteroidShell = null;
         if (shell != null)
         {
+            asteroidShell = shell.block.getStateFromMeta(shell.meta);
             shellThickness = 1.0 - shell.thickness;
         }
+        
+        IBlockState asteroidCore = core.block.getStateFromMeta(core.meta);
+        IBlockState asteroidRock0 = this.ASTEROID_STONE.getStateFromMeta(this.ASTEROID_STONE_META_0);
+        IBlockState asteroidRock1 = this.ASTEROID_STONE.getStateFromMeta(this.ASTEROID_STONE_META_1);
+        IBlockState airBlock = Blocks.air.getDefaultState();
+        IBlockState dirtBlock = this.DIRT.getStateFromMeta(this.DIRT_META);
+        IBlockState grassBlock = this.GRASS.getStateFromMeta(this.GRASS_META);
+        
         for (int x = xMax - 1; x >= xMin; x--)
         {
             int indexXY = (x - xMin) * ySize - yMin;
@@ -364,19 +374,19 @@ public class ChunkProviderAsteroids extends ChunkProviderGenerate
                         {
                             if (y == terrainY)
                             {
-                                primer.setBlockState(index, this.GRASS.getStateFromMeta(this.GRASS_META));
+                                primer.setBlockState(index, grassBlock);
 //                                blockArray[index] = this.GRASS;
 //                                metaArray[index] = this.GRASS_META;
                             }
                             else if (y < terrainY)
                             {
-                                primer.setBlockState(index, this.DIRT.getStateFromMeta(this.DIRT_META));
+                                primer.setBlockState(index, dirtBlock);
 //                                blockArray[index] = this.DIRT;
 //                                metaArray[index] = this.DIRT_META;
                             }
                             else
                             {
-                                primer.setBlockState(index, Blocks.air.getDefaultState());
+                                primer.setBlockState(index, airBlock);
 //                                blockArray[index] = Blocks.air;
 //                                metaArray[index] = 0;
                             }
@@ -385,26 +395,26 @@ public class ChunkProviderAsteroids extends ChunkProviderGenerate
                         {
                             if (rand.nextBoolean())
                             {
-                                primer.setBlockState(index, core.block.getStateFromMeta(core.meta));
+                                primer.setBlockState(index, asteroidCore);
 //	                        	blockArray[index] = core.block;
 //	                            metaArray[index] = core.meta;
                             }
                             else
                             {
-                                primer.setBlockState(index, this.ASTEROID_STONE.getStateFromMeta(this.ASTEROID_STONE_META_0));
+                                primer.setBlockState(index, asteroidRock0);
 //	                        	blockArray[index] = this.ASTEROID_STONE;
 //	                            metaArray[index] = this.ASTEROID_STONE_META_0;
                             }
                         }
                         else if (shell != null && distance >= shellThickness)
                         {
-                            primer.setBlockState(index, shell.block.getStateFromMeta(shell.meta));
+                            primer.setBlockState(index, asteroidShell);
 //                            blockArray[index] = shell.block;
 //                            metaArray[index] = shell.meta;
                         }
                         else
                         {
-                            primer.setBlockState(index, this.ASTEROID_STONE.getStateFromMeta(this.ASTEROID_STONE_META_1));
+                            primer.setBlockState(index, asteroidRock1);
 //                            blockArray[index] = this.ASTEROID_STONE;
 //                            metaArray[index] = this.ASTEROID_STONE_META_1;
                         }
@@ -535,15 +545,18 @@ public class ChunkProviderAsteroids extends ChunkProviderGenerate
         this.generateTerrain(par1, par2, primer, false);
         //this.biomesForGeneration = this.worldObj.getWorldChunkManager().loadBlockGeneratorData(this.biomesForGeneration, par1 * 16, par2 * 16, 16, 16);
 
-        this.dungeonGenerator.generate(this, this.worldObj, par1, par2, primer);
+        if (this.worldObj.provider instanceof WorldProviderAsteroids && ((WorldProviderAsteroids)this.worldObj.provider).checkHasAsteroids())
+        {
+            this.dungeonGenerator.generate(this, this.worldObj, par1, par2, primer);
+        }
 
 //        long time2 = System.nanoTime();
         final Chunk var4 = new Chunk(this.worldObj, primer, par1, par2);
-        final byte[] var5 = var4.getBiomeArray();
-
-        for (int var6 = 0; var6 < var5.length; ++var6)
+        final byte[] biomesArray = var4.getBiomeArray();
+        byte id = (byte) BiomeGenBaseAsteroids.asteroid.biomeID;
+        for (int i = 0; i < biomesArray.length; ++i)
         {
-            var5[var6] = (byte) BiomeGenBaseAsteroids.asteroid.biomeID;
+            biomesArray[i] = id;
         }
 
 //        long time3 = System.nanoTime();
@@ -597,12 +610,6 @@ public class ChunkProviderAsteroids extends ChunkProviderGenerate
     }
 
     @Override
-    public boolean chunkExists(int par1, int par2)
-    {
-        return true;
-    }
-
-    @Override
     public void populate(IChunkProvider par1IChunkProvider, int chunkX, int chunkZ)
     {
         int x = chunkX << 4;
@@ -630,6 +637,8 @@ public class ChunkProviderAsteroids extends ChunkProviderGenerate
             Block block;
             int meta;
             int yRange = ChunkProviderAsteroids.MAX_ASTEROID_Y - ChunkProviderAsteroids.MIN_ASTEROID_Y;
+            x += 4;
+            z += 4;
 
             for (int i = 0; i < numOfBlocks; i++)
             {
@@ -673,7 +682,7 @@ public class ChunkProviderAsteroids extends ChunkProviderGenerate
                     }
 
                     worldObj.setBlockState(new BlockPos(px, y, pz), block.getStateFromMeta(meta), 2);
-                    int count = 7;
+                    int count = 9;
                     if (!(worldObj.getBlockState(new BlockPos(px - 1, y, pz)).getBlock() instanceof BlockAir))
                     {
                         count = 1;
@@ -688,9 +697,9 @@ public class ChunkProviderAsteroids extends ChunkProviderGenerate
                     }
                     else if (!(worldObj.getBlockState(new BlockPos(px - 4, y, pz)).getBlock() instanceof BlockAir))
                     {
-                        count = 6;
+                        count = 7;
                     }
-                    worldObj.setLightFor(EnumSkyBlock.BLOCK, new BlockPos(px, y, pz), count);
+//LIGHTEMP                    worldObj.setLightFor(EnumSkyBlock.BLOCK, new BlockPos(px - (count > 1 ? 1 : 0), y, pz), count);
                 }
             }
         }
@@ -705,7 +714,7 @@ public class ChunkProviderAsteroids extends ChunkProviderGenerate
         //Look for hollow asteroids to populate
         if (!this.largeAsteroids.isEmpty())
         {
-            for (AsteroidData asteroidIndex : this.largeAsteroids)
+            for (AsteroidData asteroidIndex : new ArrayList<AsteroidData>(this.largeAsteroids))
             {
                 if (!asteroidIndex.isHollow)
                 {
@@ -720,7 +729,7 @@ public class ChunkProviderAsteroids extends ChunkProviderGenerate
                 int asteroidSize = asteroidIndex.asteroidSizeArray;
                 boolean treesdone = false;
                 
-                if(ConfigManagerCore.challengeMode || ConfigManagerCore.challengeAsteroidPopulation || rand.nextInt(ChunkProviderAsteroids.TREE_CHANCE) == 0)
+                if (ConfigManagerCore.challengeAsteroidPopulation || rand.nextInt(ChunkProviderAsteroids.TREE_CHANCE) == 0)
                 {
                     int treeType = rand.nextInt(3);
                     if (treeType == 1)
@@ -751,8 +760,8 @@ public class ChunkProviderAsteroids extends ChunkProviderGenerate
                 {
                     int i = rand.nextInt(16) + x + 8;
                     int k = rand.nextInt(16) + z + 8;
-                    BlockFlower.EnumFlowerType[] types = BlockFlower.EnumFlowerType.getTypes(BlockFlower.EnumFlowerColor.RED);
-                    new WorldGenFlowers(this.FLOWER, types[rand.nextInt(types.length)]).generate(worldObj, rand, new BlockPos(i, this.getTerrainHeightAt(i - x, k - z, sizeYArray, xMin, zMin, zSize, asteroidY, asteroidSize), k));
+                    int[] types = new int[]{2, 4, 5, 7};
+                    new WorldGenFlowers(this.FLOWER, EnumFlowerType.getType(BlockFlower.EnumFlowerColor.RED, types[rand.nextInt(types.length)])).generate(worldObj, rand, new BlockPos(i, this.getTerrainHeightAt(i - x, k - z, sizeYArray, xMin, zMin, zSize, asteroidY, asteroidSize), k));
                 }
                 if (rand.nextInt(ChunkProviderAsteroids.LAVA_CHANCE) == 0)
                 {
@@ -780,7 +789,7 @@ public class ChunkProviderAsteroids extends ChunkProviderGenerate
                 //Asteroid at min height 48, size 20, can't have lit blocks below 16
                 for (int y = 16; y < 240; y++)
                 {
-                    worldObj.checkLightFor(EnumSkyBlock.BLOCK, new BlockPos(xPos, y, zPos));
+//LIGHTTEMP                    worldObj.checkLightFor(EnumSkyBlock.BLOCK, new BlockPos(xPos, y, zPos));
                 }
             }
         }
@@ -931,11 +940,12 @@ public class ChunkProviderAsteroids extends ChunkProviderGenerate
                             {
                                 count = 12;
                             }
-                            chunk.setBlockState(new BlockPos(x - 1, y & 15, z), GCBlocks.brightAir.getStateFromMeta(15 - count));
+                            if (count > 12) count = 12;
+                            chunk.setBlockState(new BlockPos(x - 1, y, z), GCBlocks.brightAir.getStateFromMeta(13 - count));
                             ExtendedBlockStorage extendedblockstorage = chunk.getBlockStorageArray()[y >> 4];
                             if (extendedblockstorage != null)
                             {
-                                extendedblockstorage.setExtBlocklightValue(x - 1, y & 15, z, count);
+                                extendedblockstorage.setExtBlocklightValue(x - 1, y & 15, z, count + 2);
                             }
                         }
                     }
@@ -950,26 +960,7 @@ public class ChunkProviderAsteroids extends ChunkProviderGenerate
     {
         this.dungeonGenerator.reset();
     }
-    
-    @Override
-    public boolean saveChunks(boolean par1, IProgressUpdate par2IProgressUpdate)
-    {
-        return true;
-    }
 
-    @Override
-    public boolean canSave()
-    {
-        return true;
-    }
-
-    @Override
-    public String makeString()
-    {
-        return "RandomLevelSource";
-    }
-
-    @SuppressWarnings({ "unchecked", "rawtypes" })
     @Override
     public List<BiomeGenBase.SpawnListEntry> getPossibleCreatures(EnumCreatureType creatureType, BlockPos pos)
     {

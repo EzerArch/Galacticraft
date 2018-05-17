@@ -5,7 +5,7 @@ import micdoodle8.mods.galacticraft.core.GCFluids;
 import micdoodle8.mods.galacticraft.core.GalacticraftCore;
 import micdoodle8.mods.galacticraft.core.entities.player.GCPlayerStats;
 import micdoodle8.mods.galacticraft.core.inventory.IInventorySettable;
-import micdoodle8.mods.galacticraft.core.network.IPacketReceiver;
+import micdoodle8.mods.galacticraft.core.network.PacketDynamic;
 import micdoodle8.mods.galacticraft.core.network.PacketDynamicInventory;
 import micdoodle8.mods.galacticraft.core.util.FluidUtil;
 import micdoodle8.mods.galacticraft.core.util.WorldUtil;
@@ -16,19 +16,22 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.AxisAlignedBB;
+import net.minecraft.util.BlockPos;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.MathHelper;
 import net.minecraft.world.World;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidTank;
 import net.minecraftforge.fml.client.FMLClientHandler;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
-public abstract class EntityLanderBase extends EntityAdvancedMotion implements IInventorySettable, IPacketReceiver, IScaleableFuelLevel
+public abstract class EntityLanderBase extends EntityAdvancedMotion implements IInventorySettable, IScaleableFuelLevel
 {
     private final int FUEL_TANK_CAPACITY = 5000;
     public FluidTank fuelTank = new FluidTank(this.FUEL_TANK_CAPACITY);
@@ -37,6 +40,9 @@ public abstract class EntityLanderBase extends EntityAdvancedMotion implements I
     private UUID persistantRiderUUID;
     private Boolean shouldMoveClient;
     private Boolean shouldMoveServer;
+    private ArrayList prevData;
+    private boolean networkDataChanged;
+    private boolean syncAdjustFlag = false;
 
     public EntityLanderBase(World var1)
     {
@@ -65,6 +71,48 @@ public abstract class EntityLanderBase extends EntityAdvancedMotion implements I
         return this.shouldSendAdvancedMotionPacket();
     }
 
+    @Override
+    @SideOnly(Side.CLIENT)
+    public void setPositionAndRotation2(double x, double y, double z, float yaw, float pitch, int posRotationIncrements, boolean b)
+    {
+        super.setPositionAndRotation2(x, y, z, yaw, pitch, posRotationIncrements, b);
+        if (this.syncAdjustFlag && this.worldObj.isBlockLoaded(new BlockPos(x, 255D, z)))
+        {
+            EntityPlayer p = FMLClientHandler.instance().getClientPlayerEntity();
+            double dx = x - p.posX;
+            double dz = z - p.posZ;
+            if (dx * dx + dz * dz < 1024)
+            {
+                if (!this.worldObj.loadedEntityList.contains(this))
+                {
+                    try {
+                        this.worldObj.loadedEntityList.add(this);
+                    } catch (Exception e) { e.printStackTrace(); }
+                }
+
+                this.posX = x;
+                this.posY = y;
+                this.posZ = z;
+                
+                int cx = MathHelper.floor_double(x / 16.0D);
+                int cz = MathHelper.floor_double(z / 16.0D);
+
+                if (!this.addedToChunk || this.chunkCoordX != cx || this.chunkCoordZ != cz)
+                {
+                    if (this.addedToChunk && this.worldObj.isBlockLoaded(new BlockPos(this.chunkCoordX << 4, 255, this.chunkCoordZ << 4), true))
+                    {
+                        this.worldObj.getChunkFromChunkCoords(this.chunkCoordX, this.chunkCoordZ).removeEntityAtIndex(this, this.chunkCoordY);
+                    }
+
+                    this.addedToChunk = true;
+                    this.worldObj.getChunkFromChunkCoords(cx, cz).addEntity(this);
+                }
+                
+                this.syncAdjustFlag = false;
+            }
+        }
+    }
+    
     @Override
     public int getScaledFuelLevel(int i)
     {
@@ -261,7 +309,7 @@ public abstract class EntityLanderBase extends EntityAdvancedMotion implements I
             return false;
         }
 
-        return this.riddenByEntity != null && !this.onGround;
+        return !this.onGround;
     }
 
     public abstract double getInitialMotionY();
@@ -310,7 +358,15 @@ public abstract class EntityLanderBase extends EntityAdvancedMotion implements I
             objList.add(this.riddenByEntity == null ? -1 : this.riddenByEntity.getEntityId());
         }
 
+        this.networkDataChanged = !objList.equals(this.prevData);
+        this.prevData = objList;
         return objList;
+    }
+    
+    @Override
+    public boolean networkedDataChanged()
+    {
+        return this.networkDataChanged || this.shouldMoveClient == null || this.shouldMoveServer == null;
     }
 
     @Override
@@ -338,7 +394,12 @@ public abstract class EntityLanderBase extends EntityAdvancedMotion implements I
         {
             if (this.worldObj.isRemote)
             {
-                this.hasReceivedPacket = true;
+                if (!this.hasReceivedPacket)
+                {
+                    GalacticraftCore.packetPipeline.sendToServer(new PacketDynamic(this));
+                    this.hasReceivedPacket = true;
+                }
+
                 int cargoLength = buffer.readInt();
                 if (this.containedItems == null || this.containedItems.length == 0)
                 {
@@ -365,11 +426,13 @@ public abstract class EntityLanderBase extends EntityAdvancedMotion implements I
                                 {
                                     e = WorldUtil.forceRespawnClient(this.dimension, e.worldObj.getDifficulty().getDifficultyId(), e.worldObj.getWorldInfo().getTerrainType().getWorldTypeName(), ((EntityPlayerMP) e).theItemInWorldManager.getGameType().getID());
                                     e.mountEntity(this);
+                                    this.syncAdjustFlag = true;
                                 }
                             }
                             else
                             {
                                 e.mountEntity(this);
+                                this.syncAdjustFlag = true;
                             }
                         }
                     }
@@ -391,11 +454,13 @@ public abstract class EntityLanderBase extends EntityAdvancedMotion implements I
                                 {
                                     e = WorldUtil.forceRespawnClient(this.dimension, e.worldObj.getDifficulty().getDifficultyId(), e.worldObj.getWorldInfo().getTerrainType().getWorldTypeName(), ((EntityPlayerMP) e).theItemInWorldManager.getGameType().getID());
                                     e.mountEntity(this);
+                                    this.syncAdjustFlag = true;
                                 }
                             }
                             else
                             {
                                 e.mountEntity(this);
+                                this.syncAdjustFlag = true;
                             }
                         }
                     }
@@ -473,5 +538,15 @@ public abstract class EntityLanderBase extends EntityAdvancedMotion implements I
         }
 
         return id;
+    }
+
+    @Override
+    @SideOnly(Side.CLIENT)
+    public int getBrightnessForRender(float partialTicks)
+    {
+        double height = this.posY + (double)this.getEyeHeight();
+        if (height > 255D) height = 255D;
+        BlockPos blockpos = new BlockPos(this.posX, height, this.posZ);
+        return this.worldObj.isBlockLoaded(blockpos) ? this.worldObj.getCombinedLight(blockpos, 0) : 0;
     }
 }

@@ -3,6 +3,7 @@ package micdoodle8.mods.galacticraft.planets.asteroids.world.gen.base;
 import java.util.Random;
 
 import micdoodle8.mods.galacticraft.planets.asteroids.world.gen.base.BaseDeck.EnumBaseType;
+import micdoodle8.mods.galacticraft.planets.asteroids.world.gen.base.BaseRoom.EnumRoomType;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.nbt.NBTTagCompound;
 
@@ -17,6 +18,8 @@ public class BaseConfiguration
     private int roomDepth;
     private IBlockState wallBlock;
     private int roomsNo;
+    private int[] randomRoomTypes;
+    private EnumRoomType[] roomTypes = EnumRoomType.values();
 
     public BaseConfiguration()
     {
@@ -24,13 +27,53 @@ public class BaseConfiguration
 
     public BaseConfiguration(int yPosition, Random rand)
     {
-        this.yPosition = yPosition;
-        this.baseType = rand.nextInt(BaseDeck.EnumBaseType.values().length);
-        this.hangar = true;  //For testing!
-        this.roomHeight = BaseDeck.EnumBaseType.values()[this.baseType].height;
+        BaseDeck.EnumBaseType[] types = BaseDeck.EnumBaseType.values();
+        this.yPosition = yPosition - 2 + rand.nextInt(5);
+        this.baseType = rand.nextInt(types.length);
+        this.hangar = rand.nextInt(3) == 0;
+        this.roomHeight = types[this.baseType].height;
         this.roomDepth = this.hangar ? 7 : rand.nextInt(3) + 5;
-        this.wallBlock = BaseDeck.EnumBaseType.values()[this.baseType].wall;
-        this.roomsNo = rand.nextInt(3) + 2;
+        this.wallBlock = types[this.baseType].wall;
+        this.roomsNo = rand.nextInt(2) + 2;
+        this.createRandomRoomList(rand);
+    }
+
+    private void createRandomRoomList(Random rand)
+    {
+        int range = this.roomTypes.length;
+        int size =  this.hangar ? 8 : this.roomsNo * 6;
+        this.randomRoomTypes = new int[size];
+        for (int i = 0; i < size; i++)
+        {
+            this.randomRoomTypes[i] = i % range;
+        }
+        int index, temp;
+        for (int i = size - 1; i > 0; i--)
+        {
+            index = rand.nextInt(i + 1);
+            if (i == index) continue;
+            temp = this.randomRoomTypes[index];
+            this.randomRoomTypes[index] = this.randomRoomTypes[i];
+            this.randomRoomTypes[i] = temp;
+        }
+        
+        //Make sure there's a Cargo Loader on lower tier (50/50 chance this causes one other room to be missed completely, that's OK!)
+        if (this.hangar)
+        {
+            boolean storeFound = false;
+            for (int i = 0; i < 4; i++)
+            {
+                if (this.randomRoomTypes[i] == EnumRoomType.STORE.ordinal())
+                {
+                    storeFound = true;
+                    break;
+                }
+            }
+            if (!storeFound)
+            {
+                this.randomRoomTypes[rand.nextInt(4)] = EnumRoomType.STORE.ordinal();
+            }
+        }
     }
 
     public void writeToNBT(NBTTagCompound tagCompound)
@@ -102,7 +145,7 @@ public class BaseConfiguration
 
     public int getRoomsNo()
     {
-        return hangar ? 1 : roomsNo;
+        return hangar ? 2 : roomsNo;
     }
 
     public int getCorridorLength()
@@ -111,8 +154,13 @@ public class BaseConfiguration
             return BaseDeck.ROOMLARGE;
 
         if (getRoomsNo() == 2)
-            return BaseDeck.ROOMSMALL + BaseDeck.ROOMLARGE;
+            return BaseDeck.ROOMLARGE + BaseDeck.ROOMLARGE;
 
         return getRoomsNo() * BaseDeck.ROOMSMALL + 2 * (BaseDeck.ROOMLARGE - BaseDeck.ROOMSMALL);
+    }
+
+    public EnumRoomType getRandomRoom(int i)
+    {
+        return roomTypes[this.randomRoomTypes[i % this.randomRoomTypes.length]];
     }
 }

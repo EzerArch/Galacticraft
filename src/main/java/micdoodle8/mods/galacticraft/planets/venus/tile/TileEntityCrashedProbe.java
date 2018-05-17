@@ -1,25 +1,31 @@
 package micdoodle8.mods.galacticraft.planets.venus.tile;
 
+import micdoodle8.mods.galacticraft.core.inventory.IInventoryDefaults;
 import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.inventory.IInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.BlockPos;
-import net.minecraft.util.IChatComponent;
 import net.minecraft.world.World;
 
-public class TileEntityCrashedProbe extends TileEntity implements IInventory
+public class TileEntityCrashedProbe extends TileEntity implements IInventoryDefaults
 {
     private ItemStack[] containingItems = new ItemStack[6];
+    private boolean hasCoreToDrop;
 
     @Override
     public void readFromNBT(NBTTagCompound nbt)
     {
         super.readFromNBT(nbt);
+        if (nbt.hasKey("ctd"))
+        {
+            this.hasCoreToDrop = nbt.getBoolean("ctd");
+        }
+        else
+            this.hasCoreToDrop = true;   //Legacy compatibility with worlds generated before this key used
 
         NBTTagList items = nbt.getTagList("Items", 10);
         this.containingItems = new ItemStack[this.getSizeInventory()];
@@ -40,6 +46,7 @@ public class TileEntityCrashedProbe extends TileEntity implements IInventory
     public void writeToNBT(NBTTagCompound nbt)
     {
         super.writeToNBT(nbt);
+        nbt.setBoolean("ctd", this.hasCoreToDrop);
 
         final NBTTagList list = new NBTTagList();
 
@@ -151,54 +158,24 @@ public class TileEntityCrashedProbe extends TileEntity implements IInventory
     }
 
     @Override
-    public void openInventory(EntityPlayer player)
-    {
-    }
-
-    @Override
-    public void closeInventory(EntityPlayer player)
-    {
-    }
-
-    @Override
     public boolean isItemValidForSlot(int slotID, ItemStack itemstack)
     {
         return true;
     }
 
     @Override
-    public int getField(int id)
-    {
-        return 0;
-    }
-
-    @Override
-    public void setField(int id, int value)
-    {
-
-    }
-
-    @Override
-    public int getFieldCount()
-    {
-        return 0;
-    }
-
-    @Override
-    public void clear()
-    {
-
-    }
-
-    @Override
-    public IChatComponent getDisplayName()
-    {
-        return null;
-    }
-
-    @Override
     public boolean shouldRefresh(World world, BlockPos pos, IBlockState oldState, IBlockState newSate)
     {
         return oldState.getBlock() != newSate.getBlock();
+    }
+
+    public void setDropCore()
+    {
+        this.hasCoreToDrop = true;
+    }
+
+    public boolean getDropCore()
+    {
+        return this.hasCoreToDrop;
     }
 }

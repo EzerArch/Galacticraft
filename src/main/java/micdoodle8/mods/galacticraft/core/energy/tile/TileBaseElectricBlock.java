@@ -4,7 +4,6 @@ import com.google.common.collect.Lists;
 import micdoodle8.mods.galacticraft.api.tile.IDisableableMachine;
 import micdoodle8.mods.galacticraft.api.transmission.NetworkType;
 import micdoodle8.mods.galacticraft.api.transmission.tile.IConnector;
-import micdoodle8.mods.galacticraft.core.network.IPacketReceiver;
 import micdoodle8.mods.galacticraft.core.util.EnumColor;
 import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
 import micdoodle8.mods.galacticraft.core.util.RedstoneUtil;
@@ -23,7 +22,7 @@ import net.minecraftforge.fml.relauncher.Side;
 import java.util.EnumSet;
 import java.util.List;
 
-public abstract class TileBaseElectricBlock extends TileBaseUniversalElectrical implements IPacketReceiver, IDisableableMachine, IConnector
+public abstract class TileBaseElectricBlock extends TileBaseUniversalElectrical implements IDisableableMachine, IConnector
 {
     //	public int energyPerTick = 200;
     //	private final float ueMaxEnergy;
@@ -135,7 +134,10 @@ public abstract class TileBaseElectricBlock extends TileBaseUniversalElectrical 
 
     public void slowDischarge()
     {
-        this.storage.extractEnergyGC(0.5F, false);
+       	if (this.ticks % 10 == 0)
+       	{
+       	    this.storage.extractEnergyGC(5F, false);
+       	}
     }
 
     @Override
@@ -248,5 +250,45 @@ public abstract class TileBaseElectricBlock extends TileBaseUniversalElectrical 
         }
 
         return EnumColor.DARK_GREEN + GCCoreUtil.translate("gui.status.active.name");
+    }
+
+    /**
+     * @param missingInput = dynamically: null if all inputs are present, or a string if an input (e.g. oxygen, fuel) is missing
+     * @param activeString = the specific 'Running' / 'Processing' etc string for this machine
+     * @return
+     */
+    public String getGUIstatus(String missingInput, String activeString, boolean shorten)
+    {
+        if (!this.noRedstoneControl && RedstoneUtil.isBlockReceivingRedstone(this.worldObj, this.getPos()))
+        {
+            return EnumColor.DARK_RED + GCCoreUtil.translate("gui.status.off.name");
+        }
+
+        if (this.getEnergyStoredGC() == 0)
+        {
+            return EnumColor.DARK_RED + GCCoreUtil.translate(shorten ? "gui.status.missingpower.short.name" : "gui.status.missingpower.name");
+        }
+        
+        if (missingInput != null)
+        {
+            return missingInput;
+        }
+
+        if (this.getDisabled(0))
+        {
+            return EnumColor.ORANGE + GCCoreUtil.translate("gui.status.ready.name");
+        }
+
+        if (this.getEnergyStoredGC() < this.storage.getMaxExtract())
+        {
+            return EnumColor.ORANGE + GCCoreUtil.translate(shorten ? "gui.status.missingpower.short.name" : "gui.status.missingpower.name");
+        }
+
+        if (activeString != null)
+        {
+            return activeString;
+        }
+
+        return EnumColor.RED + GCCoreUtil.translate("gui.status.unknown.name");
     }
 }

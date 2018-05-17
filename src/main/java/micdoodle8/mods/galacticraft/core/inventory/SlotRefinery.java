@@ -1,12 +1,9 @@
 package micdoodle8.mods.galacticraft.core.inventory;
 
-import micdoodle8.mods.galacticraft.core.items.ItemOilCanister;
+import micdoodle8.mods.galacticraft.core.util.FluidUtil;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.inventory.Slot;
-import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-
-import java.lang.reflect.Field;
 
 public class SlotRefinery extends Slot
 {
@@ -16,33 +13,8 @@ public class SlotRefinery extends Slot
     }
 
     @Override
-    public boolean isItemValid(ItemStack par1ItemStack)
+    public boolean isItemValid(ItemStack stack)
     {
-        Class<?> buildCraftClass = null;
-
-        try
-        {
-            if ((buildCraftClass = Class.forName("buildcraft.BuildCraftEnergy")) != null)
-            {
-                for (final Field f : buildCraftClass.getFields())
-                {
-                    if (f.getName().equals("bucketOil"))
-                    {
-                        final Item item = (Item) f.get(null);
-
-                        if (par1ItemStack.getItem() == item)
-                        {
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-        catch (final Throwable cnfe)
-        {
-        }
-
-        return par1ItemStack.getItem() instanceof ItemOilCanister && par1ItemStack.getItemDamage() > 0;
-
+        return FluidUtil.isOilContainerAny(stack);
     }
 }

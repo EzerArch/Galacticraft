@@ -52,15 +52,23 @@ public class EntitySkeletonBoss extends EntityBossBase implements IEntityBreatha
         this.tasks.addTask(3, new EntityAIWatchClosest(this, EntityPlayer.class, 8.0F));
         this.tasks.addTask(3, new EntityAILookIdle(this));
         this.targetTasks.addTask(1, new EntityAIHurtByTarget(this, false));
-        this.targetTasks.addTask(2, new EntityAINearestAttackableTarget(this, EntityPlayer.class, false, true));
+        this.targetTasks.addTask(2, new EntityAINearestAttackableTarget<>(this, EntityPlayer.class, false, true));
     }
 
     @Override
     protected void applyEntityAttributes()
     {
         super.applyEntityAttributes();
-        this.getEntityAttribute(SharedMonsterAttributes.maxHealth).setBaseValue(150.0F * ConfigManagerCore.dungeonBossHealthMod);
-        this.getEntityAttribute(SharedMonsterAttributes.movementSpeed).setBaseValue(ConfigManagerCore.hardMode ? 0.4F : 0.25F);
+        double difficulty = 0;
+        switch (this.worldObj.getDifficulty())
+        {
+        case HARD : difficulty = 2D;
+            break;
+        case NORMAL : difficulty = 1D;
+            break;
+        }
+        this.getEntityAttribute(SharedMonsterAttributes.maxHealth).setBaseValue(150.0D * ConfigManagerCore.dungeonBossHealthMod);
+        this.getEntityAttribute(SharedMonsterAttributes.movementSpeed).setBaseValue(0.25D + 0.075 * difficulty);
     }
 
     @Override
@@ -94,8 +102,8 @@ public class EntitySkeletonBoss extends EntityBossBase implements IEntityBreatha
     {
         if (this.riddenByEntity != null)
         {
-            final double offsetX = Math.sin(-this.rotationYawHead * (Math.PI / 180.0D));
-            final double offsetZ = Math.cos(this.rotationYawHead * (Math.PI / 180.0D));
+            final double offsetX = Math.sin(-this.rotationYawHead / Constants.RADIANS_TO_DEGREES_D);
+            final double offsetZ = Math.cos(this.rotationYawHead / Constants.RADIANS_TO_DEGREES_D);
             final double offsetY = 2 * Math.cos((this.throwTimer + this.postThrowDelay) * 0.05F);
 
             this.riddenByEntity.setPosition(this.posX + offsetX, this.posY + this.getMountedYOffset() + this.riddenByEntity.getYOffset() + offsetY, this.posZ + offsetZ);
@@ -165,11 +173,6 @@ public class EntitySkeletonBoss extends EntityBossBase implements IEntityBreatha
     @Override
     public void onLivingUpdate()
     {
-        if (this.ticks >= Long.MAX_VALUE)
-        {
-            this.ticks = 1;
-        }
-
         this.ticks++;
 
         if (!this.worldObj.isRemote && this.getHealth() <= 150.0F * ConfigManagerCore.dungeonBossHealthMod / 2)
@@ -229,7 +232,7 @@ public class EntitySkeletonBoss extends EntityBossBase implements IEntityBreatha
             {
                 GalacticraftCore.packetPipeline.sendToAllAround(new PacketSimple(EnumSimplePacket.C_PLAY_SOUND_BOW, GCCoreUtil.getDimensionID(this.worldObj), new Object[] {}), new TargetPoint(GCCoreUtil.getDimensionID(this.worldObj), this.posX, this.posY, this.posZ, 40.0D));
             }
-            ((EntityPlayer) this.thrownEntity).attackedAtYaw = (float) (Math.atan2(d1, d0) * 180.0D / Math.PI) - this.rotationYaw;
+            ((EntityPlayer) this.thrownEntity).attackedAtYaw = (float) Math.atan2(d1, d0) * Constants.RADIANS_TO_DEGREES - this.rotationYaw;
 
             this.thrownEntity.isAirBorne = true;
             final float f = MathHelper.sqrt_double(d0 * d0 + d1 * d1);

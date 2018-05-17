@@ -4,7 +4,6 @@ import net.minecraft.block.Block;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraftforge.fml.common.FMLLog;
 import net.minecraftforge.oredict.OreDictionary;
 
 import java.util.ArrayList;
@@ -14,7 +13,7 @@ import java.util.List;
 
 public class SpaceStationRecipe
 {
-    private final HashMap<Object, Integer> input = new HashMap<Object, Integer>();
+    private final HashMap<Object, Integer> input = new HashMap<Object, Integer>(4, 1.0F);
 
     /**
      * @param objMap a map of the items required. Each entry should be an object of
@@ -42,7 +41,6 @@ public class SpaceStationRecipe
             else if (obj instanceof String)
             {
                 List<ItemStack> stacks = OreDictionary.getOres((String) obj);
-                FMLLog.info("While registering space station recipe, found " + stacks.size() + " type(s) of " + obj);
                 this.input.put(stacks, amount);
             }
             else if (obj instanceof ArrayList)
@@ -89,9 +87,9 @@ public class SpaceStationRecipe
                             amountInInv += slot.stackSize;
                         }
                     }
-                    else if (next instanceof ArrayList)
+                    else if (next instanceof List)
                     {
-                        for (final ItemStack item : (ArrayList<ItemStack>) next)
+                        for (final ItemStack item : (List<ItemStack>) next)
                         {
                             if (SpaceStationRecipe.checkItemEquals(item, slot))
                             {
@@ -130,6 +128,7 @@ public class SpaceStationRecipe
             final int amountRequired = required.get(next);
             int amountRemoved = 0;
 
+            InventoryLoop:
             for (int x = 0; x < player.inventory.getSizeInventory(); x++)
             {
                 final ItemStack slot = player.inventory.getStackInSlot(x);
@@ -153,11 +152,12 @@ public class SpaceStationRecipe
 
                             player.inventory.setInventorySlotContents(x, newStack);
                             amountRemoved += amountToRemove;
+                            if (amountRemoved == amountRequired) break;
                         }
                     }
-                    else if (next instanceof ArrayList)
+                    else if (next instanceof List)
                     {
-                        for (final ItemStack item : (ArrayList<ItemStack>) next)
+                        for (final ItemStack item : (List<ItemStack>) next)
                         {
                             if (SpaceStationRecipe.checkItemEquals(item, slot))
                             {
@@ -172,6 +172,7 @@ public class SpaceStationRecipe
 
                                 player.inventory.setInventorySlotContents(x, newStack);
                                 amountRemoved += amountToRemove;
+                                if (amountRemoved == amountRequired) break InventoryLoop;
                             }
                         }
                     }

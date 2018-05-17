@@ -1,5 +1,6 @@
 package micdoodle8.mods.galacticraft.planets.asteroids.client.render.item;
 
+import micdoodle8.mods.galacticraft.core.Constants;
 import micdoodle8.mods.galacticraft.core.util.ClientUtil;
 import micdoodle8.mods.galacticraft.core.wrappers.ModelTransformWrapper;
 import net.minecraft.client.renderer.block.model.ItemCameraTransforms.TransformType;
@@ -45,7 +46,6 @@ public class ItemModelAstroMiner extends ModelTransformWrapper
             ret.mul(mul);
             return ret;
         }
-
         if (cameraTransformType == TransformType.FIRST_PERSON)
         {
             Vector3f trans = new Vector3f(0.5F, -0.2F, -1.1F);
@@ -56,7 +56,7 @@ public class ItemModelAstroMiner extends ModelTransformWrapper
             mul.setScale(4.0F);
             ret.mul(mul);
             mul.setIdentity();
-            mul.rotX((float) (Math.PI / 2.0F));
+            mul.rotX(Constants.halfPI);
             ret.mul(mul);
             mul.setIdentity();
             mul.rotZ(-0.65F);
@@ -69,10 +69,9 @@ public class ItemModelAstroMiner extends ModelTransformWrapper
             ret.mul(mul);
             return ret;
         }
-
         if (cameraTransformType == TransformType.THIRD_PERSON)
         {
-            Vector3f trans = new Vector3f(-0.2F, -0.0F, 0.7F);
+            Vector3f trans = new Vector3f(-0.2F, -0.0F, 0.5F);
             Matrix4f ret = new Matrix4f();
             ret.setIdentity();
             Matrix4f mul = new Matrix4f();
@@ -80,10 +79,10 @@ public class ItemModelAstroMiner extends ModelTransformWrapper
             mul.setScale(0.8F);
             ret.mul(mul);
             mul.setIdentity();
-            mul.rotZ((float) (Math.PI / 2.0F));
+            mul.rotZ(Constants.halfPI);
             ret.mul(mul);
             mul.setIdentity();
-            mul.rotY((float) (Math.PI / 2.0F));
+            mul.rotY(Constants.halfPI);
             ret.mul(mul);
             mul.setIdentity();
             mul.rotX(0.2F);
@@ -105,7 +104,35 @@ public class ItemModelAstroMiner extends ModelTransformWrapper
             ret.mul(mul);
             return ret;
         }
-
+        if (cameraTransformType == TransformType.GROUND)
+        {
+            Matrix4f ret = new Matrix4f();
+            ret.setIdentity();
+            Matrix4f mul = new Matrix4f();
+            mul.setIdentity();
+            mul.setScale(0.75F);
+            ret.mul(mul);
+            mul.setIdentity();
+            mul.setTranslation(new Vector3f(0.25F, 0.25F, 0.25F));
+            ret.mul(mul);
+            return ret;
+        }
+        if (cameraTransformType == TransformType.FIXED)
+        {
+            Matrix4f ret = new Matrix4f();
+            ret.setIdentity();
+            Matrix4f mul = new Matrix4f();
+            mul.setIdentity();
+            mul.setScale(0.5F);
+            ret.mul(mul);
+            mul.setIdentity();
+            mul.rotY(1.6F);
+            ret.mul(mul);
+            mul.setIdentity();
+            mul.setTranslation(new Vector3f(0.25F, 0.25F, 0.3F));
+            ret.mul(mul);
+            return ret;
+        }
         return null;
     }
 }

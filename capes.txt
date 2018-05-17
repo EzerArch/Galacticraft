@@ -83,7 +83,6 @@ Krazymonkey151:capeRainbow
 Knightblock:capeLightBlue
 FinnDragon12034:capeRainbow
 Strachey:capeYellow
-buddy1913:capeOrange
 JacobiCarter:capeLime
 afoolishmoon:capeBrown
 LokeYourLord:capeRainbow
@@ -100,3 +99,7 @@ Nomad043:capeLightGray
 Malstrim:capePurple
 CthulhuTheElder:capeCyan
 Akahito666:capeRainbow
+Timsuper2:capeOrange
+Sonic_Blender:capeLightGray
+xX_CreeperMr_Xx:capeRainbow
+Santiv:capePurple

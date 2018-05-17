@@ -1,14 +1,18 @@
 package micdoodle8.mods.galacticraft.api.prefab.world.gen;
 
 import micdoodle8.mods.galacticraft.api.vector.Vector3;
-import micdoodle8.mods.galacticraft.api.world.IAtmosphericGas;
+import micdoodle8.mods.galacticraft.api.world.EnumAtmosphericGas;
 import micdoodle8.mods.galacticraft.api.world.IGalacticraftWorldProvider;
 import micdoodle8.mods.galacticraft.core.util.ConfigManagerCore;
+import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
+import micdoodle8.mods.galacticraft.core.util.JavaUtil;
+import net.minecraft.command.CommandTime;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.BlockPos;
 import net.minecraft.util.MathHelper;
 import net.minecraft.util.Vec3;
+import net.minecraft.village.VillageCollection;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldProvider;
 import net.minecraft.world.biome.WorldChunkManager;
@@ -18,10 +22,27 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.util.Arrays;
 
 public abstract class WorldProviderSpace extends WorldProvider implements IGalacticraftWorldProvider
 {
+    private long timeCurrentOffset = 0L;
+    public long preTickTime = Long.MIN_VALUE;
+    private long saveTCO = 0L;
+    static Field tickCounter;
+    
+    static
+    {
+        try
+        {
+            tickCounter = VillageCollection.class.getDeclaredField(GCCoreUtil.isDeobfuscated() ? "tickCounter" : "field_75553_e");
+        } catch (Exception e) 
+        {
+            e.printStackTrace();
+        }
+    }
+    
     /**
      * The fog color in this dimension
      */
@@ -73,14 +94,36 @@ public abstract class WorldProviderSpace extends WorldProvider implements IGalac
     }
 
     @Override
-    public boolean isGasPresent(IAtmosphericGas gas)
-    {
-        return this.getCelestialBody().atmosphere.contains(gas);
-    }
-
-    @Override
     public void updateWeather()
     {
+        if (!this.worldObj.isRemote)
+        {
+            long newTime = worldObj.getWorldInfo().getWorldTime();
+            if (this.preTickTime == Long.MIN_VALUE)
+            {
+                //First tick: get the timeCurrentOffset from saved ticks in villages.dat :)
+                int savedTick = 0;
+                try {
+                    tickCounter.setAccessible(true);
+                    savedTick = tickCounter.getInt(this.worldObj.villageCollectionObj);
+                    if (savedTick < 0) savedTick = 0;
+                } catch (Exception ignore) { }
+                this.timeCurrentOffset = savedTick - newTime;
+            }
+            else
+            {
+                //Detect jumps in world time (e.g. because of bed use on Overworld) and reverse them for this world
+                long diff = (newTime - this.preTickTime);
+                if (diff > 1L)
+                {
+                    this.timeCurrentOffset -= diff - 1L;
+                    this.saveTime();
+                }
+            }
+            this.preTickTime = newTime;
+            this.saveTCO = 0L;
+        }
+        
         if (this.shouldDisablePrecipitation())
         {
             this.worldObj.getWorldInfo().setRainTime(0);
@@ -92,8 +135,16 @@ public abstract class WorldProviderSpace extends WorldProvider implements IGalac
         }
         else
         {
-            super.updateWeather();
+            this.updateWeatherOverride();
         }
+    }
+
+    /*
+     * Override this to circumvent vanilla updateWeather()
+     */
+    protected void updateWeatherOverride()
+    {
+        super.updateWeather();
     }
 
     @Override
@@ -115,9 +166,78 @@ public abstract class WorldProviderSpace extends WorldProvider implements IGalac
     }
 
     @Override
+    public boolean isGasPresent(EnumAtmosphericGas gas)
+    {
+        return this.getCelestialBody().atmosphere.isGasPresent(gas);
+    }
+
+    @Override
+    public boolean hasNoAtmosphere()
+    {
+        return this.getCelestialBody().atmosphere.hasNoGases();
+    }
+
+    @Override
+    public boolean hasBreathableAtmosphere()
+    {
+        return this.getCelestialBody().atmosphere.isBreathable();
+    }
+    
+    @Override
+    public boolean shouldDisablePrecipitation()
+    {
+        return !this.getCelestialBody().atmosphere.hasPrecipitation();
+    }
+
+    @Override
+    public float getSoundVolReductionAmount()
+    {
+        float d = this.getCelestialBody().atmosphere.relativeDensity();
+        if (d <= 0.0F)
+        {
+            return 20.0F;
+        }
+        if (d > 5.0F)
+        {
+            return 0.2F;
+        }
+        return 1.0F / d;
+    }
+
+    @Override
+    public double getMeteorFrequency()
+    {
+        float d = this.getCelestialBody().atmosphere.relativeDensity();
+        if (d <= 0.0F)
+        {
+            return 5.0D;
+        }
+        return d * 100D; 
+    }
+
+    @Override
+    public float getThermalLevelModifier()
+    {
+        return this.getCelestialBody().atmosphere.thermalLevel();
+    }
+    
+    @Override
+    public float getWindLevel()
+    {
+        return this.getCelestialBody().atmosphere.windLevel();
+    }
+
+    @Override
+    public boolean shouldCorrodeArmor()
+    {
+        return this.getCelestialBody().atmosphere.isCorrosive();
+    }
+
+    @Override
     public boolean canBlockFreeze(BlockPos pos, boolean byWater)
     {
-        return !this.shouldDisablePrecipitation();
+        //TODO: if block is water and world temperature is low, freeze
+        return super.canBlockFreeze(pos, byWater);
     }
 
     @Override
@@ -133,6 +253,12 @@ public abstract class WorldProviderSpace extends WorldProvider implements IGalac
     }
 
     @Override
+    public float getSolarSize()
+    {
+        return 1.0F / this.getCelestialBody().getRelativeDistanceFromCenter().unScaledDistance;
+    }
+
+    @Override
     public float[] calcSunriseSunsetColors(float var1, float var2)
     {
         return this.hasSunset() ? super.calcSunriseSunsetColors(var1, var2) : null;
@@ -141,6 +267,7 @@ public abstract class WorldProviderSpace extends WorldProvider implements IGalac
     @Override
     public float calculateCelestialAngle(long par1, float par3)
     {
+        par1 = this.getWorldTime();
         int j = (int) (par1 % this.getDayLength());
         float f1 = (j + par3) / this.getDayLength() - 0.25F;
 
@@ -231,12 +358,6 @@ public abstract class WorldProviderSpace extends WorldProvider implements IGalac
         return !ConfigManagerCore.forceOverworldRespawn;
     }
 
-    @Override
-    public boolean hasBreathableAtmosphere()
-    {
-        return this.isGasPresent(IAtmosphericGas.OXYGEN) && !this.isGasPresent(IAtmosphericGas.CO2);
-    }
-
     /**
      * If false (the default) then Nether Portals will have no function on this world.
      * Nether Portals can still be constructed, if the player can make fire, they just
@@ -250,6 +371,12 @@ public abstract class WorldProviderSpace extends WorldProvider implements IGalac
         return false;
     }
 
+    @Override
+    public float getArrowGravity()
+    {
+        return 0.005F;
+    }
+    
     @Override
     public IChunkProvider createChunkGenerator()
     {
@@ -318,9 +445,80 @@ public abstract class WorldProviderSpace extends WorldProvider implements IGalac
         return false;
     }
 
+    //Work around vanilla feature: worlds which are not the Overworld cannot change the time, as the worldInfo is a DerivedWorldInfo
+    //Therefore each Galacticraft dimension maintains its own timeCurrentOffset
     @Override
-    public float getSolarSize()
+    public void setWorldTime(long time)
     {
-        return 1.0F / this.getCelestialBody().getRelativeDistanceFromCenter().unScaledDistance;
+        worldObj.getWorldInfo().setWorldTime(time);
+        if (!worldObj.isRemote)
+        {
+            if (JavaUtil.instance.isCalledBy(CommandTime.class))
+            {
+                this.timeCurrentOffset = this.saveTCO;
+                this.saveTime();
+                this.preTickTime = time;
+            }
+            else
+            {
+                long newTCO = time - worldObj.getWorldInfo().getWorldTime();
+                long diff = newTCO - this.timeCurrentOffset;
+                if (diff > 1L || diff < -1L)
+                {
+                    this.timeCurrentOffset = newTCO; 
+                    this.saveTime();
+                    this.preTickTime = time;
+                }
+            }
+            this.saveTCO = 0;
+        }
+    }
+
+    @Override
+    public long getWorldTime()
+    {
+        if (JavaUtil.instance.isCalledBy(CommandTime.class))
+        {
+            this.saveTCO  = this.timeCurrentOffset;
+        }
+        return worldObj.getWorldInfo().getWorldTime() + this.timeCurrentOffset;
+    }
+    
+    /**
+     * Adjust time offset on Galacticraft worlds when the Overworld time jumps and you don't want the time
+     * on all the other Galacticraft worlds to jump also - see WorldUtil.setNextMorning() for example
+     */
+    public void adjustTimeOffset(long diff)
+    {
+        if (diff != 0L)
+        {
+            this.timeCurrentOffset -= diff;
+            this.preTickTime += diff;
+            this.saveTime();
+        }
+    }
+    
+    public void adjustTime(long newTime)
+    {
+        long diff = newTime - this.preTickTime;
+        if (diff != 0L)
+        {
+            this.timeCurrentOffset -= diff;
+            this.preTickTime = newTime;
+            this.saveTime();
+        }
+    }
+    
+    /**
+     * Save this world's custom time (from timeCurrentOffset) into this world's villages.dat :)
+     */
+    private void saveTime()
+    {
+        try {
+            VillageCollection vc = this.worldObj.villageCollectionObj;
+            tickCounter.setAccessible(true);
+            tickCounter.setInt(vc, (int) (this.getWorldTime()));
+            vc.markDirty();
+        } catch (Exception ignore) { }
     }
 }

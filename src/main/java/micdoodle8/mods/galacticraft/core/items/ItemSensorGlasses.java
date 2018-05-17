@@ -1,5 +1,6 @@
 package micdoodle8.mods.galacticraft.core.items;
 
+import micdoodle8.mods.galacticraft.api.item.ISensorGlassesArmor;
 import micdoodle8.mods.galacticraft.core.Constants;
 import micdoodle8.mods.galacticraft.core.GCItems;
 import micdoodle8.mods.galacticraft.core.GalacticraftCore;
@@ -16,13 +17,19 @@ import net.minecraft.item.ItemStack;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-public class ItemSensorGlasses extends ItemArmor implements ISortableItem
+public class ItemSensorGlasses extends ItemArmor implements ISortableItem, ISensorGlassesArmor
 {
     public ItemSensorGlasses(String assetName)
     {
         super(GCItems.ARMOR_SENSOR_GLASSES, 0, 0);
         this.setUnlocalizedName(assetName);
         //this.setTextureName(Constants.TEXTURE_PREFIX + assetName);
+    }
+
+    @Override
+    public boolean isItemTool(ItemStack stack)
+    {
+        return false;
     }
 
     @Override

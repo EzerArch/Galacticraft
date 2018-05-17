@@ -1,5 +1,6 @@
 package micdoodle8.mods.galacticraft.core.blocks;
 
+import micdoodle8.mods.galacticraft.core.GCBlocks;
 import micdoodle8.mods.galacticraft.core.GalacticraftCore;
 import micdoodle8.mods.galacticraft.core.util.EnumSortCategoryBlock;
 import net.minecraft.block.Block;
@@ -27,7 +28,7 @@ import java.util.Random;
 
 public class BlockSlabGC extends BlockSlab implements ISortableBlock
 {
-    public static PropertyEnum VARIANT = PropertyEnum.create("variant", BlockType.class);
+    public final static PropertyEnum<BlockType> VARIANT = PropertyEnum.create("variant", BlockType.class);
 
     public BlockSlabGC(String name, Material material)
     {
@@ -45,7 +46,7 @@ public class BlockSlabGC extends BlockSlab implements ISortableBlock
     @SideOnly(Side.CLIENT)
     public void getSubBlocks(Item item, CreativeTabs creativeTabs, List<ItemStack> list)
     {
-        for (int i = 0; i < (GalacticraftCore.isPlanetsLoaded ? 6 : 4); ++i)
+        for (int i = 0; i < (GalacticraftCore.isPlanetsLoaded ? 7 : 4); ++i)
         {
             list.add(new ItemStack(this, 1, i));
         }
@@ -60,13 +61,19 @@ public class BlockSlabGC extends BlockSlab implements ISortableBlock
     @Override
     public Item getItemDropped(IBlockState state, Random rand, int fortune)
     {
-        return Item.getItemFromBlock(this);
+        return Item.getItemFromBlock(GCBlocks.slabGCHalf);
+    }
+
+    @Override
+    public int quantityDropped(Random rand)
+    {
+        return this.isDouble() ? 2 : 1;
     }
 
     @Override
     public CreativeTabs getCreativeTabToDisplayOn()
     {
-        return GalacticraftCore.galacticraftBlocksTab;
+        return this.isDouble() ? null : GalacticraftCore.galacticraftBlocksTab;
     }
 
     @Override
@@ -115,7 +122,7 @@ public class BlockSlabGC extends BlockSlab implements ISortableBlock
     }
 
     @Override
-    public IProperty getVariantProperty()
+    public IProperty<?> getVariantProperty()
     {
         return VARIANT;
     }
@@ -165,12 +172,13 @@ public class BlockSlabGC extends BlockSlab implements ISortableBlock
 
     public enum BlockType implements IStringSerializable
     {
-        TIN_SLAB_1(0, "tin_slab"),
-        TIN_SLAB_2(1, "tin_slab"),
+        TIN_SLAB_1(0, "tin_slab_1"),
+        TIN_SLAB_2(1, "tin_slab_2"),
         MOON_STONE_SLAB(2, "moon_slab"),
         MOON_DUNGEON_BRICK_SLAB(3, "moon_bricks_slab"),
         MARS_COBBLESTONE_SLAB(4, "mars_slab"),
-        MARS_DUNGEON_SLAB(5, "mars_bricks_slab");
+        MARS_DUNGEON_SLAB(5, "mars_bricks_slab"),
+        ASTEROIDS_DECO(6, "asteroids_slab");
 
         private int meta;
         private String langName;
@@ -191,7 +199,7 @@ public class BlockSlabGC extends BlockSlab implements ISortableBlock
         @Override
         public String getName()
         {
-            return this.name();
+            return this.langName;
         }
 
         public int getMetadata()

@@ -2,6 +2,7 @@ package micdoodle8.mods.galacticraft.core.inventory;
 
 import micdoodle8.mods.galacticraft.api.item.IItemElectric;
 import micdoodle8.mods.galacticraft.core.GCItems;
+import micdoodle8.mods.galacticraft.core.energy.EnergyUtil;
 import micdoodle8.mods.galacticraft.core.tile.TileEntityRefinery;
 import micdoodle8.mods.galacticraft.core.util.FluidUtil;
 import net.minecraft.entity.player.EntityPlayer;
@@ -19,7 +20,7 @@ public class ContainerRefinery extends Container
         this.tileEntity = tileEntity;
 
         // Electric Input Slot
-        this.addSlotToContainer(new SlotSpecific(tileEntity, 0, 50, 51, IItemElectric.class));
+        this.addSlotToContainer(new SlotSpecific(tileEntity, 0, 38, 51, IItemElectric.class));
 
         // To be smelted
         this.addSlotToContainer(new Slot(tileEntity, 1, 7, 7));
@@ -86,7 +87,7 @@ public class ContainerRefinery extends Container
             }
             else
             {
-                if (var4.getItem() instanceof IItemElectric)
+                if (EnergyUtil.isElectricItem(var4.getItem()))
                 {
                     if (!this.mergeItemStack(var4, 0, 1, false))
                     {

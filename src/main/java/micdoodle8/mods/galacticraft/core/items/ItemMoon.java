@@ -49,9 +49,8 @@ public class ItemMoon extends ItemDesc implements ISortableItem
         return super.getIconFromDamage(damage);
     }*/
 
-    @SuppressWarnings({ "unchecked", "rawtypes" })
     @Override
-    public void getSubItems(Item par1, CreativeTabs par2CreativeTabs, List par3List)
+    public void getSubItems(Item par1, CreativeTabs par2CreativeTabs, List<ItemStack> par3List)
     {
         for (int i = 0; i < ItemMoon.names.length; i++)
         {
@@ -118,5 +117,16 @@ public class ItemMoon extends ItemDesc implements ISortableItem
     public boolean showDescription(int meta)
     {
         return meta == 2;
+    }
+
+    @Override
+    public float getSmeltingExperience(ItemStack item)
+    {
+        switch (item.getItemDamage())
+        {
+        case 1:
+            return 1F;
+        }
+        return -1F;
     }
 }

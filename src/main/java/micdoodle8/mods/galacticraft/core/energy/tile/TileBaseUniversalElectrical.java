@@ -13,12 +13,17 @@ import micdoodle8.mods.galacticraft.api.transmission.tile.IConductor;
 import micdoodle8.mods.galacticraft.api.transmission.tile.IElectrical;
 import micdoodle8.mods.galacticraft.core.energy.EnergyConfigHandler;
 import micdoodle8.mods.galacticraft.core.tile.ReceiverMode;
+import micdoodle8.mods.galacticraft.core.util.CompatibilityManager;
 import micdoodle8.mods.miccore.Annotations.RuntimeInterface;
+import net.minecraft.block.state.IBlockState;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.BlockPos;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.MathHelper;
+import net.minecraft.world.World;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.eventhandler.Event;
 
@@ -301,10 +306,9 @@ public abstract class TileBaseUniversalElectrical extends EnergyStorageTile
         {
             try
             {
-                Class<?> tileLoadEvent = Class.forName("ic2.api.energy.event.EnergyTileLoadEvent");
-                Object o = tileLoadEvent.getConstructor(IEnergyTile.class).newInstance(this);
+                Object o = CompatibilityManager.classIC2tileEventLoad.getConstructor(IEnergyTile.class).newInstance(this);
 
-                if (o != null && o instanceof Event)
+                if (o instanceof Event)
                 {
                     MinecraftForge.EVENT_BUS.post((Event) o);
                 }
@@ -326,10 +330,9 @@ public abstract class TileBaseUniversalElectrical extends EnergyStorageTile
             {
                 try
                 {
-                    Class<?> tileLoadEvent = Class.forName("ic2.api.energy.event.EnergyTileUnloadEvent");
-                    Object o = tileLoadEvent.getConstructor(IEnergyTile.class).newInstance(this);
+                    Object o = CompatibilityManager.classIC2tileEventUnload.getConstructor(IEnergyTile.class).newInstance(this);
 
-                    if (o != null && o instanceof Event)
+                    if (o instanceof Event)
                     {
                         MinecraftForge.EVENT_BUS.post((Event) o);
                     }
@@ -376,11 +379,12 @@ public abstract class TileBaseUniversalElectrical extends EnergyStorageTile
     @RuntimeInterface(clazz = "ic2.api.energy.tile.IEnergySink", modID = "IC2")
     public double injectEnergy(EnumFacing direction, double amount, double voltage)
     {
-        if (!EnergyConfigHandler.disableIC2Input && (direction == null || this.getElectricalInputDirections().contains(direction)))
+        //IC2 in 1.8.9 seems to have reversed the sense of direction here, but not in acceptsEnergyFrom.  (Seriously?!)
+        if (!EnergyConfigHandler.disableIC2Input && (direction == null || this.getElectricalInputDirections().contains(direction.getOpposite())))
         {
             float convertedEnergy = (float) amount * EnergyConfigHandler.IC2_RATIO;
-            int tierFromIC2 = ((int) voltage > 120) ? 2 : 1;
-            float receive = this.receiveElectricity(direction, convertedEnergy, tierFromIC2, true);
+            int tierFromIC2 = ((int) voltage > 120) ? (((int) voltage > 256) ? 4 : 2) : 1;
+            float receive = this.receiveElectricity(direction == null ? null : direction.getOpposite(), convertedEnergy, tierFromIC2, true);
 
             if (convertedEnergy > receive)
             {
@@ -430,12 +434,6 @@ public abstract class TileBaseUniversalElectrical extends EnergyStorageTile
         }
 
         return MathHelper.floor_float(super.receiveElectricity(from, maxReceive * EnergyConfigHandler.RF_RATIO, 1, !simulate) / EnergyConfigHandler.RF_RATIO);
-    }
-
-    @RuntimeInterface(clazz = "cofh.api.energy.IEnergyHandler", modID = "")
-    public int extractEnergy(EnumFacing from, int maxExtract, boolean simulate)
-    {
-        return 0;
     }
 
     @RuntimeInterface(clazz = "cofh.api.energy.IEnergyHandler", modID = "")
@@ -543,6 +541,20 @@ public abstract class TileBaseUniversalElectrical extends EnergyStorageTile
             //(Maybe there is an internal refresh() method but it's not in the API)
             this.unloadTileIC2();
             //This will do an initIC2 on next tick update.
+        }
+    }
+
+    public static void onUseWrenchBlock(IBlockState state, World world, BlockPos pos, EnumFacing facing)
+    {
+        int metadata = state.getBlock().getMetaFromState(world.getBlockState(pos));
+        int change = facing.rotateY().getHorizontalIndex();
+
+        world.setBlockState(pos, state.getBlock().getStateFromMeta(metadata - (metadata % 4) + change), 3);
+
+        TileEntity te = world.getTileEntity(pos);
+        if (te instanceof TileBaseUniversalElectrical)
+        {
+            ((TileBaseUniversalElectrical) te).updateFacing();
         }
     }
 }

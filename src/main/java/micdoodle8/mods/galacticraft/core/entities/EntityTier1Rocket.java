@@ -4,6 +4,7 @@ import micdoodle8.mods.galacticraft.api.prefab.entity.EntityTieredRocket;
 import micdoodle8.mods.galacticraft.api.tile.IFuelDock;
 import micdoodle8.mods.galacticraft.api.vector.Vector3;
 import micdoodle8.mods.galacticraft.api.world.IGalacticraftWorldProvider;
+import micdoodle8.mods.galacticraft.core.Constants;
 import micdoodle8.mods.galacticraft.core.GCItems;
 import micdoodle8.mods.galacticraft.core.GalacticraftCore;
 import micdoodle8.mods.galacticraft.core.entities.player.GCPlayerStats;
@@ -50,7 +51,7 @@ public class EntityTier1Rocket extends EntityTieredRocket
     @Override
     public float getRotateOffset()
     {
-        return 0.0F;
+        return -1.5F;
     }
 
     @Override
@@ -59,7 +60,6 @@ public class EntityTier1Rocket extends EntityTieredRocket
         return new ItemStack(GCItems.rocketTier1, 1, this.rocketType.getIndex());
     }
 
-    @SuppressWarnings({ "unchecked", "rawtypes" })
     @Override
     public void onUpdate()
     {
@@ -84,17 +84,24 @@ public class EntityTier1Rocket extends EntityTieredRocket
             }
         }
 
-        if (this.launchPhase == EnumLaunchPhase.LAUNCHED.ordinal() && this.hasValidFuel())
+        if (this.launchPhase >= EnumLaunchPhase.LAUNCHED.ordinal() && this.hasValidFuel())
         {
-            if (!this.landing)
+            if (this.launchPhase == EnumLaunchPhase.LAUNCHED.ordinal())
             {
                 double d = this.timeSinceLaunch / 150;
 
-                d = Math.min(d, 1);
+                if (this.worldObj.provider instanceof IGalacticraftWorldProvider && ((IGalacticraftWorldProvider) this.worldObj.provider).hasNoAtmosphere())
+                {
+                    d = Math.min(d * 1.2, 1.6);
+                }
+                else
+                {
+                    d = Math.min(d, 1);
+                }
 
                 if (d != 0.0)
                 {
-                    this.motionY = -d * Math.cos((this.rotationPitch - 180) * Math.PI / 180.0D);
+                    this.motionY = -d * Math.cos((this.rotationPitch - 180) / Constants.RADIANS_TO_DEGREES_D);
                 }
             }
             else
@@ -160,23 +167,24 @@ public class EntityTier1Rocket extends EntityTieredRocket
     {
         if (!this.isDead)
         {
-            double x1 = 2 * Math.cos(this.rotationYaw * Math.PI / 180.0D) * Math.sin(this.rotationPitch * Math.PI / 180.0D);
-            double z1 = 2 * Math.sin(this.rotationYaw * Math.PI / 180.0D) * Math.sin(this.rotationPitch * Math.PI / 180.0D);
-            double y1 = 2 * Math.cos((this.rotationPitch - 180) * Math.PI / 180.0D);
+            double sinPitch = Math.sin(this.rotationPitch / Constants.RADIANS_TO_DEGREES_D);
+            double x1 = 2 * Math.cos(this.rotationYaw / Constants.RADIANS_TO_DEGREES_D) * sinPitch;
+            double z1 = 2 * Math.sin(this.rotationYaw / Constants.RADIANS_TO_DEGREES_D) * sinPitch;
+            double y1 = 2 * Math.cos((this.rotationPitch - 180) / Constants.RADIANS_TO_DEGREES_D);
 
-            if (this.landing && this.targetVec != null)
+            if (this.launchPhase == EnumLaunchPhase.LANDING.ordinal() && this.targetVec != null)
             {
                 double modifier = this.posY - this.targetVec.getY();
-                modifier = Math.max(modifier, 1.0);
-                x1 *= modifier / 60.0D;
-                y1 *= modifier / 60.0D;
-                z1 *= modifier / 60.0D;
+                modifier = Math.min(Math.max(modifier, 120.0), 300.0);
+                x1 *= modifier / 100.0D;
+                y1 *= modifier / 100.0D;
+                z1 *= modifier / 100.0D;
             }
 
-            final double y = this.prevPosY + (this.posY - this.prevPosY) + y1;
+            double y = this.prevPosY + (this.posY - this.prevPosY) + y1 - this.motionY + 1.2D;
 
-            final double x2 = this.posX + x1;
-            final double z2 = this.posZ + z1;
+            final double x2 = this.posX + x1 - this.motionX;
+            final double z2 = this.posZ + z1 - this.motionZ;
 
             EntityLivingBase riddenByEntity = this.riddenByEntity instanceof EntityLivingBase ? (EntityLivingBase) this.riddenByEntity : null;
 
@@ -194,8 +202,9 @@ public class EntityTier1Rocket extends EntityTieredRocket
                 GalacticraftCore.proxy.spawnParticle("launchFlameLaunched", new Vector3(x2, y, z2 - 0.4D), motionVec, new Object[] { riddenByEntity });
 
             }
-            else
+            else if (this.ticksExisted % 2 == 0)
             {
+                y += 1.2D;
                 GalacticraftCore.proxy.spawnParticle("launchFlameIdle", new Vector3(x2 + 0.4 - this.rand.nextDouble() / 10, y, z2 + 0.4 - this.rand.nextDouble() / 10), new Vector3(x1 + 0.7, y1 - 1D, z1 + 0.7), new Object[] { riddenByEntity });
                 GalacticraftCore.proxy.spawnParticle("launchFlameIdle", new Vector3(x2 - 0.4 + this.rand.nextDouble() / 10, y, z2 + 0.4 - this.rand.nextDouble() / 10), new Vector3(x1 - 0.7, y1 - 1D, z1 + 0.7), new Object[] { riddenByEntity });
                 GalacticraftCore.proxy.spawnParticle("launchFlameIdle", new Vector3(x2 - 0.4 + this.rand.nextDouble() / 10, y, z2 - 0.4 + this.rand.nextDouble() / 10), new Vector3(x1 - 0.7, y1 - 1D, z1 - 0.7), new Object[] { riddenByEntity });
@@ -252,16 +261,6 @@ public class EntityTier1Rocket extends EntityTieredRocket
     }
 
     @Override
-    public void onPadDestroyed()
-    {
-        if (!this.isDead && this.launchPhase != EnumLaunchPhase.LAUNCHED.ordinal())
-        {
-            this.dropShipAsItem();
-            this.setDead();
-        }
-    }
-
-    @Override
     public boolean isDockValid(IFuelDock dock)
     {
         return dock instanceof TileEntityLandingPad;
@@ -295,29 +294,5 @@ public class EntityTier1Rocket extends EntityTieredRocket
     public double getOnPadYOffset()
     {
         return 0.0D;
-    }
-
-    @Override
-    public int getField(int id)
-    {
-        return 0;
-    }
-
-    @Override
-    public void setField(int id, int value)
-    {
-
-    }
-
-    @Override
-    public int getFieldCount()
-    {
-        return 0;
-    }
-
-    @Override
-    public void clear()
-    {
-
     }
 }

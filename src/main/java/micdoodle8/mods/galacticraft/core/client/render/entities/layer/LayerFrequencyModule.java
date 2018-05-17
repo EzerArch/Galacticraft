@@ -2,9 +2,11 @@ package micdoodle8.mods.galacticraft.core.client.render.entities.layer;
 
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import micdoodle8.mods.galacticraft.core.Constants;
+import micdoodle8.mods.galacticraft.core.GalacticraftCore;
 import micdoodle8.mods.galacticraft.core.client.model.ModelPlayerGC;
+import micdoodle8.mods.galacticraft.core.client.model.OBJLoaderGC;
+import micdoodle8.mods.galacticraft.core.entities.player.GCPlayerHandler;
 import micdoodle8.mods.galacticraft.core.util.ClientUtil;
 import micdoodle8.mods.galacticraft.core.wrappers.PlayerGearData;
 import net.minecraft.client.Minecraft;
@@ -16,11 +18,12 @@ import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.renderer.texture.TextureMap;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.util.ResourceLocation;
-import net.minecraftforge.client.model.ModelLoaderRegistry;
+import net.minecraftforge.client.model.IModel;
 import net.minecraftforge.client.model.obj.OBJModel;
 import net.minecraftforge.fml.client.FMLClientHandler;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
+
 import org.lwjgl.opengl.GL11;
 
 @SideOnly(Side.CLIENT)
@@ -41,9 +44,7 @@ public class LayerFrequencyModule implements LayerRenderer<AbstractClientPlayer>
         {
             try
             {
-                OBJModel model = (OBJModel) ModelLoaderRegistry.getModel(new ResourceLocation(Constants.ASSET_PREFIX, "frequency_module.obj"));
-                model = (OBJModel) model.process(ImmutableMap.of("flip-v", "true"));
-
+                IModel model = OBJLoaderGC.instance.loadModel(new ResourceLocation(Constants.ASSET_PREFIX, "frequency_module.obj"));
                 Function<ResourceLocation, TextureAtlasSprite> spriteFunction = location -> Minecraft.getMinecraft().getTextureMapBlocks().getAtlasSprite(location.toString());
                 this.moduleModel = (OBJModel.OBJBakedModel) model.bake(new OBJModel.OBJState(ImmutableList.of("Main"), false), DefaultVertexFormats.ITEM, spriteFunction);
                 this.radarModel = (OBJModel.OBJBakedModel) model.bake(new OBJModel.OBJState(ImmutableList.of("Radar"), false), DefaultVertexFormats.ITEM, spriteFunction);
@@ -60,12 +61,12 @@ public class LayerFrequencyModule implements LayerRenderer<AbstractClientPlayer>
     {
         if (!player.isInvisible())
         {
-            PlayerGearData gearData = ModelPlayerGC.getGearData(player);
+            PlayerGearData gearData = GalacticraftCore.proxy.getGearData(player);
 
             if (gearData != null)
             {
-                boolean wearingModule = gearData.getFrequencyModule() != -1;
-                boolean wearingHelmet = gearData.getMask() != -1;
+                boolean wearingModule = gearData.getFrequencyModule() != GCPlayerHandler.GEAR_NOT_PRESENT;
+                boolean wearingHelmet = gearData.getMask() != GCPlayerHandler.GEAR_NOT_PRESENT;
                 FMLClientHandler.instance().getClient().renderEngine.bindTexture(ModelPlayerGC.playerTexture);
 
                 if (wearingModule)
@@ -85,17 +86,17 @@ public class LayerFrequencyModule implements LayerRenderer<AbstractClientPlayer>
 
                     GlStateManager.rotate(180, 1, 0, 0);
                     GlStateManager.pushMatrix();
-                    GlStateManager.rotate((float) (this.playerRenderer.getMainModel().bipedHeadwear.rotateAngleY * (-180.0F / Math.PI)), 0, 1, 0);
-                    GlStateManager.rotate((float) (this.playerRenderer.getMainModel().bipedHeadwear.rotateAngleX * (180.0F / Math.PI)), 1, 0, 0);
+                    GlStateManager.rotate((float) (this.playerRenderer.getMainModel().bipedHeadwear.rotateAngleY * -Constants.RADIANS_TO_DEGREES), 0, 1, 0);
+                    GlStateManager.rotate((float) (this.playerRenderer.getMainModel().bipedHeadwear.rotateAngleX * Constants.RADIANS_TO_DEGREES), 1, 0, 0);
                     GlStateManager.scale(0.3F, 0.3F, 0.3F);
 
                     if (wearingHelmet)
                     {
-                        GlStateManager.translate(-1.1F, 1.2F, 0);
+                        GlStateManager.translate(-1.1F, player.isSneaking() ? 0.35F : 1.2F, 0);
                     }
                     else
                     {
-                        GlStateManager.translate(-0.9F, 0.9F, 0);
+                        GlStateManager.translate(-0.9F, player.isSneaking() ? 0.1F : 0.9F, 0);
                     }
 
                     ClientUtil.drawBakedModel(this.moduleModel);

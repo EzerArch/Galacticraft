@@ -455,7 +455,7 @@ public class BlockTier1TreasureChest extends BlockContainer implements ITileEnti
     {
         return new TileEntityTreasureChest();
     }
-
+    
     public int isProvidingWeakPower(IBlockAccess worldIn, BlockPos pos, IBlockState state, EnumFacing side)
     {
         if (!this.canProvidePower())

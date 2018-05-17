@@ -2,21 +2,29 @@ package micdoodle8.mods.galacticraft.core.tile;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import micdoodle8.mods.galacticraft.core.Constants;
 import micdoodle8.mods.galacticraft.core.GalacticraftCore;
 import micdoodle8.mods.galacticraft.core.network.PacketDynamic;
+import micdoodle8.mods.galacticraft.core.tick.TickHandlerServer;
 import micdoodle8.mods.galacticraft.core.util.DelayTimer;
 import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
+import micdoodle8.mods.galacticraft.core.wrappers.ScheduledBlockChange;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockAir;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.network.NetworkManager;
 import net.minecraft.network.Packet;
 import net.minecraft.network.play.server.S35PacketUpdateTileEntity;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.AxisAlignedBB;
 import net.minecraft.util.BlockPos;
 import net.minecraft.util.EnumFacing;
 import net.minecraftforge.fluids.*;
 import net.minecraftforge.fml.client.FMLClientHandler;
 import net.minecraftforge.fml.common.network.ByteBufUtils;
 import net.minecraftforge.fml.common.network.NetworkRegistry;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
 import java.util.List;
 
@@ -25,12 +33,21 @@ public class TileEntityFluidTank extends TileEntityAdvanced implements IFluidHan
     public FluidTankGC fluidTank = new FluidTankGC(16000, this);
     public boolean updateClient = false;
     private DelayTimer delayTimer = new DelayTimer(1);
+    private AxisAlignedBB renderAABB;
 
     public void onBreak()
     {
         if (fluidTank.getFluidAmount() > 0)
         {
             FluidEvent.fireEvent(new FluidEvent.FluidSpilledEvent(fluidTank.getFluid(), worldObj, pos));
+            if (!this.worldObj.isRemote && fluidTank.getFluidAmount() > 1000)
+            {
+                Block b = fluidTank.getFluid().getFluid().getBlock();
+                if (!(b == null || b instanceof BlockAir))
+                {
+                    TickHandlerServer.scheduleNewBlockChange(GCCoreUtil.getDimensionID(this.worldObj), new ScheduledBlockChange(pos, b, 0, 3));
+                }
+            }
         }
     }
 
@@ -115,13 +132,13 @@ public class TileEntityFluidTank extends TileEntityAdvanced implements IFluidHan
     @Override
     public boolean canFill(EnumFacing from, Fluid fluid)
     {
-        return fluidTank.getFluid() == null || fluidTank.getFluid().getFluid() == null || fluidTank.getFluid().getFluid() == fluid;
+        return fluidTank.getFluid() == null || fluidTank.getFluid().getFluid() == null || fluid == null || fluidTank.getFluid().getFluid() == fluid;
     }
 
     @Override
     public boolean canDrain(EnumFacing from, Fluid fluid)
     {
-        return fluidTank.getFluid() == null || fluidTank.getFluid().getFluid() == null || fluidTank.getFluid().getFluid() == fluid;
+        return fluid == null || fluidTank.getFluid() != null && fluidTank.getFluid().getFluid() == fluid;
     }
 
     @Override
@@ -232,7 +249,7 @@ public class TileEntityFluidTank extends TileEntityAdvanced implements IFluidHan
             this.fluidTank.readFromNBT(compound.getCompoundTag("fuelTank"));
         }
 
-        this.updateClient = true;
+        this.updateClient = GCCoreUtil.getEffectiveSide() == Side.SERVER;
     }
 
     @Override
@@ -262,6 +279,7 @@ public class TileEntityFluidTank extends TileEntityAdvanced implements IFluidHan
     }
 
     @Override
+    @SideOnly(Side.CLIENT)
     public void onDataPacket(NetworkManager net, S35PacketUpdateTileEntity pkt)
     {
         if (!worldObj.isRemote)
@@ -350,5 +368,23 @@ public class TileEntityFluidTank extends TileEntityAdvanced implements IFluidHan
     public boolean isNetworkedTile()
     {
         return false;
+    }
+
+    @Override
+    @SideOnly(Side.CLIENT)
+    public AxisAlignedBB getRenderBoundingBox()
+    {
+        if (this.renderAABB == null)
+        {
+            this.renderAABB = new AxisAlignedBB(pos, pos.add(1, 1, 1));
+        }
+        return this.renderAABB;
+    }
+    
+    @Override
+    @SideOnly(Side.CLIENT)
+    public double getMaxRenderDistanceSquared()
+    {
+        return Constants.RENDERDISTANCE_MEDIUM;
     }
 }

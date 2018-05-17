@@ -4,6 +4,7 @@ import micdoodle8.mods.galacticraft.api.vector.Vector3;
 import micdoodle8.mods.galacticraft.core.GCBlocks;
 import micdoodle8.mods.galacticraft.core.GalacticraftCore;
 import micdoodle8.mods.galacticraft.core.util.ConfigManagerCore;
+import micdoodle8.mods.galacticraft.core.util.PlayerUtil;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLiving;
@@ -125,9 +126,22 @@ public class EntityMeteor extends Entity
         {
             if (movingObjPos != null)
             {
-                if (this.worldObj.getBlockState(movingObjPos.getBlockPos().up()).getBlock().isAir(worldObj, movingObjPos.getBlockPos().up()))
+                BlockPos pos = movingObjPos.getBlockPos();
+                if (pos == null)
                 {
-                    this.worldObj.setBlockState(movingObjPos.getBlockPos().up(), GCBlocks.fallenMeteor.getDefaultState(), 3);
+                    if (movingObjPos.entityHit != null)
+                    {
+                        pos = this.worldObj.getTopSolidOrLiquidBlock(movingObjPos.entityHit.getPosition());
+                    }
+                    else
+                    {
+                        pos = this.worldObj.getTopSolidOrLiquidBlock(this.getPosition());
+                    }
+                }
+                BlockPos above = pos.up();
+                if (this.worldObj.getBlockState(above).getBlock().isAir(worldObj, above))
+                {
+                    this.worldObj.setBlockState(above, GCBlocks.fallenMeteor.getDefaultState(), 3);
                 }
 
                 if (movingObjPos.entityHit != null)
@@ -152,7 +166,7 @@ public class EntityMeteor extends Entity
     {
         if (par1Entity != null && par1Entity instanceof EntityPlayer)
         {
-            StatCollector.translateToLocalFormatted("death." + "meteor", ((EntityPlayer) par1Entity).getGameProfile().getName() + " was hit by a meteor! That's gotta hurt!");
+            StatCollector.translateToLocalFormatted("death." + "meteor", PlayerUtil.getName(((EntityPlayer) par1Entity)) + " was hit by a meteor! That's gotta hurt!");
         }
         return new EntityDamageSourceIndirect("explosion", par0EntityMeteor, par1Entity).setProjectile();
     }

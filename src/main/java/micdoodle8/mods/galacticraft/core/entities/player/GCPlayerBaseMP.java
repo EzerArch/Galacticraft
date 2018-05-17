@@ -4,7 +4,6 @@ import api.player.server.ServerPlayerAPI;
 import api.player.server.ServerPlayerBase;
 import micdoodle8.mods.galacticraft.core.GalacticraftCore;
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.DamageSource;
 
 public class GCPlayerBaseMP extends ServerPlayerBase
@@ -17,13 +16,6 @@ public class GCPlayerBaseMP extends ServerPlayerBase
     private IPlayerServer getClientHandler()
     {
         return GalacticraftCore.proxy.player;
-    }
-
-    @Override
-    public void clonePlayer(EntityPlayer oldPlayer, boolean keepInv)
-    {
-        super.clonePlayer(oldPlayer, keepInv);
-        this.getClientHandler().clonePlayer(this.player, oldPlayer, keepInv);
     }
 
 //    @Override
@@ -50,14 +42,14 @@ public class GCPlayerBaseMP extends ServerPlayerBase
         this.getClientHandler().moveEntity(this.player, par1, par3, par5);
     }
 
-//    @Override
-//    public void wakeUpPlayer(boolean par1, boolean par2, boolean par3)
-//    {
-//        if (!this.getClientHandler().wakeUpPlayer(this.player, par1, par2, par3))
-//        {
-//            super.wakeUpPlayer(par1, par2, par3);
-//        }
-//    }
+    @Override
+    public void wakeUpPlayer(boolean par1, boolean par2, boolean par3)
+    {
+        if (!this.getClientHandler().wakeUpPlayer(this.player, par1, par2, par3))
+        {
+            super.wakeUpPlayer(par1, par2, par3);
+        }
+    }
 
     @Override
     public boolean attackEntityFrom(DamageSource par1DamageSource, float par2)

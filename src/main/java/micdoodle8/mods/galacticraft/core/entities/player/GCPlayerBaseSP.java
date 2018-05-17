@@ -6,8 +6,11 @@ import micdoodle8.mods.galacticraft.api.world.IZeroGDimension;
 import micdoodle8.mods.galacticraft.core.TransformerHooks;
 import micdoodle8.mods.galacticraft.core.client.EventHandlerClient;
 import micdoodle8.mods.galacticraft.core.proxy.ClientProxyCore;
+import micdoodle8.mods.galacticraft.core.util.CompatibilityManager;
 import net.minecraft.util.AxisAlignedBB;
-import net.minecraftforge.fml.common.Loader;
+import net.minecraft.util.BlockPos;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
 public class GCPlayerBaseSP extends ClientPlayerBase
 {
@@ -89,7 +92,7 @@ public class GCPlayerBaseSP extends ClientPlayerBase
     {
         super.afterMoveEntityWithHeading(paramFloat1, paramFloat2);
 
-        if (Loader.isModLoaded("SmartMoving") && !this.player.capabilities.isFlying)
+        if (CompatibilityManager.isSmartMovingLoaded && !this.player.capabilities.isFlying)
         {
             this.player.motionY += 0.080000000000000002D;
             this.player.motionY -= TransformerHooks.getGravityForEntity(this.player);
@@ -136,4 +139,14 @@ public class GCPlayerBaseSP extends ClientPlayerBase
 //    {
 //        return this.getClientHandler().getBedOrientationInDegrees(this, super.getBedOrientationInDegrees());
 //    }
+
+    @Override
+    @SideOnly(Side.CLIENT)
+    public int getBrightnessForRender(float partialTicks)
+    {
+        double height = this.player.posY + (double)this.player.getEyeHeight();
+        if (height > 255D) height = 255D;
+        BlockPos blockpos = new BlockPos(this.player.posX, height, this.player.posZ);
+        return this.player.worldObj.isBlockLoaded(blockpos) ? this.player.worldObj.getCombinedLight(blockpos, 0) : 0;
+    }
 }

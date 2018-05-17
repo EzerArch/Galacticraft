@@ -2,12 +2,11 @@ package micdoodle8.mods.galacticraft.api.transmission.tile;
 
 import micdoodle8.mods.galacticraft.api.transmission.grid.IGridNetwork;
 
-@SuppressWarnings("rawtypes")
 public interface INetworkProvider
 {
-    public IGridNetwork getNetwork();
+    IGridNetwork getNetwork();
 
-    public boolean hasNetwork();
+    boolean hasNetwork();
 
-    public void setNetwork(IGridNetwork network);
+    void setNetwork(IGridNetwork network);
 }

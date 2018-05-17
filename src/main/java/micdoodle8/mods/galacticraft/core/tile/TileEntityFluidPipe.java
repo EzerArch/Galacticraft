@@ -15,17 +15,21 @@ import net.minecraft.block.state.IBlockState;
 import net.minecraft.item.EnumDyeColor;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.AxisAlignedBB;
 import net.minecraft.util.BlockPos;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.world.World;
 import net.minecraftforge.fluids.Fluid;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidTankInfo;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
 public class TileEntityFluidPipe extends TileEntityFluidTransmitter implements IColorable
 {
     public FluidTankGC buffer = new FluidTankGC(1000, this);
     private boolean dataRequest = false;
+    private AxisAlignedBB renderAABB;
 
     public TileEntityFluidPipe()
     {
@@ -74,21 +78,6 @@ public class TileEntityFluidPipe extends TileEntityFluidTransmitter implements I
 //    }
 
     @Override
-    public void update()
-    {
-        super.update();
-
-        if (this.worldObj.isRemote)
-        {
-            if (!this.dataRequest)
-            {
-                GalacticraftCore.packetPipeline.sendToServer(new PacketSimple(PacketSimple.EnumSimplePacket.S_REQUEST_DATA, GCCoreUtil.getDimensionID(this.worldObj), new Object[] { GCCoreUtil.getDimensionID(this.worldObj), this.getPos() }));
-                this.dataRequest = true;
-            }
-        }
-    }
-
-    @Override
     public double getPacketRange()
     {
         return 12.0D;
@@ -107,17 +96,15 @@ public class TileEntityFluidPipe extends TileEntityFluidTransmitter implements I
     }
 
     @Override
-    public void validate()
+    public void onLoad()
     {
-        super.validate();
-
-        if (this.worldObj != null && this.worldObj.isRemote)
+        if (this.worldObj.isRemote)
         {
             this.worldObj.notifyLightSet(getPos());
+            GalacticraftCore.packetPipeline.sendToServer(new PacketSimple(PacketSimple.EnumSimplePacket.S_REQUEST_DATA, GCCoreUtil.getDimensionID(this.worldObj), new Object[] { GCCoreUtil.getDimensionID(this.worldObj), this.getPos() }));
         }
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public void onColorUpdate()
     {
@@ -289,5 +276,23 @@ public class TileEntityFluidPipe extends TileEntityFluidTransmitter implements I
         }
 
         return ((BlockFluidPipe) currentType).getMode() != BlockFluidPipe.EnumPipeMode.PULL;
+    }
+    
+    @Override
+    @SideOnly(Side.CLIENT)
+    public AxisAlignedBB getRenderBoundingBox()
+    {
+        if (this.renderAABB == null)
+        {
+            this.renderAABB = new AxisAlignedBB(pos, pos.add(1, 1, 1));
+        }
+        return this.renderAABB;
+    }
+    
+    @Override
+    @SideOnly(Side.CLIENT)
+    public double getMaxRenderDistanceSquared()
+    {
+        return 16384;  //128 squared
     }
 }

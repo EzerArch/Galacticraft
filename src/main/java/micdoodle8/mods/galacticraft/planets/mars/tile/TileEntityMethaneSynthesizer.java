@@ -5,14 +5,19 @@ import mekanism.api.gas.GasStack;
 import micdoodle8.mods.galacticraft.api.prefab.world.gen.WorldProviderSpace;
 import micdoodle8.mods.galacticraft.api.tile.IDisableableMachine;
 import micdoodle8.mods.galacticraft.api.transmission.NetworkType;
-import micdoodle8.mods.galacticraft.api.world.IAtmosphericGas;
+import micdoodle8.mods.galacticraft.api.vector.BlockVec3;
+import micdoodle8.mods.galacticraft.api.world.EnumAtmosphericGas;
 import micdoodle8.mods.galacticraft.core.GCBlocks;
 import micdoodle8.mods.galacticraft.core.energy.item.ItemElectricBase;
 import micdoodle8.mods.galacticraft.core.energy.tile.TileBaseElectricBlockWithInventory;
+import micdoodle8.mods.galacticraft.core.fluid.FluidNetwork;
+import micdoodle8.mods.galacticraft.core.fluid.NetworkHelper;
+import micdoodle8.mods.galacticraft.core.tile.TileEntityOxygenStorageModule;
 import micdoodle8.mods.galacticraft.core.util.ConfigManagerCore;
 import micdoodle8.mods.galacticraft.core.util.FluidUtil;
 import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
 import micdoodle8.mods.galacticraft.core.util.OxygenUtil;
+import micdoodle8.mods.galacticraft.planets.asteroids.AsteroidsModule;
 import micdoodle8.mods.galacticraft.planets.asteroids.items.AsteroidsItems;
 import micdoodle8.mods.galacticraft.planets.asteroids.items.ItemAtmosphericValve;
 import micdoodle8.mods.galacticraft.planets.mars.blocks.BlockMachineMarsT2;
@@ -21,11 +26,12 @@ import micdoodle8.mods.miccore.Annotations;
 import micdoodle8.mods.miccore.Annotations.NetworkedField;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
+import net.minecraft.block.state.IBlockState;
 import net.minecraft.inventory.ISidedInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
-import net.minecraft.util.IChatComponent;
 import net.minecraft.world.WorldProvider;
 import net.minecraftforge.fluids.*;
 import net.minecraftforge.fml.relauncher.Side;
@@ -53,7 +59,7 @@ public class TileEntityMethaneSynthesizer extends TileBaseElectricBlockWithInven
 
     public TileEntityMethaneSynthesizer()
     {
-        this.storage.setMaxExtract(ConfigManagerCore.hardMode ? 60 : 30);
+        this.storage.setMaxExtract(ConfigManagerCore.hardMode ? 90 : 45);
         this.setTierGC(2);
     }
 
@@ -110,7 +116,7 @@ public class TileEntityMethaneSynthesizer extends TileBaseElectricBlockWithInven
                 //50% extra speed boost for Tier 2 machine if powered by Tier 2 power
                 if (this.tierGC == 2)
                 {
-                    this.processTimeRequired = (this.poweredByTierGC == 2) ? 2 : 3;
+                    this.processTimeRequired = Math.max(1, 4 - this.poweredByTierGC);
                 }
 
                 if (this.processTicks <= 0)
@@ -137,7 +143,15 @@ public class TileEntityMethaneSynthesizer extends TileBaseElectricBlockWithInven
                     this.processTicks = -8;
                 }
             }
+            
+            this.produceOutput(this.getHydrogenInputDirection().getOpposite());
         }
+    }
+
+    private void produceOutput()
+    {
+        // TODO Auto-generated method stub
+        
     }
 
     private void checkFluidTankTransfer(int slot, FluidTank tank)
@@ -194,24 +208,24 @@ public class TileEntityMethaneSynthesizer extends TileBaseElectricBlockWithInven
         WorldProvider WP = this.worldObj.provider;
         if (WP instanceof WorldProviderSpace)
         {
-            ArrayList<IAtmosphericGas> atmos = ((WorldProviderSpace) WP).getCelestialBody().atmosphere;
+            ArrayList<EnumAtmosphericGas> atmos = ((WorldProviderSpace) WP).getCelestialBody().atmosphere.composition;
             if (atmos.size() > 0)
             {
-                if (atmos.get(0) == IAtmosphericGas.CO2)
+                if (atmos.get(0) == EnumAtmosphericGas.CO2)
                 {
                     return 1;
                 }
             }
             if (atmos.size() > 1)
             {
-                if (atmos.get(1) == IAtmosphericGas.CO2)
+                if (atmos.get(1) == EnumAtmosphericGas.CO2)
                 {
                     return 1;
                 }
             }
             if (atmos.size() > 2)
             {
-                if (atmos.get(2) == IAtmosphericGas.CO2)
+                if (atmos.get(2) == EnumAtmosphericGas.CO2)
                 {
                     return 1;
                 }
@@ -347,7 +361,7 @@ public class TileEntityMethaneSynthesizer extends TileBaseElectricBlockWithInven
             switch (slotID)
             {
             case 0:
-                return ItemElectricBase.isElectricItem(itemstack.getItem());
+                return ItemElectricBase.isElectricItemCharged(itemstack);
             case 3:
                 return itemstack.getItem() == MarsItems.carbonFragments;
             case 4:
@@ -367,7 +381,7 @@ public class TileEntityMethaneSynthesizer extends TileBaseElectricBlockWithInven
             switch (slotID)
             {
             case 0:
-                return itemstack.getItem() instanceof ItemElectricBase && ((ItemElectricBase) itemstack.getItem()).getElectricityStored(itemstack) <= 0 || !this.shouldPullEnergy();
+                return ItemElectricBase.isElectricItemEmpty(itemstack) || !this.shouldPullEnergy();
             case 4:
                 return FluidUtil.isFullContainer(itemstack);
             default:
@@ -456,7 +470,7 @@ public class TileEntityMethaneSynthesizer extends TileBaseElectricBlockWithInven
     {
         if (from == this.getHydrogenInputDirection())
         {
-            return fluid != null && "hydrogen".equals(fluid.getName());
+            return fluid == null || "hydrogen".equals(fluid.getName());
         }
 
         return false;
@@ -499,12 +513,6 @@ public class TileEntityMethaneSynthesizer extends TileBaseElectricBlockWithInven
     public int getBlockMetadata()
     {
         return this.getBlockType().getMetaFromState(this.worldObj.getBlockState(getPos()));
-    }
-
-    @Override
-    public IChatComponent getDisplayName()
-    {
-        return null;
     }
 
     @Annotations.RuntimeInterface(clazz = "mekanism.api.gas.IGasHandler", modID = "Mekanism")
@@ -606,11 +614,46 @@ public class TileEntityMethaneSynthesizer extends TileBaseElectricBlockWithInven
     @Override
     public EnumFacing getFront()
     {
-        return this.worldObj.getBlockState(getPos()).getValue(BlockMachineMarsT2.FACING);
+        IBlockState state = this.worldObj.getBlockState(getPos()); 
+        if (state.getBlock() instanceof BlockMachineMarsT2)
+        {
+            return state.getValue(BlockMachineMarsT2.FACING);
+        }
+        return EnumFacing.NORTH;
     }
 
     public EnumFacing getHydrogenInputDirection()
     {
         return this.getFront().rotateY();
+    }
+    
+    private boolean produceOutput(EnumFacing outputDirection)
+    {
+        int provide = this.getMethaneProvide();
+
+        if (provide > 0)
+        {
+            TileEntity outputTile = new BlockVec3(this).getTileEntityOnSide(this.worldObj, outputDirection);
+            FluidNetwork outputNetwork = NetworkHelper.getFluidNetworkFromTile(outputTile, outputDirection);
+
+            if (outputNetwork != null)
+            {
+                int gasRequested = outputNetwork.getRequest();
+
+                if (gasRequested > 0)
+                {
+                    int usedGas = outputNetwork.emitToBuffer(new FluidStack(AsteroidsModule.fluidMethaneGas, Math.min(gasRequested, provide)), true);
+                    this.liquidTank.drain(usedGas, true);
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private int getMethaneProvide()
+    {
+        return Math.min(TileEntityOxygenStorageModule.OUTPUT_PER_TICK, this.liquidTank.getFluidAmount());
     }
 }

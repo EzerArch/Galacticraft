@@ -9,7 +9,9 @@ import micdoodle8.mods.galacticraft.api.vector.BlockVec3;
 import micdoodle8.mods.galacticraft.core.GCBlocks;
 import micdoodle8.mods.galacticraft.core.GCItems;
 import micdoodle8.mods.galacticraft.core.GalacticraftCore;
+import micdoodle8.mods.galacticraft.core.blocks.BlockSpaceGlass;
 import micdoodle8.mods.galacticraft.core.entities.player.GCPlayerStats;
+import micdoodle8.mods.galacticraft.core.inventory.IInventoryDefaults;
 import micdoodle8.mods.galacticraft.core.network.IPacketReceiver;
 import micdoodle8.mods.galacticraft.core.network.PacketDynamic;
 import micdoodle8.mods.galacticraft.core.util.*;
@@ -17,10 +19,13 @@ import micdoodle8.mods.galacticraft.planets.asteroids.blocks.AsteroidBlocks;
 import micdoodle8.mods.galacticraft.planets.asteroids.client.sounds.SoundUpdaterMiner;
 import micdoodle8.mods.galacticraft.planets.asteroids.dimension.WorldProviderAsteroids;
 import micdoodle8.mods.galacticraft.planets.asteroids.items.AsteroidsItems;
+import micdoodle8.mods.galacticraft.planets.asteroids.tick.AsteroidsTickHandlerServer;
 import micdoodle8.mods.galacticraft.planets.asteroids.tile.TileEntityMinerBase;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockFlower;
+import net.minecraft.block.BlockLeaves;
 import net.minecraft.block.BlockLiquid;
+import net.minecraft.block.BlockReed;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.audio.ISound;
@@ -31,7 +36,6 @@ import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.init.Blocks;
-import net.minecraft.inventory.IInventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -44,6 +48,7 @@ import net.minecraftforge.common.IPlantable;
 import net.minecraftforge.fluids.IFluidBlock;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
+
 import org.lwjgl.opengl.GL11;
 
 import java.util.ArrayList;
@@ -51,7 +56,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.UUID;
 
-public class EntityAstroMiner extends Entity implements IInventory, IPacketReceiver, IEntityNoisy, IAntiGrav, ITelemetry
+public class EntityAstroMiner extends Entity implements IInventoryDefaults, IPacketReceiver, IEntityNoisy, IAntiGrav, ITelemetry
 {
     public static final int MINE_LENGTH = 24;
     public static final int MINE_LENGTH_AST = 12;
@@ -94,8 +99,8 @@ public class EntityAstroMiner extends Entity implements IInventory, IPacketRecei
     private BlockVec3 posTarget;
     private BlockVec3 posBase;
     private BlockVec3 waypointBase;
-    private LinkedList<BlockVec3> wayPoints = new LinkedList();
-    private LinkedList<BlockVec3> minePoints = new LinkedList();
+    private LinkedList<BlockVec3> wayPoints = new LinkedList<>();
+    private LinkedList<BlockVec3> minePoints = new LinkedList<>();
     private BlockVec3 minePointCurrent = null;
     private EnumFacing baseFacing;
     public EnumFacing facing;
@@ -128,6 +133,7 @@ public class EntityAstroMiner extends Entity implements IInventory, IPacketRecei
     public int timeSinceHit;
     private boolean flagLink = false;
     private boolean flagCheckPlayer = false;
+    private boolean toAddToServer = AsteroidsTickHandlerServer.loadingSavedChunks.get();
 
     //To do:
     //   break the entity drops it as an item
@@ -149,18 +155,19 @@ public class EntityAstroMiner extends Entity implements IInventory, IPacketRecei
     private int inventoryDrops;
     public boolean stopForTurn;
 
-    private static ArrayList<Block> noMineList = new ArrayList();
+    private static ArrayList<Block> noMineList = new ArrayList<>();
     public static BlockTuple blockingBlock = new BlockTuple(Blocks.air, 0);
     private int givenFailMessage = 0;
     private BlockVec3 mineLast = null;
     private int mineCountDown = 0;
     private int pathBlockedCount = 0;
-    public LinkedList<BlockVec3> laserBlocks = new LinkedList();
-    public LinkedList<Integer> laserTimes = new LinkedList();
+    public LinkedList<BlockVec3> laserBlocks = new LinkedList<>();
+    public LinkedList<Integer> laserTimes = new LinkedList<>();
     public float retraction = 1F;
     protected ITickable soundUpdater;
     private boolean soundToStop = false;
     private boolean spawnedInCreative = false;
+    private int serverIndex;
 
     static
     {
@@ -170,7 +177,6 @@ public class EntityAstroMiner extends Entity implements IInventory, IPacketRecei
         //Anything with a tileEntity will also be avoided:
         // spawners, chests, oxygen pipes, hydrogen pipes, wires
         noMineList.add(Blocks.bedrock);
-        noMineList.add(Blocks.lava);
         noMineList.add(Blocks.mossy_cobblestone);
         noMineList.add(Blocks.end_portal);
         noMineList.add(Blocks.end_portal_frame);
@@ -188,6 +194,7 @@ public class EntityAstroMiner extends Entity implements IInventory, IPacketRecei
     public EntityAstroMiner(World world, ItemStack[] cargo, int energy)
     {
         this(world);
+        this.toAddToServer = true;
         this.cargoItems = cargo.clone();
         this.energyLevel = energy;
     }
@@ -206,8 +213,12 @@ public class EntityAstroMiner extends Entity implements IInventory, IPacketRecei
 //        this.myEntitySize = Entity.EnumEntitySize.SIZE_6;
 //        this.dataWatcher.addObject(this.currentDamage, new Integer(0));
 //        this.dataWatcher.addObject(this.timeSinceHit, new Integer(0));
-        this.isImmuneToFire = true;
         this.noClip = true;
+        
+        if (world != null && world.isRemote)
+        {
+            GalacticraftCore.packetPipeline.sendToServer(new PacketDynamic(this));
+        }
     }
 
     @Override
@@ -288,7 +299,7 @@ public class EntityAstroMiner extends Entity implements IInventory, IPacketRecei
     @Override
     public String getName()
     {
-        return "AstroMiner";
+        return GCCoreUtil.translate("entity.astro_miner.name");
     }
 
     @Override
@@ -305,16 +316,6 @@ public class EntityAstroMiner extends Entity implements IInventory, IPacketRecei
 
     @Override
     public void markDirty()
-    {
-    }
-
-    @Override
-    public void openInventory(EntityPlayer player)
-    {
-    }
-
-    @Override
-    public void closeInventory(EntityPlayer player)
     {
     }
 
@@ -366,11 +367,16 @@ public class EntityAstroMiner extends Entity implements IInventory, IPacketRecei
     }
 
     @Override
+    public void onChunkLoad()
+    {
+    }
+
+    @Override
     public void onUpdate()
     {
         if (this.posY < -64.0D)
         {
-            this.kill();
+            this.setDead();
             return;
         }
 
@@ -442,40 +448,49 @@ public class EntityAstroMiner extends Entity implements IInventory, IPacketRecei
             return;
         }
 
+        if (this.toAddToServer)
+        {
+            this.toAddToServer = false;
+            this.serverIndex = AsteroidsTickHandlerServer.monitorMiner(this);
+        }
+
         //SERVER CODE
         if (this.ticksExisted % 10 == 0 || this.flagLink)
         {
             this.flagLink = false;
             this.checkPlayer();
-            TileEntity tileEntity = posBase.getTileEntity(this.worldObj);
-            if (tileEntity instanceof TileEntityMinerBase && ((TileEntityMinerBase) tileEntity).isMaster && !tileEntity.isInvalid())
+            if (posBase.blockExists(worldObj))
             {
-                //Create link with base on loading the EntityAstroMiner
-                UUID linker = ((TileEntityMinerBase) tileEntity).getLinkedMiner();
-                if (!this.getUniqueID().equals(linker))
+                TileEntity tileEntity = posBase.getTileEntity(this.worldObj);
+                if (tileEntity instanceof TileEntityMinerBase && ((TileEntityMinerBase) tileEntity).isMaster && !tileEntity.isInvalid())
                 {
-                    if (linker == null)
+                    //Create link with base on loading the EntityAstroMiner
+                    UUID linker = ((TileEntityMinerBase) tileEntity).getLinkedMiner();
+                    if (!this.getUniqueID().equals(linker))
+                    {
+                        if (linker == null)
+                        {
+                            ((TileEntityMinerBase) tileEntity).linkMiner(this);
+                        }
+                        else
+                        {
+                            this.freeze(FAIL_ANOTHERWASLINKED);
+                            return;
+                        }
+                    }
+                    else if (((TileEntityMinerBase) tileEntity).linkedMiner != this)
                     {
                         ((TileEntityMinerBase) tileEntity).linkMiner(this);
                     }
-                    else
+                }
+                else
+                {
+                    if (this.playerMP != null && (this.givenFailMessage & (1 << FAIL_BASEDESTROYED)) == 0)
                     {
-                        this.freeze(FAIL_ANOTHERWASLINKED);
-                        return;
+                        this.playerMP.addChatMessage(new ChatComponentText(GCCoreUtil.translate("gui.message.astro_miner" + FAIL_BASEDESTROYED + ".fail")));
+                        this.givenFailMessage += (1 << FAIL_BASEDESTROYED);
+                        //Continue mining even though base was destroyed - maybe it will be replaced
                     }
-                }
-                else if (((TileEntityMinerBase) tileEntity).linkedMiner != this)
-                {
-                    ((TileEntityMinerBase) tileEntity).linkMiner(this);
-                }
-            }
-            else
-            {
-                if (this.playerMP != null && (this.givenFailMessage & (1 << FAIL_BASEDESTROYED)) == 0)
-                {
-                    this.playerMP.addChatMessage(new ChatComponentText(GCCoreUtil.translate("gui.message.astro_miner" + FAIL_BASEDESTROYED + ".fail")));
-                    this.givenFailMessage += (1 << FAIL_BASEDESTROYED);
-                    //Continue mining even though base was destroyed - maybe it will be replaced
                 }
             }
         }
@@ -488,13 +503,16 @@ public class EntityAstroMiner extends Entity implements IInventory, IPacketRecei
         {
             //Go into dormant state if player is offline
             //but do not actually set the dormant state on the server, so can resume immediately if player comes online
-            this.motionX = 0;
-            this.motionY = 0;
-            this.motionZ = 0;
-            GalacticraftCore.packetPipeline.sendToDimension(new PacketDynamic(this), GCCoreUtil.getDimensionID(this.worldObj));
+            if (this.motionX != 0 || this.motionY != 0 || this.motionZ != 0)
+            {
+                this.motionX = 0;
+                this.motionY = 0;
+                this.motionZ = 0;
+                GalacticraftCore.packetPipeline.sendToDimension(new PacketDynamic(this), GCCoreUtil.getDimensionID(this.worldObj));
+            }
             return;
         }
-
+        
         if (this.lastFacing != this.facingAI)
         {
             this.lastFacing = this.facingAI;
@@ -511,7 +529,7 @@ public class EntityAstroMiner extends Entity implements IInventory, IPacketRecei
         this.prevPosZ = this.posZ;
         this.prevRotationPitch = this.rotationPitch;
         this.prevRotationYaw = this.rotationYaw;
-
+        
         if (this.AIstate > AISTATE_ATBASE)
         {
             if (this.energyLevel <= 0)
@@ -597,6 +615,7 @@ public class EntityAstroMiner extends Entity implements IInventory, IPacketRecei
         this.posY += this.motionY;
         this.posZ += this.motionZ;
         setEntityBoundingBox(getEntityBoundingBox().offset(this.motionX, this.motionY, this.motionZ));
+
 /*        if (this.dataWatcher.getWatchableObjectInt(this.timeSinceHit) > 0)
         {
             this.dataWatcher.updateObject(this.timeSinceHit, Integer.valueOf(this.dataWatcher.getWatchableObjectInt(this.timeSinceHit) - 1));
@@ -667,6 +686,10 @@ public class EntityAstroMiner extends Entity implements IInventory, IPacketRecei
     @Override
     public void getNetworkedData(ArrayList<Object> list)
     {
+        if (this.worldObj.isRemote)
+        {
+            return;
+        }
         list.add(this.playerMP == null ? AISTATE_OFFLINE : this.AIstate);
         list.add(this.energyLevel);
         list.add(this.targetPitch);
@@ -1176,9 +1199,16 @@ public class EntityAstroMiner extends Entity implements IInventory, IPacketRecei
         //If it is obstructed, return to base, or stand still if that is impossible
         if (wayBarred)
         {
-            if (this.playerMP != null)
+            if (this.playerMP != null && blockingBlock.block != Blocks.air)
             {
-                this.playerMP.addChatMessage(new ChatComponentText(GCCoreUtil.translate("gui.message.astro_miner1_a.fail") + " " + GCCoreUtil.translate(EntityAstroMiner.blockingBlock.toString())));
+                if (blockingBlock.block == Blocks.stone)
+                {
+                    this.playerMP.addChatMessage(new ChatComponentText(GCCoreUtil.translate("gui.message.astro_miner1_a.fail") + " " + GCCoreUtil.translate("gui.message.astro_miner1_b.fail")));
+                }
+                else
+                {
+                    this.playerMP.addChatMessage(new ChatComponentText(GCCoreUtil.translate("gui.message.astro_miner1_a.fail") + " " + GCCoreUtil.translate(EntityAstroMiner.blockingBlock.toString())));
+                }
             }
             this.motionX = 0;
             this.motionY = 0;
@@ -1201,6 +1231,7 @@ public class EntityAstroMiner extends Entity implements IInventory, IPacketRecei
             {
                 this.freeze(FAIL_RETURNPATHBLOCKED);
             }
+            blockingBlock = new BlockTuple(Blocks.air, 0);
         }
 
         if (this.tryBlockLimit == limit && !this.noSpeedup)
@@ -1434,6 +1465,12 @@ public class EntityAstroMiner extends Entity implements IInventory, IPacketRecei
         }
         if (b instanceof BlockLiquid)
         {
+            if ((b == Blocks.lava || b == Blocks.flowing_lava) && state.getValue(BlockLiquid.LEVEL).intValue() == 0 && this.AIstate != AISTATE_RETURNING)
+            {
+                blockingBlock.block = Blocks.lava;
+                blockingBlock.meta = 0;
+                return true;
+            }
             return false;
         }
         if (b instanceof IFluidBlock)
@@ -1444,7 +1481,7 @@ public class EntityAstroMiner extends Entity implements IInventory, IPacketRecei
         boolean gtFlag = false;
         if (b != GCBlocks.fallenMeteor)
         {
-            if (b instanceof IPlantable && b != Blocks.tallgrass && b != Blocks.deadbush && b != Blocks.double_plant && b != Blocks.waterlily && !(b instanceof BlockFlower))
+            if (b instanceof IPlantable && b != Blocks.tallgrass && b != Blocks.deadbush && b != Blocks.double_plant && b != Blocks.waterlily && !(b instanceof BlockFlower) && b != Blocks.reeds)
             {
                 blockingBlock.block = b;
                 blockingBlock.meta = b.getMetaFromState(state);
@@ -1479,16 +1516,22 @@ public class EntityAstroMiner extends Entity implements IInventory, IPacketRecei
         int result = ForgeHooks.onBlockBreakEvent(this.worldObj, this.playerMP.theItemInWorldManager.getGameType(), this.playerMP, pos);
         if (result < 0)
         {
+            blockingBlock.block = Blocks.stone;
+            blockingBlock.meta = 0;
             return true;
         }
 
         this.tryBlockLimit--;
-
-        ItemStack drops = gtFlag ? getGTDrops(this.worldObj, pos, b) : getPickBlock(this.worldObj, pos, b);
-        if (drops != null && !this.addToInventory(drops))
+        
+        //Collect the mined block - unless it's a plant or leaves in which case just break it
+        if (!((b instanceof IPlantable && !(b instanceof BlockReed)) || b instanceof BlockLeaves))
         {
-            //drop itemstack if AstroMiner can't hold it
-            dropStack(pos, drops);
+            ItemStack drops = gtFlag ? getGTDrops(this.worldObj, pos, b) : getPickBlock(this.worldObj, pos, b);
+            if (drops != null && !this.addToInventory(drops))
+            {
+                //drop itemstack if AstroMiner can't hold it
+                dropStack(pos, drops);
+            }
         }
 
         this.worldObj.setBlockState(pos, Blocks.air.getDefaultState(), 3);
@@ -1587,11 +1630,21 @@ public class EntityAstroMiner extends Entity implements IInventory, IPacketRecei
         {
             return new ItemStack(GCItems.meteoricIronRaw);
         }
+        if (b instanceof BlockSpaceGlass)
+        {
+            return b.getDrops(world, pos, b.getDefaultState(), 0).get(0);
+        }
 
         int i = 0;
         Item item = Item.getItemFromBlock(b);
 
-        if (item != null && item.getHasSubtypes())
+        if (item == null)
+        {
+            GCLog.info("AstroMiner was unable to mine anything from: " + b.getUnlocalizedName());
+            return null;
+        }
+            
+        if (item.getHasSubtypes())
         {
             i = b.getMetaFromState(world.getBlockState(pos));
         }
@@ -1983,7 +2036,7 @@ public class EntityAstroMiner extends Entity implements IInventory, IPacketRecei
         miner.posBase = base;
 
         //Increase motion speed when moving in empty space between asteroids
-        miner.speedup = (world.provider instanceof WorldProviderAsteroids) ? SPEEDUP * 1.6D : SPEEDUP;
+        miner.speedup = (world.provider instanceof WorldProviderAsteroids) ? SPEEDUP * 2.2D : SPEEDUP;
 
         //Clear blocks, and test to see if its movement area in front of the base is blocked
         if (miner.prepareMove(12, 0))
@@ -2060,7 +2113,7 @@ public class EntityAstroMiner extends Entity implements IInventory, IPacketRecei
                 {
                     ((EntityPlayer) e).addChatMessage(new ChatComponentText("WARNING: that Astro Miner belonged to an offline player, cannot reset player's Astro Miner count."));
                 }
-                this.kill();
+                this.setDead();
                 return true;
             }
 
@@ -2084,7 +2137,7 @@ public class EntityAstroMiner extends Entity implements IInventory, IPacketRecei
 
                 if (this.shipDamage > 90)
                 {
-                    this.kill();
+                    this.setDead();
                     this.dropShipAsItem();
                     return true;
                 }
@@ -2185,14 +2238,18 @@ public class EntityAstroMiner extends Entity implements IInventory, IPacketRecei
     @Override
     public void setDead()
     {
-        if (!this.worldObj.isRemote && this.playerMP != null && !this.spawnedInCreative)
+        if (!this.worldObj.isRemote && this.playerMP != null)
         {
             GCPlayerStats stats = GCPlayerStats.get(this.playerMP);
-            int astroCount = stats.getAstroMinerCount();
-            if (astroCount > 0)
+            if (!this.spawnedInCreative)
             {
-                stats.setAstroMinerCount(stats.getAstroMinerCount() - 1);
+                int astroCount = stats.getAstroMinerCount();
+                if (astroCount > 0)
+                {
+                    stats.setAstroMinerCount(stats.getAstroMinerCount() - 1);
+                }
             }
+            AsteroidsTickHandlerServer.removeChunkData(stats, this);
         }
 
         super.setDead();
@@ -2331,6 +2388,7 @@ public class EntityAstroMiner extends Entity implements IInventory, IPacketRecei
         final NBTTagList var2 = nbt.getTagList("Items", 10);
         this.cargoItems = new ItemStack[this.INV_SIZE];
 
+        int itemCount = 0;
         if (var2 != null)
         {
             for (int var3 = 0; var3 < var2.tagCount(); ++var3)
@@ -2340,11 +2398,26 @@ public class EntityAstroMiner extends Entity implements IInventory, IPacketRecei
 
                 if (var5 < this.cargoItems.length)
                 {
-                    this.cargoItems[var5] = ItemStack.loadItemStackFromNBT(var4);
+                    ItemStack read = ItemStack.loadItemStackFromNBT(var4);
+                    if (read != null)
+                    {
+                        this.cargoItems[var5] = read;
+                        itemCount += read.stackSize;
+                    }
                 }
             }
         }
+        this.mineCount = itemCount;
 
+        if (nbt.hasKey("sindex"))
+        {
+            this.serverIndex = nbt.getInteger("sindex");
+        }
+        else
+        {
+            this.serverIndex = -1;
+        }
+        
         if (nbt.hasKey("Energy"))
         {
             this.energyLevel = nbt.getInteger("Energy");
@@ -2373,6 +2446,21 @@ public class EntityAstroMiner extends Entity implements IInventory, IPacketRecei
         if (nbt.hasKey("Facing"))
         {
             this.facingAI = EnumFacing.getFront(nbt.getInteger("Facing"));
+            switch (this.facingAI)
+            {
+            case NORTH:
+                this.targetYaw = 180;
+                break;
+            case SOUTH:
+                this.targetYaw = 0;
+                break;
+            case WEST:
+                this.targetYaw = 270;
+                break;
+            case EAST:
+                this.targetYaw = 90;
+                break;
+            }
         }
         this.lastFacing = null;
         if (nbt.hasKey("WayPoints"))
@@ -2409,7 +2497,6 @@ public class EntityAstroMiner extends Entity implements IInventory, IPacketRecei
         }
         else
         {
-            System.out.println("[Galacticraft] Please break and replace any AstroMiner placed in the world prior to build 3.0.11.317.");
             this.playerUUID = null;
         }
         if (nbt.hasKey("speedup"))
@@ -2429,6 +2516,7 @@ public class EntityAstroMiner extends Entity implements IInventory, IPacketRecei
     @Override
     protected void writeEntityToNBT(NBTTagCompound nbt)
     {
+        if (worldObj.isRemote) return;
         final NBTTagList var2 = new NBTTagList();
 
         if (this.cargoItems != null)
@@ -2446,6 +2534,7 @@ public class EntityAstroMiner extends Entity implements IInventory, IPacketRecei
         }
 
         nbt.setTag("Items", var2);
+        nbt.setInteger("sindex", this.serverIndex);
         nbt.setInteger("Energy", this.energyLevel);
         if (this.posBase != null)
         {
@@ -2498,30 +2587,6 @@ public class EntityAstroMiner extends Entity implements IInventory, IPacketRecei
         nbt.setDouble("speedup", this.speedup);
         nbt.setInteger("pathBlockedCount", this.pathBlockedCount);
         nbt.setBoolean("spawnedInCreative", this.spawnedInCreative);
-    }
-
-    @Override
-    public int getField(int id)
-    {
-        return 0;
-    }
-
-    @Override
-    public void setField(int id, int value)
-    {
-
-    }
-
-    @Override
-    public int getFieldCount()
-    {
-        return 0;
-    }
-
-    @Override
-    public void clear()
-    {
-
     }
 }
 
