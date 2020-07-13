@@ -3,14 +3,12 @@ package micdoodle8.mods.galacticraft.planets.venus;
 import micdoodle8.mods.galacticraft.core.GCBlocks;
 import micdoodle8.mods.galacticraft.core.items.ItemBlockDesc;
 import micdoodle8.mods.galacticraft.core.items.ItemBlockGC;
-import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
+import micdoodle8.mods.galacticraft.planets.asteroids.items.ItemBlockLaser;
 import micdoodle8.mods.galacticraft.planets.venus.blocks.*;
 import micdoodle8.mods.galacticraft.planets.venus.items.ItemBlockBasicVenus;
 import micdoodle8.mods.galacticraft.planets.venus.items.ItemBlockTorchWeb;
 import net.minecraft.block.Block;
 import net.minecraft.item.ItemBlock;
-import net.minecraftforge.fml.common.registry.GameRegistry;
-import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.oredict.OreDictionary;
 
 public class VenusBlocks
@@ -24,6 +22,9 @@ public class VenusBlocks
     public static Block geothermalGenerator;
     public static Block crashedProbe;
     public static Block scorchedRock;
+    public static Block solarArrayModule;
+    public static Block solarArrayController;
+    public static Block laserTurret;
 
     public static void initBlocks()
     {
@@ -35,12 +36,14 @@ public class VenusBlocks
         VenusBlocks.geothermalGenerator = new BlockGeothermalGenerator("geothermal_generator");
         VenusBlocks.crashedProbe = new BlockCrashedProbe("crashed_probe");
         VenusBlocks.scorchedRock = new BlockScorchedRock("venus_rock_scorched");
+        VenusBlocks.solarArrayModule = new BlockSolarArrayModule("solar_array_module");
+        VenusBlocks.solarArrayController = new BlockSolarArrayController("solar_array_controller");
+        VenusBlocks.laserTurret = new BlockLaserTurret("laser_turret");
 
         GCBlocks.hiddenBlocks.add(VenusBlocks.bossSpawner);
 
         VenusBlocks.registerBlocks();
         VenusBlocks.setHarvestLevels();
-        VenusBlocks.oreDictRegistration();
     }
 
     private static void setHarvestLevel(Block block, String toolClass, int level, int meta)
@@ -64,13 +67,7 @@ public class VenusBlocks
 
     public static void registerBlock(Block block, Class<? extends ItemBlock> itemClass)
     {
-        String name = block.getUnlocalizedName().substring(5);
-        GCCoreUtil.registerGalacticraftBlock(name, block);
-        GameRegistry.registerBlock(block, itemClass, name);
-        if (GCCoreUtil.getEffectiveSide() == Side.CLIENT)
-        {
-            GCBlocks.registerSorted(block);
-        }
+        GCBlocks.registerBlock(block, itemClass);
     }
 
     public static void registerBlocks()
@@ -83,6 +80,9 @@ public class VenusBlocks
         registerBlock(VenusBlocks.geothermalGenerator, ItemBlockDesc.class);
         registerBlock(VenusBlocks.crashedProbe, ItemBlockDesc.class);
         registerBlock(VenusBlocks.scorchedRock, ItemBlockGC.class);
+        registerBlock(VenusBlocks.solarArrayModule, ItemBlockDesc.class);
+        registerBlock(VenusBlocks.solarArrayController, ItemBlockDesc.class);
+        registerBlock(VenusBlocks.laserTurret, ItemBlockLaser.class);
     }
 
     public static void oreDictRegistration()
@@ -95,6 +95,7 @@ public class VenusBlocks
         OreDictionary.registerOre("oreQuartz", BlockBasicVenus.EnumBlockBasicVenus.ORE_QUARTZ.getItemStack());
         OreDictionary.registerOre("oreLead", BlockBasicVenus.EnumBlockBasicVenus.ORE_GALENA.getItemStack());
         OreDictionary.registerOre("oreSilicon", BlockBasicVenus.EnumBlockBasicVenus.ORE_SILICON.getItemStack());
+        OreDictionary.registerOre("oreSolar", BlockBasicVenus.EnumBlockBasicVenus.ORE_SOLAR_DUST.getItemStack());
 
         OreDictionary.registerOre("blockLead", BlockBasicVenus.EnumBlockBasicVenus.LEAD_BLOCK.getItemStack());
     }

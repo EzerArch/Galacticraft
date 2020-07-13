@@ -22,6 +22,7 @@ public class GuiElementTextBox extends GuiButton
     public int backspacePressed;
     public boolean isTextFocused = false;
     public int incorrectUseTimer;
+    public boolean resetOnClick = true;
 
     private ITextBoxCallback parentGui;
 
@@ -47,7 +48,7 @@ public class GuiElementTextBox extends GuiButton
             {
                 if (this.text.length() > 0)
                 {
-                    if (this.parentGui.canPlayerEdit(this, this.mc.thePlayer))
+                    if (this.parentGui.canPlayerEdit(this, this.mc.player))
                     {
                         String toBeParsed = this.text.substring(0, this.text.length() - 1);
 
@@ -79,7 +80,7 @@ public class GuiElementTextBox extends GuiButton
 
                 if (this.isValid(this.text + pastestring))
                 {
-                    if (this.parentGui.canPlayerEdit(this, this.mc.thePlayer))
+                    if (this.parentGui.canPlayerEdit(this, this.mc.player))
                     {
                         this.text = this.text + pastestring;
                         this.text = this.text.substring(0, Math.min(String.valueOf(this.text).length(), this.maxLength));
@@ -93,7 +94,7 @@ public class GuiElementTextBox extends GuiButton
             }
             else if (this.isValid(this.text + keyChar))
             {
-                if (this.parentGui.canPlayerEdit(this, this.mc.thePlayer))
+                if (this.parentGui.canPlayerEdit(this, this.mc.player))
                 {
                     this.text = this.text + keyChar;
                     this.text = this.text.substring(0, Math.min(this.text.length(), this.maxLength));
@@ -113,7 +114,7 @@ public class GuiElementTextBox extends GuiButton
     }
 
     @Override
-    public void drawButton(Minecraft par1Minecraft, int par2, int par3)
+    public void drawButton(Minecraft par1Minecraft, int par2, int par3, float partial)
     {
         if (this.text == null)
         {
@@ -123,8 +124,8 @@ public class GuiElementTextBox extends GuiButton
 
         if (this.visible)
         {
-            Gui.drawRect(this.xPosition, this.yPosition, this.xPosition + this.width, this.yPosition + this.height, ColorUtil.to32BitColor(140, 140, 140, 140));
-            Gui.drawRect(this.xPosition + 1, this.yPosition + 1, this.xPosition + this.width - 1, this.yPosition + this.height - 1, ColorUtil.to32BitColor(255, 0, 0, 0));
+            Gui.drawRect(this.x, this.y, this.x + this.width, this.y + this.height, ColorUtil.to32BitColor(140, 140, 140, 140));
+            Gui.drawRect(this.x + 1, this.y + 1, this.x + this.width - 1, this.y + this.height - 1, ColorUtil.to32BitColor(255, 0, 0, 0));
 
             this.cursorPulse++;
 
@@ -132,7 +133,7 @@ public class GuiElementTextBox extends GuiButton
             {
                 if (Keyboard.isKeyDown(Keyboard.KEY_BACK) && this.text.length() > 0)
                 {
-                    if (System.currentTimeMillis() - this.timeBackspacePressed > 200 / (1 + this.backspacePressed * 0.3F) && this.parentGui.canPlayerEdit(this, this.mc.thePlayer))
+                    if (System.currentTimeMillis() - this.timeBackspacePressed > 200 / (1 + this.backspacePressed * 0.3F) && this.parentGui.canPlayerEdit(this, this.mc.player))
                     {
                         String toBeParsed = this.text.substring(0, this.text.length() - 1);
 
@@ -149,7 +150,7 @@ public class GuiElementTextBox extends GuiButton
                         this.timeBackspacePressed = System.currentTimeMillis();
                         this.backspacePressed++;
                     }
-                    else if (!this.parentGui.canPlayerEdit(this, this.mc.thePlayer))
+                    else if (!this.parentGui.canPlayerEdit(this, this.mc.player))
                     {
                         this.incorrectUseTimer = 10;
                         this.parentGui.onIntruderInteraction(this);
@@ -167,14 +168,14 @@ public class GuiElementTextBox extends GuiButton
                 this.incorrectUseTimer--;
             }
 
-            int xPos = this.xPosition + 4;
+            int xPos = this.x + 4;
 
             if (this.centered)
             {
-                xPos = this.xPosition + this.width / 2 - this.mc.fontRendererObj.getStringWidth(this.text) / 2;
+                xPos = this.x + this.width / 2 - this.mc.fontRenderer.getStringWidth(this.text) / 2;
             }
 
-            this.drawString(this.mc.fontRendererObj, this.text + (this.cursorPulse / 24 % 2 == 0 && this.isTextFocused ? "_" : ""), xPos, this.yPosition + this.height / 2 - 4, this.incorrectUseTimer > 0 ? ColorUtil.to32BitColor(255, 255, 20, 20) : this.parentGui.getTextColor(this));
+            this.drawString(this.mc.fontRenderer, this.text + (this.cursorPulse / 24 % 2 == 0 && this.isTextFocused ? "_" : ""), xPos, this.y + this.height / 2 - 4, this.incorrectUseTimer > 0 ? ColorUtil.to32BitColor(255, 255, 20, 20) : this.parentGui.getTextColor(this));
         }
     }
 
@@ -227,9 +228,12 @@ public class GuiElementTextBox extends GuiButton
     {
         if (super.mousePressed(par1Minecraft, par2, par3))
         {
-            Gui.drawRect(this.xPosition, this.yPosition, this.xPosition + this.width, this.yPosition + this.height, 0xffA0A0A0);
+            Gui.drawRect(this.x, this.y, this.x + this.width, this.y + this.height, 0xffA0A0A0);
             this.isTextFocused = true;
-            this.text = this.parentGui.getInitialText(this);
+            if (resetOnClick)
+            {
+                this.text = this.parentGui.getInitialText(this);
+            }
             this.parentGui.onTextChanged(this, this.text);
             return true;
         }

@@ -3,6 +3,7 @@ package micdoodle8.mods.galacticraft.core.tile;
 import io.netty.buffer.ByteBuf;
 import micdoodle8.mods.miccore.Annotations.NetworkedField;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.EnumFacing;
 import net.minecraftforge.fml.relauncher.Side;
 
 import java.util.List;
@@ -14,12 +15,23 @@ public class TileEntityFallenMeteor extends TileEntityAdvanced
     public int heatLevel = TileEntityFallenMeteor.MAX_HEAT_LEVEL;
     private boolean sentOnePacket = false;
 
+    public TileEntityFallenMeteor()
+    {
+        super("tile.fallenmeteor.name");
+    }
+
+    @Override
+    public int[] getSlotsForFace(EnumFacing side)
+    {
+        return new int[0];
+    }
+
     @Override
     public void update()
     {
         super.update();
 
-        if (!this.worldObj.isRemote && this.heatLevel > 0)
+        if (!this.world.isRemote && this.heatLevel > 0)
         {
             this.heatLevel--;
         }
@@ -43,9 +55,9 @@ public class TileEntityFallenMeteor extends TileEntityAdvanced
     @Override
     public void readExtraNetworkedData(ByteBuf dataStream)
     {
-        if (this.worldObj.isRemote)
+        if (this.world.isRemote)
         {
-            this.worldObj.notifyLightSet(this.getPos());
+            this.world.notifyLightSet(this.getPos());
         }
     }
 
@@ -63,10 +75,23 @@ public class TileEntityFallenMeteor extends TileEntityAdvanced
     }
 
     @Override
-    public void writeToNBT(NBTTagCompound nbt)
+    public NBTTagCompound writeToNBT(NBTTagCompound nbt)
     {
         super.writeToNBT(nbt);
         nbt.setInteger("MeteorHeatLevel", this.heatLevel);
+        return nbt;
+    }
+
+    @Override
+    protected boolean handleInventory()
+    {
+        return false;
+    }
+
+    @Override
+    public NBTTagCompound getUpdateTag()
+    {
+        return this.writeToNBT(new NBTTagCompound());
     }
 
     @Override

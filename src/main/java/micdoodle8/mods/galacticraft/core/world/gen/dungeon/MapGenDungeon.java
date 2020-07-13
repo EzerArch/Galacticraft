@@ -1,14 +1,15 @@
 package micdoodle8.mods.galacticraft.core.world.gen.dungeon;
 
+import com.google.common.collect.Lists;
 import micdoodle8.mods.galacticraft.api.world.IGalacticraftWorldProvider;
 import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
-import net.minecraft.util.MathHelper;
-import net.minecraft.world.World;
-import net.minecraft.world.gen.structure.MapGenStructure;
-import net.minecraft.world.gen.structure.MapGenStructureIO;
-import net.minecraft.world.gen.structure.StructureComponent;
-import net.minecraft.world.gen.structure.StructureStart;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.world.*;
+import net.minecraft.world.gen.structure.*;
 
+import javax.swing.*;
+import java.awt.*;
 import java.util.List;
 import java.util.Random;
 
@@ -46,6 +47,7 @@ public class MapGenDungeon extends MapGenStructure
             MapGenStructureIO.registerStructureComponent(RoomTreasure.class, "MoonDungeonTreasureRoom");
             MapGenStructureIO.registerStructureComponent(RoomSpawner.class, "MoonDungeonSpawnerRoom");
             MapGenStructureIO.registerStructureComponent(RoomChest.class, "MoonDungeonChestRoom");
+            MapGenStructureIO.registerStructureComponent(RoomEntrance.class, "MoonDungeonEntranceRoom");
         }
 
         MapGenDungeon.initialized = true;
@@ -60,12 +62,12 @@ public class MapGenDungeon extends MapGenStructure
     @Override
     protected boolean canSpawnStructureAtCoords(int chunkX, int chunkZ)
     {
-        long dungeonPos = getDungeonPosForCoords(this.worldObj, chunkX, chunkZ, ((IGalacticraftWorldProvider) this.worldObj.provider).getDungeonSpacing());
+        long dungeonPos = getDungeonPosForCoords(this.world, chunkX, chunkZ, ((IGalacticraftWorldProvider) this.world.provider).getDungeonSpacing());
         int i = (int) (dungeonPos >> 32);
         int j = (int) dungeonPos;  //Java automatically gives the 32 least significant bits
         return i == chunkX && j == chunkZ;
     }
-    
+
     public static long getDungeonPosForCoords(World world, int chunkX, int chunkZ, int spacing)
     {
         final int numChunks = spacing / 16;
@@ -81,14 +83,14 @@ public class MapGenDungeon extends MapGenStructure
 
         int k = chunkX / numChunks;
         int l = chunkZ / numChunks;
-        long seed = (long)k * 341873128712L + (long)l * 132897987541L + world.getWorldInfo().getSeed() + (long)(10387340 + world.provider.getDimensionId());
+        long seed = (long)k * 341873128712L + (long)l * 132897987541L + world.getWorldInfo().getSeed() + (long)(10387340 + world.provider.getDimension());
         Random random = new Random();
         random.setSeed(seed);
         k = k * numChunks + random.nextInt(numChunks);
         l = l * numChunks + random.nextInt(numChunks);
         return (((long) k) << 32) + l;
     }
-    
+
     /**
      * This returns an angle between 0 and 360 degrees.  0 degrees means due North from the current (x, z) position
      * Only provides meaningful results in worlds with dungeon generation using this class!
@@ -97,8 +99,8 @@ public class MapGenDungeon extends MapGenStructure
     {
         int spacing = ((IGalacticraftWorldProvider) world.provider).getDungeonSpacing();
         if (spacing == 0) return 0F;
-        int x = MathHelper.floor_double(xpos);
-        int z = MathHelper.floor_double(zpos);
+        int x = MathHelper.floor(xpos);
+        int z = MathHelper.floor(zpos);
         int quadrantX = x % spacing;
         int quadrantZ = z % spacing;
         int searchOffsetX = quadrantX / (spacing / 2);  //0 or 1
@@ -131,12 +133,19 @@ public class MapGenDungeon extends MapGenStructure
     @Override
     protected StructureStart getStructureStart(int chunkX, int chunkZ)
     {
-        return new MapGenDungeon.Start(this.worldObj, this.rand, chunkX, chunkZ, this.configuration);
+        return new MapGenDungeon.Start(this.world, this.rand, chunkX, chunkZ, this.configuration);
+    }
+
+    @Override
+    public BlockPos getNearestStructurePos(World worldIn, BlockPos pos, boolean p_180706_3_)
+    {
+        return null;
     }
 
     public static class Start extends StructureStart
     {
         private DungeonConfiguration configuration;
+        DungeonStart startPiece;
 
         public Start()
         {
@@ -146,7 +155,7 @@ public class MapGenDungeon extends MapGenStructure
         {
             super(chunkX, chunkZ);
             this.configuration = configuration;
-            DungeonStart startPiece = new DungeonStart(worldIn, configuration, rand, (chunkX << 4) + 2, (chunkZ << 4) + 2);
+            startPiece = new DungeonStart(worldIn, configuration, rand, (chunkX << 4) + 2, (chunkZ << 4) + 2);
             startPiece.buildComponent(startPiece, this.components, rand);
             List<StructureComponent> list = startPiece.attachedComponents;
 
@@ -160,4 +169,98 @@ public class MapGenDungeon extends MapGenStructure
             this.updateBoundingBox();
         }
     }
+
+    public static void main(String args[])
+    {
+        Random rand = new Random();
+        Start start = new Start(null, rand, 0, 0, new DungeonConfiguration(null, 25, 8, 16, 5, 6, RoomBoss.class, RoomTreasure.class));
+
+        EventQueue.invokeLater(() ->
+        {
+            try
+            {
+                UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+            }
+            catch (ClassNotFoundException | InstantiationException | IllegalAccessException | UnsupportedLookAndFeelException ex)
+            {
+                ex.printStackTrace();
+            }
+
+            JFrame frame = new JFrame("Dungeon Test");
+            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            frame.add(new DungeonGenPanel(start.startPiece.componentBounds));
+            frame.pack();
+            frame.setLocationRelativeTo(null);
+            frame.setVisible(true);
+        });
+    }
+
+    public static class DungeonGenPanel extends JPanel
+    {
+        DungeonGenPanel(List<StructureBoundingBox> componentBounds)
+        {
+            int absMinX = Integer.MAX_VALUE;
+            int absMinZ = Integer.MAX_VALUE;
+            int absMaxX = Integer.MIN_VALUE;
+            int absMaxZ = Integer.MIN_VALUE;
+            for (StructureBoundingBox b : componentBounds)
+            {
+                if (b.minX < absMinX)
+                {
+                    absMinX = b.minX;
+                }
+                if (b.minZ < absMinZ)
+                {
+                    absMinZ = b.minZ;
+                }
+                if (b.maxX > absMaxX)
+                {
+                    absMaxX = b.maxX;
+                }
+                if (b.maxZ > absMaxZ)
+                {
+                    absMaxZ = b.maxZ;
+                }
+            }
+            setLayout(new GridLayout(absMaxX - absMinX, absMaxZ - absMinZ, 0, 0));
+
+            Color[] colors = new Color[]{Color.GREEN, Color.BLUE, Color.RED, Color.MAGENTA};
+            List<List<JPanel>> cells = Lists.newArrayList();
+            for (int row = 0; row < absMaxX - absMinX; row++)
+            {
+                List<JPanel> rowCells = Lists.newArrayList();
+                for (int col = 0; col < absMaxZ - absMinZ; col++)
+                {
+                    JPanel cell = new JPanel()
+                    {
+                        @Override
+                        public Dimension getPreferredSize()
+                        {
+                            return new Dimension(8, 8);
+                        }
+                    };
+                    cell.setBackground(Color.GRAY);
+                    add(cell);
+                    rowCells.add(cell);
+                }
+                cells.add(rowCells);
+            }
+
+            int color = 0;
+            // X is rows, Z is cols
+            for (StructureBoundingBox bb : componentBounds)
+            {
+                color = ++color % colors.length;
+
+                for (int i = bb.minX; i < bb.maxX; ++i)
+                {
+                    for (int j = bb.minZ; j < bb.maxZ; ++j)
+                    {
+                        cells.get(i - absMinX).get(j - absMinZ).setBackground(colors[color]);
+                    }
+                }
+            }
+        }
+    }
+
 }

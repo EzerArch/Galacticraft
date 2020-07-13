@@ -1,10 +1,10 @@
 package micdoodle8.mods.galacticraft.core.inventory;
 
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.inventory.IInventory;
-import net.minecraft.util.ChatComponentText;
-import net.minecraft.util.ChatComponentTranslation;
-import net.minecraft.util.IChatComponent;
+import net.minecraft.inventory.ISidedInventory;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.TextComponentTranslation;
 
 /*
  * IInventory providing defaults for the eight methods
@@ -15,7 +15,7 @@ import net.minecraft.util.IChatComponent;
  * 
  * Override .hasCustomName() if true is required.
  */
-public interface IInventoryDefaults extends IInventory
+public interface IInventoryDefaults extends ISidedInventory
 {
     //We don't use these because we use forge containers
     @Override
@@ -55,7 +55,7 @@ public interface IInventoryDefaults extends IInventory
     /**
      * Override this and return true IF the inventory .getName() is
      * ALREADY a localized name e.g. by GCCoreUtil.translate()
-     *  
+     *
      **/
     @Override
     public default boolean hasCustomName()
@@ -64,8 +64,8 @@ public interface IInventoryDefaults extends IInventory
     }
 
     @Override
-    public default IChatComponent getDisplayName()
+    public default ITextComponent getDisplayName()
     {
-        return (this.hasCustomName() ? new ChatComponentText(this.getName()) : new ChatComponentTranslation(this.getName(), new Object[0]));
+        return this.hasCustomName() ? new TextComponentString(this.getName()) : new TextComponentTranslation(this.getName(), new Object[0]);
     }
 }

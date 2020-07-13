@@ -1,6 +1,8 @@
 package micdoodle8.mods.galacticraft.planets.venus.world.gen.dungeon;
 
 import com.google.common.collect.Lists;
+
+import micdoodle8.mods.galacticraft.core.util.GCLog;
 import net.minecraft.world.World;
 import net.minecraft.world.gen.structure.StructureBoundingBox;
 import net.minecraft.world.gen.structure.StructureComponent;
@@ -8,7 +10,7 @@ import net.minecraft.world.gen.structure.StructureComponent;
 import java.util.List;
 import java.util.Random;
 
-public class DungeonStartVenus extends RoomEntranceVenus
+public class DungeonStartVenus extends EntranceCraterVenus
 {
     public List<StructureComponent> attachedComponents = Lists.newArrayList();
     public List<StructureBoundingBox> componentBounds = Lists.newArrayList();
@@ -19,7 +21,7 @@ public class DungeonStartVenus extends RoomEntranceVenus
 
     public DungeonStartVenus(World world, DungeonConfigurationVenus configuration, Random rand, int blockPosX, int blockPosZ)
     {
-        super(world, configuration, rand, blockPosX, blockPosZ);
+        super(configuration, rand, blockPosX, blockPosZ);
     }
 
     @Override
@@ -52,7 +54,7 @@ public class DungeonStartVenus extends RoomEntranceVenus
             attempts++;
         }
 
-        System.out.println("Dungeon generation took " + attempts + " attempt(s)");
+        GCLog.debug("Dungeon generation took " + attempts + " attempt(s)");
 
         if (!validAttempt)
         {

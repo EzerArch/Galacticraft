@@ -8,10 +8,9 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.Tessellator;
-import net.minecraft.client.renderer.WorldRenderer;
+import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.util.ResourceLocation;
-import net.minecraftforge.fml.client.FMLClientHandler;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.lwjgl.opengl.GL11;
@@ -21,26 +20,24 @@ public class OverlayOxygenTanks extends Overlay
 {
     private final static ResourceLocation guiTexture = new ResourceLocation(Constants.ASSET_PREFIX, "textures/gui/gui.png");
 
-    private static Minecraft minecraft = FMLClientHandler.instance().getClient();
-
     /**
      * Render the GUI that displays oxygen level in tanks
      */
-    public static void renderOxygenTankIndicator(int heatLevel, int oxygenInTank1, int oxygenInTank2, boolean right, boolean top, boolean invalid)
+    public static void renderOxygenTankIndicator(Minecraft mc, int heatLevel, int oxygenInTank1, int oxygenInTank2, boolean right, boolean top, boolean invalid)
     {
-        final ScaledResolution scaledresolution = ClientUtil.getScaledRes(OverlayOxygenTanks.minecraft, OverlayOxygenTanks.minecraft.displayWidth, OverlayOxygenTanks.minecraft.displayHeight);
+        final ScaledResolution scaledresolution = ClientUtil.getScaledRes(mc, mc.displayWidth, mc.displayHeight);
         final int i = scaledresolution.getScaledWidth();
         final int j = scaledresolution.getScaledHeight();
-        OverlayOxygenTanks.minecraft.entityRenderer.setupOverlayRendering();
+        mc.entityRenderer.setupOverlayRendering();
         GlStateManager.enableBlend();
         GlStateManager.disableAlpha();
         GlStateManager.depthMask(false);
-        GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         GlStateManager.disableAlpha();
-        FMLClientHandler.instance().getClient().renderEngine.bindTexture(OverlayOxygenTanks.guiTexture);
+        mc.renderEngine.bindTexture(OverlayOxygenTanks.guiTexture);
         final Tessellator tessellator = Tessellator.getInstance();
-        WorldRenderer worldRenderer = tessellator.getWorldRenderer();
+        BufferBuilder worldRenderer = tessellator.getBuffer();
         GlStateManager.enableDepth();
         GlStateManager.enableAlpha();
         GlStateManager.disableLighting();
@@ -167,7 +164,7 @@ public class OverlayOxygenTanks extends Overlay
         if (invalid)
         {
             String value = GCCoreUtil.translate("gui.warning.invalid_thermal");
-            OverlayOxygenTanks.minecraft.fontRendererObj.drawString(value, minLeftX - 18 - OverlayOxygenTanks.minecraft.fontRendererObj.getStringWidth(value), (int) bottomY - heatLevelScaled - OverlayOxygenTanks.minecraft.fontRendererObj.FONT_HEIGHT / 2 - 1, ColorUtil.to32BitColor(255, 255, 10, 10));
+            mc.fontRenderer.drawString(value, minLeftX - 18 - mc.fontRenderer.getStringWidth(value), (int) bottomY - heatLevelScaled - mc.fontRenderer.FONT_HEIGHT / 2 - 1, ColorUtil.to32BitColor(255, 255, 10, 10));
         }
         GlStateManager.disableBlend();
     }

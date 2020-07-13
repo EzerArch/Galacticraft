@@ -19,7 +19,7 @@ public class Corridor extends SizedPiece
     public Corridor(DungeonConfiguration configuration, Random rand, int blockPosX, int blockPosZ, int sizeX, int sizeY, int sizeZ, EnumFacing direction)
     {
         super(configuration, sizeX, sizeY, sizeZ, direction);
-        this.coordBaseMode = EnumFacing.SOUTH;
+        this.setCoordBaseMode(EnumFacing.SOUTH);
         this.boundingBox = new StructureBoundingBox(blockPosX, configuration.getYPosition(), blockPosZ, blockPosX + sizeX, configuration.getYPosition() + sizeY, blockPosZ + sizeZ);
     }
 
@@ -54,7 +54,7 @@ public class Corridor extends SizedPiece
                             }
                         }
 
-                        this.setBlockState(worldIn, Blocks.air.getDefaultState(), i, j, k, this.boundingBox);
+                        this.setBlockState(worldIn, Blocks.AIR.getDefaultState(), i, j, k, this.boundingBox);
                     }
                 }
             }
@@ -93,7 +93,8 @@ public class Corridor extends SizedPiece
     @Override
     public Piece getNextPiece(DungeonStart startPiece, Random rand)
     {
-        if (startPiece.attachedComponents.size() > 2 && startPiece.attachedComponents.get(startPiece.attachedComponents.size() - 2) instanceof RoomBoss)
+        int pieceCount = startPiece.attachedComponents.size();
+        if (pieceCount > 10 && startPiece.attachedComponents.get(pieceCount - 2) instanceof RoomBoss)
         {
             try
             {
@@ -106,8 +107,8 @@ public class Corridor extends SizedPiece
         }
         else
         {
-            int bossRoomChance = Math.max((int) (1.0 / Math.pow(startPiece.attachedComponents.size() / 55.0, 2)), 5);
-            boolean bossRoom = rand.nextInt(bossRoomChance) == 0;
+            int bossRoomChance = Math.max((int) (20.0 / (pieceCount - 10)), 1);
+            boolean bossRoom = pieceCount > 25 || (pieceCount > 10 && rand.nextInt(bossRoomChance) == 0);
             if (bossRoom)
             {
                 try
@@ -117,6 +118,7 @@ public class Corridor extends SizedPiece
                 catch (Exception e)
                 {
                     e.printStackTrace();
+                    return null;
                 }
             }
             else

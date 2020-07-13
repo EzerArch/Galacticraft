@@ -3,6 +3,7 @@ package micdoodle8.mods.galacticraft.core.world.gen.dungeon;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.world.gen.structure.StructureBoundingBox;
+import net.minecraft.world.gen.structure.template.TemplateManager;
 
 import java.util.Random;
 
@@ -39,13 +40,13 @@ public abstract class DirectionalPiece extends Piece
     }
 
     @Override
-    protected void readStructureFromNBT(NBTTagCompound tagCompound)
+    protected void readStructureFromNBT(NBTTagCompound nbt, TemplateManager manager)
     {
-        super.readStructureFromNBT(tagCompound);
+        super.readStructureFromNBT(nbt, manager);
 
-        if (tagCompound.hasKey("direction"))
+        if (nbt.hasKey("direction"))
         {
-            this.direction = EnumFacing.getFront(tagCompound.getInteger("direction"));
+            this.direction = EnumFacing.getFront(nbt.getInteger("direction"));
         }
         else
         {
@@ -62,10 +63,10 @@ public abstract class DirectionalPiece extends Piece
         int sizeZ;
         boolean valid;
         int attempts = maxAttempts;
+        int randDir = rand.nextInt(3);
         do
         {
-            int randDir = rand.nextInt(4);
-            randomDir = EnumFacing.getHorizontal((randDir == getDirection().getOpposite().getHorizontalIndex() ? randDir + 1 : randDir) % 4);
+            randomDir = EnumFacing.getHorizontal((getDirection().getOpposite().getHorizontalIndex() + 1 + randDir) % 4);
             StructureBoundingBox extension = getExtension(randomDir, this.configuration.getHallwayLengthMin() + rand.nextInt(this.configuration.getHallwayLengthMax() - this.configuration.getHallwayLengthMin()), 3);
             blockX = extension.minX;
             blockZ = extension.minZ;
@@ -73,6 +74,7 @@ public abstract class DirectionalPiece extends Piece
             sizeZ = extension.maxZ - extension.minZ;
             valid = !startPiece.checkIntersection(extension);
             attempts--;
+            randDir++;
         }
         while (!valid && attempts > 0);
 

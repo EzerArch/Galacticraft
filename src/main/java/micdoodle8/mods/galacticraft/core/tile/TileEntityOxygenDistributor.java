@@ -10,22 +10,17 @@ import micdoodle8.mods.galacticraft.core.Constants;
 import micdoodle8.mods.galacticraft.core.blocks.BlockOxygenDistributor;
 import micdoodle8.mods.galacticraft.core.energy.item.ItemElectricBase;
 import micdoodle8.mods.galacticraft.core.entities.IBubbleProviderColored;
-import micdoodle8.mods.galacticraft.core.inventory.IInventoryDefaults;
 import micdoodle8.mods.galacticraft.core.util.FluidUtil;
-import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
 import micdoodle8.mods.miccore.Annotations.NetworkedField;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.inventory.ISidedInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.nbt.NBTTagList;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.util.AxisAlignedBB;
-import net.minecraft.util.BlockPos;
 import net.minecraft.util.EnumFacing;
-import net.minecraft.util.MathHelper;
+import net.minecraft.util.NonNullList;
+import net.minecraft.util.math.AxisAlignedBB;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
@@ -33,12 +28,11 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 
-public class TileEntityOxygenDistributor extends TileEntityOxygen implements IInventoryDefaults, ISidedInventory, IBubbleProviderColored
+public class TileEntityOxygenDistributor extends TileEntityOxygen implements IBubbleProviderColored
 {
     public boolean active;
     public boolean lastActive;
 
-    private ItemStack[] containingItems = new ItemStack[2];
     public static HashSet<BlockVec3Dim> loadedTiles = new HashSet<>();
     public float bubbleSize;
     @NetworkedField(targetSide = Side.CLIENT)
@@ -46,29 +40,30 @@ public class TileEntityOxygenDistributor extends TileEntityOxygen implements IIn
 
     public TileEntityOxygenDistributor()
     {
-        super(6000, 8);
+        super("container.oxygendistributor.name", 6000, 8);
 //        this.oxygenBubble = null;
+        this.inventory = NonNullList.withSize(2, ItemStack.EMPTY);
     }
 
     @Override
     public void onLoad()
     {
-        if (!this.worldObj.isRemote) TileEntityOxygenDistributor.loadedTiles.add(new BlockVec3Dim(this));
+        if (!this.world.isRemote) TileEntityOxygenDistributor.loadedTiles.add(new BlockVec3Dim(this));
     }
 
     @Override
     public void onChunkUnload()
     {
-        TileEntityOxygenDistributor.loadedTiles.remove(new BlockVec3Dim(this));
+        if (!this.world.isRemote) TileEntityOxygenDistributor.loadedTiles.remove(new BlockVec3Dim(this));
         super.onChunkUnload();
     }
 
     @Override
     public void invalidate()
     {
-        if (!this.worldObj.isRemote/* && this.oxygenBubble != null*/)
+        if (!this.world.isRemote/* && this.oxygenBubble != null*/)
         {
-            int bubbleR = MathHelper.ceiling_double_int(bubbleSize);
+            int bubbleR = MathHelper.ceil(bubbleSize);
             int bubbleR2 = (int) (bubbleSize * bubbleSize);
             final int xMin = this.getPos().getX() - bubbleR;
             final int xMax = this.getPos().getX() + bubbleR;
@@ -83,11 +78,11 @@ public class TileEntityOxygenDistributor extends TileEntityOxygen implements IIn
                     //Doing y as the inner loop allows BlockVec3 to cache the chunks more efficiently
                     for (int y = yMin; y < yMax; y++)
                     {
-                        Block block = new BlockVec3(x, y, z).getBlockID(this.worldObj);
+                        IBlockState state = new BlockVec3(x, y, z).getBlockState(this.world);
 
-                        if (block instanceof IOxygenReliantBlock && this.getDistanceFromServer(x, y, z) <= bubbleR2)
+                        if (state != null && state.getBlock() instanceof IOxygenReliantBlock && this.getDistanceFromServer(x, y, z) <= bubbleR2)
                         {
-                            this.worldObj.scheduleUpdate(new BlockPos(x, y, z), block, 0);
+                            this.world.scheduleUpdate(new BlockPos(x, y, z), state.getBlock(), 0);
                         }
                     }
                 }
@@ -108,14 +103,14 @@ public class TileEntityOxygenDistributor extends TileEntityOxygen implements IIn
     @Override
     public void addExtraNetworkedData(List<Object> networkedList)
     {
-        if (!this.worldObj.isRemote && !this.isInvalid())
+        if (!this.world.isRemote && !this.isInvalid())
         {
 //            networkedList.add(this.oxygenBubble != null);
 //            if (this.oxygenBubble != null)
 //            {
 //                networkedList.add(this.oxygenBubble.getEntityId());
 //            }
-            if (MinecraftServer.getServer().isDedicatedServer())
+            if (this.world.getMinecraftServer().isDedicatedServer())
             {
                 networkedList.add(loadedTiles.size());
                 //TODO: Limit this to ones in the same dimension as this tile?
@@ -150,7 +145,7 @@ public class TileEntityOxygenDistributor extends TileEntityOxygen implements IIn
     @SideOnly(Side.CLIENT)
     public AxisAlignedBB getRenderBoundingBox()
     {
-        return AxisAlignedBB.fromBounds(this.getPos().getX() - this.bubbleSize, this.getPos().getY() - this.bubbleSize, this.getPos().getZ() - this.bubbleSize, this.getPos().getX() + this.bubbleSize, this.getPos().getY() + this.bubbleSize, this.getPos().getZ() + this.bubbleSize);
+        return new AxisAlignedBB(this.getPos().getX() - this.bubbleSize, this.getPos().getY() - this.bubbleSize, this.getPos().getZ() - this.bubbleSize, this.getPos().getX() + this.bubbleSize, this.getPos().getY() + this.bubbleSize, this.getPos().getZ() + this.bubbleSize);
     }
 
     @Override
@@ -163,7 +158,7 @@ public class TileEntityOxygenDistributor extends TileEntityOxygen implements IIn
     @Override
     public void readExtraNetworkedData(ByteBuf dataStream)
     {
-        if (this.worldObj.isRemote)
+        if (this.world.isRemote)
         {
 //            if (dataStream.readBoolean())
 //            {
@@ -201,7 +196,7 @@ public class TileEntityOxygenDistributor extends TileEntityOxygen implements IIn
     @Override
     public void update()
     {
-        if (!this.worldObj.isRemote)
+        if (!this.world.isRemote)
         {
             ItemStack oxygenItemStack = this.getStackInSlot(1);
             if (oxygenItemStack != null && oxygenItemStack.getItem() instanceof IItemOxygenSupply)
@@ -218,7 +213,7 @@ public class TileEntityOxygenDistributor extends TileEntityOxygen implements IIn
 
         super.update();
 
-        if (!this.worldObj.isRemote)
+        if (!this.world.isRemote)
         {
             if (this.getEnergyStoredGC() > 0.0F && this.hasEnoughEnergyToRun && this.getOxygenStored() > this.oxygenPerTick)
             {
@@ -232,25 +227,25 @@ public class TileEntityOxygenDistributor extends TileEntityOxygen implements IIn
             this.bubbleSize = Math.min(Math.max(this.bubbleSize, 0.0F), 10.0F);
         }
 
-//        if (!hasValidBubble && !this.worldObj.isRemote && (this.oxygenBubble == null || this.ticks < 25))
+//        if (!hasValidBubble && !this.world.isRemote && (this.oxygenBubble == null || this.ticks < 25))
 //        {
 //            //Check it's a world without a breathable atmosphere
-//        	if (this.oxygenBubble == null && this.worldObj.provider instanceof IGalacticraftWorldProvider && !((IGalacticraftWorldProvider)this.worldObj.provider).hasBreathableAtmosphere())
+//        	if (this.oxygenBubble == null && this.world.provider instanceof IGalacticraftWorldProvider && !((IGalacticraftWorldProvider)this.world.provider).hasBreathableAtmosphere())
 //            {
-//                this.oxygenBubble = new EntityBubble(this.worldObj, new Vector3(this), this);
+//                this.oxygenBubble = new EntityBubble(this.world, new Vector3(this), this);
 //                this.hasValidBubble = true;
-//                this.worldObj.spawnEntityInWorld(this.oxygenBubble);
+//                this.world.spawnEntity(this.oxygenBubble);
 //            }
 //        }
 
-        if (!this.worldObj.isRemote/* && this.oxygenBubble != null*/)
+        if (!this.world.isRemote/* && this.oxygenBubble != null*/)
         {
             this.active = bubbleSize >= 1 && this.hasEnoughEnergyToRun && this.getOxygenStored() > this.oxygenPerTick;
 
             if (this.ticks % (this.active ? 20 : 4) == 0)
             {
                 double size = bubbleSize;
-                int bubbleR = MathHelper.floor_double(size) + 4;
+                int bubbleR = MathHelper.floor(size) + 4;
                 int bubbleR2 = (int) (size * size);
                 for (int x = this.getPos().getX() - bubbleR; x <= this.getPos().getX() + bubbleR; x++)
                 {
@@ -259,19 +254,19 @@ public class TileEntityOxygenDistributor extends TileEntityOxygen implements IIn
                         for (int z = this.getPos().getZ() - bubbleR; z <= this.getPos().getZ() + bubbleR; z++)
                         {
                             BlockPos pos = new BlockPos(x, y, z);
-                            IBlockState state = this.worldObj.getBlockState(pos); 
+                            IBlockState state = this.world.getBlockState(pos); 
                             Block block = state.getBlock();
 
                             if (block instanceof IOxygenReliantBlock)
                             {
                                 if (this.getDistanceFromServer(x, y, z) <= bubbleR2)
                                 {
-                                    ((IOxygenReliantBlock) block).onOxygenAdded(this.worldObj, pos, state);
+                                    ((IOxygenReliantBlock) block).onOxygenAdded(this.world, pos, state);
                                 }
                                 else
                                 {
                                     //Do not necessarily extinguish it - it might be inside another oxygen system
-                                    this.worldObj.scheduleUpdate(pos, block, 0);
+                                    this.world.scheduleUpdate(pos, block, 0);
                                 }
                             }
                         }
@@ -298,132 +293,17 @@ public class TileEntityOxygenDistributor extends TileEntityOxygen implements IIn
             this.bubbleSize = nbt.getFloat("bubbleSize");
         }
 //        this.hasValidBubble = nbt.getBoolean("hasValidBubble");
-
-        final NBTTagList var2 = nbt.getTagList("Items", 10);
-        this.containingItems = new ItemStack[this.getSizeInventory()];
-
-        for (int var3 = 0; var3 < var2.tagCount(); ++var3)
-        {
-            final NBTTagCompound var4 = var2.getCompoundTagAt(var3);
-            final int var5 = var4.getByte("Slot") & 255;
-
-            if (var5 < this.containingItems.length)
-            {
-                this.containingItems[var5] = ItemStack.loadItemStackFromNBT(var4);
-            }
-        }
     }
 
     @Override
-    public void writeToNBT(NBTTagCompound nbt)
+    public NBTTagCompound writeToNBT(NBTTagCompound nbt)
     {
         super.writeToNBT(nbt);
 
         nbt.setBoolean("bubbleVisible", this.shouldRenderBubble);
         nbt.setFloat("bubbleSize", this.bubbleSize);
 //        nbt.setBoolean("hasValidBubble", this.hasValidBubble);
-
-        final NBTTagList list = new NBTTagList();
-
-        for (int var3 = 0; var3 < this.containingItems.length; ++var3)
-        {
-            if (this.containingItems[var3] != null)
-            {
-                final NBTTagCompound var4 = new NBTTagCompound();
-                var4.setByte("Slot", (byte) var3);
-                this.containingItems[var3].writeToNBT(var4);
-                list.appendTag(var4);
-            }
-        }
-
-        nbt.setTag("Items", list);
-    }
-
-    @Override
-    public int getSizeInventory()
-    {
-        return this.containingItems.length;
-    }
-
-    @Override
-    public ItemStack getStackInSlot(int par1)
-    {
-        return this.containingItems[par1];
-    }
-
-    @Override
-    public ItemStack decrStackSize(int par1, int par2)
-    {
-        if (this.containingItems[par1] != null)
-        {
-            ItemStack var3;
-
-            if (this.containingItems[par1].stackSize <= par2)
-            {
-                var3 = this.containingItems[par1];
-                this.containingItems[par1] = null;
-                return var3;
-            }
-            else
-            {
-                var3 = this.containingItems[par1].splitStack(par2);
-
-                if (this.containingItems[par1].stackSize == 0)
-                {
-                    this.containingItems[par1] = null;
-                }
-
-                return var3;
-            }
-        }
-        else
-        {
-            return null;
-        }
-    }
-
-    @Override
-    public ItemStack removeStackFromSlot(int par1)
-    {
-        if (this.containingItems[par1] != null)
-        {
-            final ItemStack var2 = this.containingItems[par1];
-            this.containingItems[par1] = null;
-            return var2;
-        }
-        else
-        {
-            return null;
-        }
-    }
-
-    @Override
-    public void setInventorySlotContents(int par1, ItemStack par2ItemStack)
-    {
-        this.containingItems[par1] = par2ItemStack;
-
-        if (par2ItemStack != null && par2ItemStack.stackSize > this.getInventoryStackLimit())
-        {
-            par2ItemStack.stackSize = this.getInventoryStackLimit();
-        }
-    }
-
-    @Override
-    public String getName()
-    {
-        return GCCoreUtil.translate("container.oxygendistributor.name");
-    }
-
-    @Override
-    public int getInventoryStackLimit()
-    {
-        return 64;
-    }
-
-    @Override
-    public boolean isUseableByPlayer(EntityPlayer par1EntityPlayer)
-    {
-        return this.worldObj.getTileEntity(this.getPos()) == this && par1EntityPlayer.getDistanceSq(this.getPos().getX() + 0.5D, this.getPos().getY() + 0.5D, this.getPos().getZ() + 0.5D) <= 64.0D;
+        return nbt;
     }
 
     // ISidedInventory Implementation:
@@ -475,7 +355,7 @@ public class TileEntityOxygenDistributor extends TileEntityOxygen implements IIn
     @Override
     public boolean isItemValidForSlot(int slotID, ItemStack itemstack)
     {
-        if (itemstack == null)
+        if (itemstack.isEmpty())
         {
             return false;
         }
@@ -499,7 +379,7 @@ public class TileEntityOxygenDistributor extends TileEntityOxygen implements IIn
     @Override
     public EnumFacing getFront()
     {
-        IBlockState state = this.worldObj.getBlockState(getPos()); 
+        IBlockState state = this.world.getBlockState(getPos()); 
         if (state.getBlock() instanceof BlockOxygenDistributor)
         {
             return state.getValue(BlockOxygenDistributor.FACING);

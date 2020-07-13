@@ -13,6 +13,7 @@ import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.EnumHand;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -25,7 +26,7 @@ public class GuiPreLaunchChecklist extends GuiScreen implements GuiElementCheckb
     private static final ResourceLocation bookGuiTexture = new ResourceLocation(Constants.ASSET_PREFIX, "textures/gui/checklist_book.png");
     private int bookImageWidth = 192;
     private int bookImageHeight = 192;
-    private Map<String, List<String>> checklistKeys;
+    private List<List<String>> checklistKeys;
     private int currPage = 0;
     private int bookTotalPages;
     private NextPageButton buttonNextPage;
@@ -33,7 +34,7 @@ public class GuiPreLaunchChecklist extends GuiScreen implements GuiElementCheckb
     private NBTTagCompound tagCompound;
     private Map<Integer, String> checkboxToKeyMap = Maps.newHashMap();
 
-    public GuiPreLaunchChecklist(Map<String, List<String>> checklistKeys, NBTTagCompound tagCompound)
+    public GuiPreLaunchChecklist(List<List<String>> checklistKeys, NBTTagCompound tagCompound)
     {
         this.tagCompound = tagCompound != null ? tagCompound : new NBTTagCompound();
         this.checklistKeys = checklistKeys;
@@ -54,10 +55,14 @@ public class GuiPreLaunchChecklist extends GuiScreen implements GuiElementCheckb
         int index = 2;
         int page = 0;
 
-        for (Map.Entry<String, List<String>> e : this.checklistKeys.entrySet())
+        for (List<String> e : this.checklistKeys)
         {
-            String title = e.getKey();
-            List<String> checkboxes = e.getValue();
+            if (e.isEmpty())
+            {
+                continue;
+            }
+            String title = e.get(0);
+            List<String> checkboxes = e.subList(1, e.size());
             GuiElementCheckboxPreLaunch element = new GuiElementCheckboxPreLaunch(index, this, this.width / 2 - 73 + 11, yPos, GCCoreUtil.translate(title), 0);
             int size = element.willFit(152 - yPos);
             if (size >= 0)
@@ -68,7 +73,7 @@ public class GuiPreLaunchChecklist extends GuiScreen implements GuiElementCheckb
                     this.checkboxToKeyMap.put(element.id, title);
                     index++;
                 }
-                yPos += size + mc.fontRendererObj.FONT_HEIGHT / 2;
+                yPos += size + mc.fontRenderer.FONT_HEIGHT / 2;
             }
             else
             {
@@ -83,7 +88,7 @@ public class GuiPreLaunchChecklist extends GuiScreen implements GuiElementCheckb
                     this.checkboxToKeyMap.put(element.id, title);
                     index++;
                 }
-                yPos += size + mc.fontRendererObj.FONT_HEIGHT / 2;
+                yPos += size + mc.fontRenderer.FONT_HEIGHT / 2;
             }
 
             for (String checkbox : checkboxes)
@@ -98,7 +103,7 @@ public class GuiPreLaunchChecklist extends GuiScreen implements GuiElementCheckb
                         this.checkboxToKeyMap.put(element.id, title + "." + checkbox + ".key");
                         index++;
                     }
-                    yPos += size + mc.fontRendererObj.FONT_HEIGHT / 2;
+                    yPos += size + mc.fontRenderer.FONT_HEIGHT / 2;
                 }
                 else
                 {
@@ -113,7 +118,7 @@ public class GuiPreLaunchChecklist extends GuiScreen implements GuiElementCheckb
                         this.checkboxToKeyMap.put(element.id, title + "." + checkbox + ".key");
                         index++;
                     }
-                    yPos += size + mc.fontRendererObj.FONT_HEIGHT / 2;
+                    yPos += size + mc.fontRenderer.FONT_HEIGHT / 2;
                 }
             }
         }
@@ -139,10 +144,10 @@ public class GuiPreLaunchChecklist extends GuiScreen implements GuiElementCheckb
         }
 
         // Send changed tag compound to server
-        GalacticraftCore.packetPipeline.sendToServer(new PacketSimple(PacketSimple.EnumSimplePacket.S_UPDATE_CHECKLIST, GCCoreUtil.getDimensionID(mc.thePlayer.worldObj), new Object[] { this.tagCompound }));
+        GalacticraftCore.packetPipeline.sendToServer(new PacketSimple(PacketSimple.EnumSimplePacket.S_UPDATE_CHECKLIST, GCCoreUtil.getDimensionID(mc.player.world), new Object[] { this.tagCompound }));
 
         // Update client item
-        ItemStack stack = mc.thePlayer.getHeldItem();
+        ItemStack stack = mc.player.getHeldItem(EnumHand.MAIN_HAND /* TODO Support off-hand use */);
         NBTTagCompound tagCompound = stack.getTagCompound();
         if (tagCompound == null)
         {
@@ -195,7 +200,7 @@ public class GuiPreLaunchChecklist extends GuiScreen implements GuiElementCheckb
             GuiButton button = this.buttonList.get(i);
             if (started)
             {
-                if (button.xPosition > element.xPosition)
+                if (button.x > element.x)
                 {
                     ((GuiElementCheckboxPreLaunch) button).isSelected = newSelected;
                 }
@@ -242,11 +247,11 @@ public class GuiPreLaunchChecklist extends GuiScreen implements GuiElementCheckb
         }
 
         @Override
-        public void drawButton(Minecraft mc, int mouseX, int mouseY)
+        public void drawButton(Minecraft mc, int mouseX, int mouseY, float partial)
         {
             if (this.visible)
             {
-                boolean flag = mouseX >= this.xPosition && mouseY >= this.yPosition && mouseX < this.xPosition + this.width && mouseY < this.yPosition + this.height;
+                boolean flag = mouseX >= this.x && mouseY >= this.y && mouseX < this.x + this.width && mouseY < this.y + this.height;
                 GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
                 mc.getTextureManager().bindTexture(bookGuiTexture);
                 int i = 0;
@@ -262,7 +267,7 @@ public class GuiPreLaunchChecklist extends GuiScreen implements GuiElementCheckb
                     j += 13;
                 }
 
-                this.drawTexturedModalRect(this.xPosition, this.yPosition, i, j, 23, 13);
+                this.drawTexturedModalRect(this.x, this.y, i, j, 23, 13);
             }
         }
     }

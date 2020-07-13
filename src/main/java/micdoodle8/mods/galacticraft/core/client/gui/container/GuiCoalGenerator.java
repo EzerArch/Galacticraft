@@ -5,7 +5,6 @@ import micdoodle8.mods.galacticraft.core.energy.EnergyDisplayHelper;
 import micdoodle8.mods.galacticraft.core.inventory.ContainerCoalGenerator;
 import micdoodle8.mods.galacticraft.core.tile.TileEntityCoalGenerator;
 import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
-import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.fml.relauncher.Side;
@@ -13,7 +12,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import org.lwjgl.opengl.GL11;
 
 @SideOnly(Side.CLIENT)
-public class GuiCoalGenerator extends GuiContainer
+public class GuiCoalGenerator extends GuiContainerGC
 {
     private static final ResourceLocation coalGeneratorTexture = new ResourceLocation(Constants.ASSET_PREFIX, "textures/gui/coal_generator.png");
 
@@ -28,7 +27,7 @@ public class GuiCoalGenerator extends GuiContainer
     @Override
     protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY)
     {
-        this.fontRendererObj.drawString(this.tileEntity.getName(), 55, 6, 4210752);
+        this.fontRenderer.drawString(this.tileEntity.getName(), 55, 6, 4210752);
         String displayText = GCCoreUtil.translate("gui.status.generating.name");
 
         if (this.tileEntity.heatGJperTick <= 0 || this.tileEntity.heatGJperTick < TileEntityCoalGenerator.MIN_GENERATE_GJ_PER_TICK)
@@ -36,7 +35,7 @@ public class GuiCoalGenerator extends GuiContainer
             displayText = GCCoreUtil.translate("gui.status.not_generating.name");
         }
 
-        this.fontRendererObj.drawString(displayText, 122 - this.fontRendererObj.getStringWidth(displayText) / 2, 33, 4210752);
+        this.fontRenderer.drawString(displayText, 122 - this.fontRenderer.getStringWidth(displayText) / 2, 33, 4210752);
 
         if (this.tileEntity.heatGJperTick < TileEntityCoalGenerator.MIN_GENERATE_GJ_PER_TICK)
         {
@@ -47,8 +46,8 @@ public class GuiCoalGenerator extends GuiContainer
             displayText = EnergyDisplayHelper.getEnergyDisplayS(this.tileEntity.heatGJperTick - TileEntityCoalGenerator.MIN_GENERATE_GJ_PER_TICK) + "/t";
         }
 
-        this.fontRendererObj.drawString(displayText, 122 - this.fontRendererObj.getStringWidth(displayText) / 2, 45, 4210752);
-        this.fontRendererObj.drawString(GCCoreUtil.translate("container.inventory"), 8, this.ySize - 96 + 2, 4210752);
+        this.fontRenderer.drawString(displayText, 122 - this.fontRenderer.getStringWidth(displayText) / 2, 45, 4210752);
+        this.fontRenderer.drawString(GCCoreUtil.translate("container.inventory"), 8, this.ySize - 96 + 2, 4210752);
     }
 
     @Override

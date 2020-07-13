@@ -1,15 +1,19 @@
 package micdoodle8.mods.galacticraft.core.entities;
 
-import micdoodle8.mods.galacticraft.core.inventory.IInventoryDefaults;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.inventory.IInventory;
+import net.minecraft.inventory.ItemStackHelper;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.nbt.NBTTagList;
+import net.minecraft.util.NonNullList;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.World;
 
-public abstract class InventoryEntity extends NetworkedEntity implements IInventoryDefaults
+public abstract class InventoryEntity extends NetworkedEntity implements IInventory
 {
-    public ItemStack[] containedItems = new ItemStack[0];
+    protected NonNullList<ItemStack> stacks = NonNullList.withSize(0, ItemStack.EMPTY);
 
     public InventoryEntity(World par1World)
     {
@@ -19,101 +23,65 @@ public abstract class InventoryEntity extends NetworkedEntity implements IInvent
     @Override
     protected void readEntityFromNBT(NBTTagCompound nbt)
     {
-        NBTTagList itemList = nbt.getTagList("Items", 10);
-        this.containedItems = new ItemStack[this.getSizeInventory()];
-
-        for (int i = 0; i < itemList.tagCount(); ++i)
-        {
-            NBTTagCompound itemTag = itemList.getCompoundTagAt(i);
-            int slotID = itemTag.getByte("Slot") & 255;
-
-            if (slotID >= 0 && slotID < this.containedItems.length)
-            {
-                this.containedItems[slotID] = ItemStack.loadItemStackFromNBT(itemTag);
-            }
-        }
+        ItemStackHelper.loadAllItems(nbt, this.stacks);
     }
 
     @Override
     protected void writeEntityToNBT(NBTTagCompound nbt)
     {
-        NBTTagList itemList = new NBTTagList();
-
-        for (int i = 0; i < this.containedItems.length; ++i)
-        {
-            if (this.containedItems[i] != null)
-            {
-                NBTTagCompound itemTag = new NBTTagCompound();
-                itemTag.setByte("Slot", (byte) i);
-                this.containedItems[i].writeToNBT(itemTag);
-                itemList.appendTag(itemTag);
-            }
-        }
-
-        nbt.setTag("Items", itemList);
+        ItemStackHelper.saveAllItems(nbt, this.stacks);
     }
 
     @Override
     public ItemStack getStackInSlot(int var1)
     {
-        return this.containedItems[var1];
+        return this.stacks.get(var1);
     }
 
     @Override
-    public ItemStack decrStackSize(int slotIndex, int amount)
+    public ItemStack decrStackSize(int index, int count)
     {
-        if (this.containedItems[slotIndex] != null)
-        {
-            ItemStack var3;
+        ItemStack itemstack = ItemStackHelper.getAndSplit(this.stacks, index, count);
 
-            if (this.containedItems[slotIndex].stackSize <= amount)
+        if (!itemstack.isEmpty())
+        {
+            this.markDirty();
+        }
+
+        return itemstack;
+    }
+
+    @Override
+    public ItemStack removeStackFromSlot(int index)
+    {
+        return ItemStackHelper.getAndRemove(this.stacks, index);
+    }
+
+    @Override
+    public void setInventorySlotContents(int index, ItemStack stack)
+    {
+        this.stacks.set(index, stack);
+
+        if (stack.getCount() > this.getInventoryStackLimit())
+        {
+            stack.setCount(this.getInventoryStackLimit());
+        }
+
+        this.markDirty();
+    }
+
+    @Override
+    public boolean isEmpty()
+    {
+        for (ItemStack itemstack : this.stacks)
+        {
+            if (!itemstack.isEmpty())
             {
-                var3 = this.containedItems[slotIndex];
-                this.containedItems[slotIndex] = null;
-                return var3;
-            }
-            else
-            {
-                var3 = this.containedItems[slotIndex].splitStack(amount);
-
-                if (this.containedItems[slotIndex].stackSize == 0)
-                {
-                    this.containedItems[slotIndex] = null;
-                }
-
-                return var3;
+                return false;
             }
         }
-        else
-        {
-            return null;
-        }
-    }
 
-    @Override
-    public ItemStack removeStackFromSlot(int slotIndex)
-    {
-        if (this.containedItems[slotIndex] != null)
-        {
-            ItemStack stack = this.containedItems[slotIndex];
-            this.containedItems[slotIndex] = null;
-            return stack;
-        }
-        else
-        {
-            return null;
-        }
-    }
-
-    @Override
-    public void setInventorySlotContents(int slotIndex, ItemStack stack)
-    {
-        this.containedItems[slotIndex] = stack;
-
-        if (stack != null && stack.stackSize > this.getInventoryStackLimit())
-        {
-            stack.stackSize = this.getInventoryStackLimit();
-        }
+        return true;
     }
 
     @Override
@@ -129,8 +97,57 @@ public abstract class InventoryEntity extends NetworkedEntity implements IInvent
     }
 
     @Override
-    public boolean isUseableByPlayer(EntityPlayer entityplayer)
+    public boolean isUsableByPlayer(EntityPlayer entityplayer)
     {
         return true;
+    }
+    //We don't use these because we use forge containers
+    @Override
+    public void openInventory(EntityPlayer player)
+    {
+    }
+
+    //We don't use these because we use forge containers
+    @Override
+    public void closeInventory(EntityPlayer player)
+    {
+    }
+
+    @Override
+    public int getField(int id)
+    {
+        return 0;
+    }
+
+    @Override
+    public void setField(int id, int value)
+    {
+    }
+
+    @Override
+    public int getFieldCount()
+    {
+        return 0;
+    }
+
+    @Override
+    public void clear()
+    {
+        for (int i = 0; i < this.stacks.size(); ++i)
+        {
+            this.stacks.set(i, ItemStack.EMPTY);
+        }
+    }
+
+    @Override
+    public boolean hasCustomName()
+    {
+        return false;
+    }
+
+    @Override
+    public ITextComponent getDisplayName()
+    {
+        return this.hasCustomName() ? new TextComponentString(this.getName()) : new TextComponentTranslation(this.getName(), new Object[0]);
     }
 }

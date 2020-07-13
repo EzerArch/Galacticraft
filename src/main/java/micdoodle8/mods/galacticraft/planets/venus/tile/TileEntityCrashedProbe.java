@@ -1,20 +1,67 @@
 package micdoodle8.mods.galacticraft.planets.venus.tile;
 
-import micdoodle8.mods.galacticraft.core.inventory.IInventoryDefaults;
-import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
+import micdoodle8.mods.galacticraft.core.tile.TileEntityInventory;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.inventory.ItemStackHelper;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.nbt.NBTTagList;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.BlockPos;
+import net.minecraft.util.EnumFacing;
+import net.minecraft.util.NonNullList;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import net.minecraft.world.WorldServer;
+import net.minecraft.world.storage.loot.LootContext;
+import net.minecraft.world.storage.loot.LootTable;
 
-public class TileEntityCrashedProbe extends TileEntity implements IInventoryDefaults
+import java.util.Random;
+
+public class TileEntityCrashedProbe extends TileEntityInventory
 {
-    private ItemStack[] containingItems = new ItemStack[6];
     private boolean hasCoreToDrop;
+    protected ResourceLocation lootTable;
+    protected long lootTableSeed;
+
+    public TileEntityCrashedProbe()
+    {
+        super("container.crashed_probe.name");
+        inventory = NonNullList.withSize(6, ItemStack.EMPTY);
+    }
+
+    protected void fillWithLoot(EntityPlayer player)
+    {
+        if (this.lootTable != null)
+        {
+            LootTable loottable = this.world.getLootTableManager().getLootTableFromLocation(this.lootTable);
+            this.lootTable = null;
+            Random random;
+
+            if (this.lootTableSeed == 0L)
+            {
+                random = new Random();
+            }
+            else
+            {
+                random = new Random(this.lootTableSeed);
+            }
+
+            LootContext.Builder lootcontext$builder = new LootContext.Builder((WorldServer)this.world);
+
+            if (player != null)
+            {
+                lootcontext$builder.withLuck(player.getLuck());
+            }
+
+            loottable.fillInventory(this, random, lootcontext$builder.build());
+        }
+    }
+
+    @Override
+    protected boolean handleInventory()
+    {
+        return false;
+    }
 
     @Override
     public void readFromNBT(NBTTagCompound nbt)
@@ -25,142 +72,68 @@ public class TileEntityCrashedProbe extends TileEntity implements IInventoryDefa
             this.hasCoreToDrop = nbt.getBoolean("ctd");
         }
         else
-            this.hasCoreToDrop = true;   //Legacy compatibility with worlds generated before this key used
-
-        NBTTagList items = nbt.getTagList("Items", 10);
-        this.containingItems = new ItemStack[this.getSizeInventory()];
-
-        for (int i = 0; i < items.tagCount(); ++i)
         {
-            NBTTagCompound tagAt = items.getCompoundTagAt(i);
-            int slot = tagAt.getByte("Slot") & 255;
+            this.hasCoreToDrop = true;   //Legacy compatibility with worlds generated before this key used
+        }
 
-            if (slot < this.containingItems.length)
-            {
-                this.containingItems[slot] = ItemStack.loadItemStackFromNBT(tagAt);
-            }
+        if (!this.checkLootAndRead(nbt))
+        {
+            this.inventory = NonNullList.withSize(this.getSizeInventory(), ItemStack.EMPTY);
+            ItemStackHelper.loadAllItems(nbt, this.getInventory());
         }
     }
 
     @Override
-    public void writeToNBT(NBTTagCompound nbt)
+    public NBTTagCompound writeToNBT(NBTTagCompound nbt)
     {
         super.writeToNBT(nbt);
         nbt.setBoolean("ctd", this.hasCoreToDrop);
 
-        final NBTTagList list = new NBTTagList();
-
-        for (int i = 0; i < this.containingItems.length; ++i)
+        if (!this.checkLootAndWrite(nbt))
         {
-            if (this.containingItems[i] != null)
-            {
-                final NBTTagCompound tagAt = new NBTTagCompound();
-                tagAt.setByte("Slot", (byte) i);
-                this.containingItems[i].writeToNBT(tagAt);
-                list.appendTag(tagAt);
-            }
+            ItemStackHelper.saveAllItems(nbt, this.getInventory());
         }
-
-        nbt.setTag("Items", list);
+        return nbt;
     }
 
     @Override
-    public boolean hasCustomName()
+    public int[] getSlotsForFace(EnumFacing side)
     {
-        return true;
-    }
-
-    @Override
-    public String getName()
-    {
-        return GCCoreUtil.translate("container.crashed_probe.name");
-    }
-
-    @Override
-    public int getSizeInventory()
-    {
-        return this.containingItems.length;
+        return new int[0];
     }
 
     @Override
     public ItemStack getStackInSlot(int slot)
     {
-        return this.containingItems[slot];
+    	this.fillWithLoot(null);
+    	return super.getStackInSlot(slot);
     }
 
     @Override
-    public ItemStack decrStackSize(int slot, int amount)
+    public ItemStack decrStackSize(int index, int count)
     {
-        if (this.containingItems[slot] != null)
-        {
-            ItemStack var3;
-
-            if (this.containingItems[slot].stackSize <= amount)
-            {
-                var3 = this.containingItems[slot];
-                this.containingItems[slot] = null;
-                return var3;
-            }
-            else
-            {
-                var3 = this.containingItems[slot].splitStack(amount);
-
-                if (this.containingItems[slot].stackSize == 0)
-                {
-                    this.containingItems[slot] = null;
-                }
-
-                return var3;
-            }
-        }
-        else
-        {
-            return null;
-        }
+        this.fillWithLoot(null);
+        return super.decrStackSize(index, count);
     }
 
     @Override
-    public ItemStack removeStackFromSlot(int slot)
+    public ItemStack removeStackFromSlot(int index)
     {
-        if (this.containingItems[slot] != null)
-        {
-            final ItemStack var2 = this.containingItems[slot];
-            this.containingItems[slot] = null;
-            return var2;
-        }
-        else
-        {
-            return null;
-        }
+        this.fillWithLoot(null);
+        return super.removeStackFromSlot(index);
     }
 
     @Override
-    public void setInventorySlotContents(int slot, ItemStack itemStack)
+    public boolean isEmpty()
     {
-        this.containingItems[slot] = itemStack;
-
-        if (itemStack != null && itemStack.stackSize > this.getInventoryStackLimit())
-        {
-            itemStack.stackSize = this.getInventoryStackLimit();
-        }
+        this.fillWithLoot(null);
+        return super.isEmpty();
     }
 
     @Override
-    public int getInventoryStackLimit()
+    public void clear()
     {
-        return 64;
-    }
-
-    @Override
-    public boolean isUseableByPlayer(EntityPlayer player)
-    {
-        return this.worldObj.getTileEntity(this.getPos()) == this && player.getDistanceSq(this.getPos().getX() + 0.5D, this.getPos().getY() + 0.5D, this.getPos().getZ() + 0.5D) <= 64.0D;
-    }
-
-    @Override
-    public boolean isItemValidForSlot(int slotID, ItemStack itemstack)
-    {
-        return true;
+        this.fillWithLoot(null);
     }
 
     @Override
@@ -177,5 +150,44 @@ public class TileEntityCrashedProbe extends TileEntity implements IInventoryDefa
     public boolean getDropCore()
     {
         return this.hasCoreToDrop;
+    }
+
+    protected boolean checkLootAndRead(NBTTagCompound compound)
+    {
+        if (compound.hasKey("LootTable", 8))
+        {
+            this.lootTable = new ResourceLocation(compound.getString("LootTable"));
+            this.lootTableSeed = compound.getLong("LootTableSeed");
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    protected boolean checkLootAndWrite(NBTTagCompound compound)
+    {
+        if (this.lootTable != null)
+        {
+            compound.setString("LootTable", this.lootTable.toString());
+
+            if (this.lootTableSeed != 0L)
+            {
+                compound.setLong("LootTableSeed", this.lootTableSeed);
+            }
+
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    public void setLootTable(ResourceLocation lootTable, long lootTableSeed)
+    {
+        this.lootTable = lootTable;
+        this.lootTableSeed = lootTableSeed;
     }
 }

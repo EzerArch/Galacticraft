@@ -8,24 +8,24 @@ import micdoodle8.mods.galacticraft.core.util.EnumSortCategoryBlock;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.properties.PropertyEnum;
-import net.minecraft.block.state.BlockState;
+import net.minecraft.block.state.BlockStateContainer;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.BlockPos;
 import net.minecraft.util.IStringSerializable;
-import net.minecraft.util.MathHelper;
-import net.minecraft.util.MovingObjectPosition;
+import net.minecraft.util.NonNullList;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.RayTraceResult;
 import net.minecraft.world.Explosion;
 import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-import java.util.List;
 import java.util.Random;
 
 /**
@@ -35,7 +35,7 @@ import java.util.Random;
  */
 public class BlockBasic extends Block implements IDetectableResource, ISortableBlock
 {
-    public static final PropertyEnum<EnumBlockBasic> BASIC_TYPE = PropertyEnum.create("basicType", EnumBlockBasic.class);
+    public static final PropertyEnum<EnumBlockBasic> BASIC_TYPE = PropertyEnum.create("basictype", EnumBlockBasic.class);
 
     public enum EnumBlockBasic implements IStringSerializable
     {
@@ -67,7 +67,12 @@ public class BlockBasic extends Block implements IDetectableResource, ISortableB
 
         public static EnumBlockBasic byMetadata(int meta)
         {
-            return values()[meta - 3];
+            int val = meta - 3;
+            if (val < 0 || val >= values().length)
+            {
+                return ALUMINUM_DECORATION_BLOCK_0;
+            }
+            return values()[val];
         }
 
         @Override
@@ -79,7 +84,7 @@ public class BlockBasic extends Block implements IDetectableResource, ISortableB
 
     public BlockBasic(String assetName)
     {
-        super(Material.rock);
+        super(Material.ROCK);
         this.setHardness(1.0F);
         this.blockResistance = 15F;
         this.setDefaultState(this.blockState.getBaseState().withProperty(BASIC_TYPE, EnumBlockBasic.ALUMINUM_DECORATION_BLOCK_0));
@@ -166,9 +171,9 @@ public class BlockBasic extends Block implements IDetectableResource, ISortableB
     }
 
     @Override
-    public float getBlockHardness(World world, BlockPos pos)
+    public float getBlockHardness(IBlockState blockState, World worldIn, BlockPos pos)
     {
-        int metadata = getMetaFromState(world.getBlockState(pos));
+        int metadata = getMetaFromState(blockState);
 
         if (metadata == 5 || metadata == 6)
         {
@@ -190,39 +195,38 @@ public class BlockBasic extends Block implements IDetectableResource, ISortableB
 
     @SideOnly(Side.CLIENT)
     @Override
-    public void getSubBlocks(Item itemIn, CreativeTabs tabs, List<ItemStack> list)
+    public void getSubBlocks(CreativeTabs tab, NonNullList<ItemStack> list)
     {
         for (int var4 = 3; var4 <= 13; ++var4)
         {
-            list.add(new ItemStack(itemIn, 1, var4));
+            list.add(new ItemStack(this, 1, var4));
         }
     }
 
     @Override
     public boolean isValueable(IBlockState state)
     {
-        switch (this.getMetaFromState(state))
+        EnumBlockBasic type = state.getValue(BASIC_TYPE);
+        switch (type)
         {
-        case 5:
-        case 6:
-        case 7:
-        case 8:
+        case ORE_COPPER:
+        case ORE_TIN:
+        case ORE_ALUMINUM:
+        case ORE_SILICON:
             return true;
         }
         return false;
     }
 
     @Override
-    public ItemStack getPickBlock(MovingObjectPosition target, World world, BlockPos pos, EntityPlayer player)
+    public ItemStack getPickBlock(IBlockState state, RayTraceResult target, World world, BlockPos pos, EntityPlayer player)
     {
-        int metadata = getMetaFromState(world.getBlockState(pos));
-
-        if (metadata == 8)
+        if (state.getValue(BASIC_TYPE) == EnumBlockBasic.ORE_SILICON)
         {
-            return new ItemStack(Item.getItemFromBlock(this), 1, metadata);
+            return new ItemStack(Item.getItemFromBlock(this), 1, EnumBlockBasic.ORE_SILICON.getMeta());
         }
 
-        return super.getPickBlock(target, world, pos, player);
+        return super.getPickBlock(state, target, world, pos, player);
     }
 
     @Override
@@ -238,9 +242,9 @@ public class BlockBasic extends Block implements IDetectableResource, ISortableB
     }
 
     @Override
-    protected BlockState createBlockState()
+    protected BlockStateContainer createBlockState()
     {
-        return new BlockState(this, BASIC_TYPE);
+        return new BlockStateContainer(this, BASIC_TYPE);
     }
 
     @Override
@@ -267,16 +271,15 @@ public class BlockBasic extends Block implements IDetectableResource, ISortableB
     }
 
     @Override
-    public int getExpDrop(IBlockAccess world, BlockPos pos, int fortune)
+    public int getExpDrop(IBlockState state, IBlockAccess world, BlockPos pos, int fortune)
     {
-        IBlockState state = world.getBlockState(pos);
         if (state.getBlock() != this) return 0;
         
         int meta = this.getMetaFromState(state);
         if (meta == 8)
         {
             Random rand = world instanceof World ? ((World)world).rand : new Random();
-            return MathHelper.getRandomIntegerInRange(rand, 2, 5);
+            return MathHelper.getInt(rand, 2, 5);
         }
         return 0;
     }

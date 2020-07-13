@@ -7,18 +7,24 @@ import micdoodle8.mods.galacticraft.core.util.EnumSortCategoryItem;
 import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
 import micdoodle8.mods.galacticraft.planets.asteroids.entities.EntityGrapple;
 import net.minecraft.creativetab.CreativeTabs;
-import net.minecraft.enchantment.Enchantment;
 import net.minecraft.enchantment.EnchantmentHelper;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.init.Enchantments;
 import net.minecraft.init.Items;
+import net.minecraft.init.SoundEvents;
 import net.minecraft.item.*;
-import net.minecraft.util.ChatComponentText;
+import net.minecraft.util.*;
+import net.minecraft.util.text.TextComponentString;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
+import net.minecraftforge.oredict.OreDictionary;
 
 public class ItemGrappleHook extends ItemBow implements ISortableItem
 {
+    private static NonNullList<ItemStack> stringEntries = null;
+
     public ItemGrappleHook(String assetName)
     {
         super();
@@ -28,7 +34,7 @@ public class ItemGrappleHook extends ItemBow implements ISortableItem
     }
 
     @Override
-    public boolean isItemTool(ItemStack stack)
+    public boolean isEnchantable(ItemStack stack)
     {
         return false;
     }
@@ -48,39 +54,58 @@ public class ItemGrappleHook extends ItemBow implements ISortableItem
     }
 
     @Override
-    public void onPlayerStoppedUsing(ItemStack par1ItemStack, World par2World, EntityPlayer par3EntityPlayer, int par4)
+    public void onPlayerStoppedUsing(ItemStack stack, World worldIn, EntityLivingBase entity, int timeLeft)
     {
-        boolean flag = par3EntityPlayer.capabilities.isCreativeMode || EnchantmentHelper.getEnchantmentLevel(Enchantment.infinity.effectId, par1ItemStack) > 0;
-
-        if (flag || par3EntityPlayer.inventory.hasItem(Items.string))
+        if (!(entity instanceof EntityPlayer))
         {
-            EntityGrapple grapple = new EntityGrapple(par2World, par3EntityPlayer, 2.0F);
+            return;
+        }
 
-            par2World.playSoundAtEntity(par3EntityPlayer, "random.bow", 1.0F, 1.0F / (Item.itemRand.nextFloat() * 0.4F + 1.2F) + 0.5F);
+        EntityPlayer player = (EntityPlayer) entity;
 
-            if (!par2World.isRemote)
+        boolean canShoot = player.capabilities.isCreativeMode || EnchantmentHelper.getEnchantmentLevel(Enchantments.INFINITY, stack) > 0;
+        ItemStack string = ItemStack.EMPTY;
+
+        if (stringEntries == null) stringEntries = OreDictionary.getOres("string");
+
+        for (ItemStack itemstack : player.inventory.mainInventory)
+        {
+            if (!canShoot && OreDictionary.containsMatch(false, stringEntries, itemstack))
             {
-                par2World.spawnEntityInWorld(grapple);
-            }
-
-            par1ItemStack.damageItem(1, par3EntityPlayer);
-            grapple.canBePickedUp = par3EntityPlayer.capabilities.isCreativeMode ? 2 : 1;
-
-            if (!par3EntityPlayer.capabilities.isCreativeMode)
-            {
-                par3EntityPlayer.inventory.consumeInventoryItem(Items.string);
+                string = itemstack;
+                canShoot = true;
             }
         }
-        else if (par2World.isRemote)
-        {
-            par3EntityPlayer.addChatMessage(new ChatComponentText(GCCoreUtil.translate("gui.message.grapple.fail")));
-        }
-    }
 
-    @Override
-    public ItemStack onItemUseFinish(ItemStack stack, World worldIn, EntityPlayer playerIn)
-    {
-        return stack;
+        if (canShoot)
+        {
+            ItemStack pickupString = string == ItemStack.EMPTY ? ItemStack.EMPTY : new ItemStack(string.getItem(), 1, string.getItemDamage(), string.getTagCompound());
+            EntityGrapple grapple = new EntityGrapple(worldIn, player, 2.0F, pickupString);
+
+            worldIn.playSound(null, player.posX, player.posY, player.posZ, SoundEvents.ENTITY_ARROW_SHOOT, SoundCategory.NEUTRAL, 1.0F, 1.0F / (Item.itemRand.nextFloat() * 0.4F + 1.2F) + 0.5F);
+
+            if (!worldIn.isRemote)
+            {
+                worldIn.spawnEntity(grapple);
+            }
+
+            stack.damageItem(1, player);
+            grapple.canBePickedUp = player.capabilities.isCreativeMode ? 2 : 1;
+
+            if (!player.capabilities.isCreativeMode)
+            {
+                string.shrink(1);
+
+                if (string.isEmpty())
+                {
+                    player.inventory.deleteStack(string);
+                }
+            }
+        }
+        else if (worldIn.isRemote)
+        {
+            player.sendMessage(new TextComponentString(GCCoreUtil.translate("gui.message.grapple.fail")));
+        }
     }
 
     @Override
@@ -96,10 +121,10 @@ public class ItemGrappleHook extends ItemBow implements ISortableItem
     }
 
     @Override
-    public ItemStack onItemRightClick(ItemStack par1ItemStack, World par2World, EntityPlayer par3EntityPlayer)
+    public ActionResult<ItemStack> onItemRightClick(World worldIn, EntityPlayer playerIn, EnumHand hand)
     {
-        par3EntityPlayer.setItemInUse(par1ItemStack, this.getMaxItemUseDuration(par1ItemStack));
-        return par1ItemStack;
+        playerIn.setActiveHand(hand);
+        return new ActionResult<>(EnumActionResult.SUCCESS, playerIn.getHeldItem(hand));
     }
 
     @Override

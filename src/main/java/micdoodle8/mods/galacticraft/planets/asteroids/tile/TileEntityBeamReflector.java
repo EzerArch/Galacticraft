@@ -1,6 +1,6 @@
 package micdoodle8.mods.galacticraft.planets.asteroids.tile;
 
-import net.minecraft.util.AxisAlignedBB;
+import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import micdoodle8.mods.galacticraft.api.power.EnergySource;
@@ -20,6 +20,11 @@ public class TileEntityBeamReflector extends TileEntityBeamOutput implements ILa
 //    {
 //        super.update();
 //    }
+
+    public TileEntityBeamReflector()
+    {
+        super("container.beam_reflector.name");
+    }
 
     @Override
     public Vector3 getInputPoint()

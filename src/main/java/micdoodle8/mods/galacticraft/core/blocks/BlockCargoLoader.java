@@ -1,34 +1,32 @@
 package micdoodle8.mods.galacticraft.core.blocks;
 
 import micdoodle8.mods.galacticraft.core.GalacticraftCore;
-import micdoodle8.mods.galacticraft.core.energy.tile.TileBaseUniversalElectrical;
 import micdoodle8.mods.galacticraft.core.items.IShiftDescription;
 import micdoodle8.mods.galacticraft.core.tile.TileEntityCargoLoader;
 import micdoodle8.mods.galacticraft.core.tile.TileEntityCargoUnloader;
 import micdoodle8.mods.galacticraft.core.util.EnumSortCategoryBlock;
 import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
 import micdoodle8.mods.galacticraft.core.util.WorldUtil;
-import net.minecraft.block.Block;
+import net.minecraft.block.SoundType;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.properties.PropertyDirection;
 import net.minecraft.block.properties.PropertyEnum;
-import net.minecraft.block.state.BlockState;
+import net.minecraft.block.state.BlockStateContainer;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.BlockPos;
 import net.minecraft.util.EnumFacing;
+import net.minecraft.util.EnumHand;
 import net.minecraft.util.IStringSerializable;
-import net.minecraft.util.MathHelper;
+import net.minecraft.util.NonNullList;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
-
-import java.util.List;
 
 public class BlockCargoLoader extends BlockAdvancedTile implements IShiftDescription, ISortableBlock
 {
@@ -66,18 +64,18 @@ public class BlockCargoLoader extends BlockAdvancedTile implements IShiftDescrip
 
     public BlockCargoLoader(String assetName)
     {
-        super(Material.rock);
+        super(Material.ROCK);
         this.setHardness(1.0F);
-        this.setStepSound(Block.soundTypeMetal);
+        this.setSoundType(SoundType.METAL);
         this.setUnlocalizedName(assetName);
     }
 
     @SideOnly(Side.CLIENT)
     @Override
-    public void getSubBlocks(Item par1, CreativeTabs par2CreativeTabs, List<ItemStack> par3List)
+    public void getSubBlocks(CreativeTabs tab, NonNullList<ItemStack> list)
     {
-        par3List.add(new ItemStack(par1, 1, BlockCargoLoader.METADATA_CARGO_LOADER));
-        par3List.add(new ItemStack(par1, 1, BlockCargoLoader.METADATA_CARGO_UNLOADER));
+        list.add(new ItemStack(this, 1, BlockCargoLoader.METADATA_CARGO_LOADER));
+        list.add(new ItemStack(this, 1, BlockCargoLoader.METADATA_CARGO_UNLOADER));
     }
 
     @Override
@@ -107,7 +105,7 @@ public class BlockCargoLoader extends BlockAdvancedTile implements IShiftDescrip
     }
 
     @Override
-    public boolean onMachineActivated(World worldIn, BlockPos pos, IBlockState state, EntityPlayer playerIn, EnumFacing side, float hitX, float hitY, float hitZ)
+    public boolean onMachineActivated(World worldIn, BlockPos pos, IBlockState state, EntityPlayer playerIn, EnumHand hand, ItemStack heldItem, EnumFacing side, float hitX, float hitY, float hitZ)
     {
         playerIn.openGui(GalacticraftCore.instance, -1, worldIn, pos.getX(), pos.getY(), pos.getZ());
         return true;
@@ -116,7 +114,7 @@ public class BlockCargoLoader extends BlockAdvancedTile implements IShiftDescrip
     @Override
     public TileEntity createTileEntity(World world, IBlockState state)
     {
-        if (getMetaFromState(state) < BlockCargoLoader.METADATA_CARGO_UNLOADER)
+        if (state.getValue(TYPE) == EnumLoaderType.CARGO_LOADER)
         {
             return new TileEntityCargoLoader();
         }
@@ -127,29 +125,21 @@ public class BlockCargoLoader extends BlockAdvancedTile implements IShiftDescrip
     }
 
     @Override
-    public boolean onUseWrench(World world, BlockPos pos, EntityPlayer entityPlayer, EnumFacing side, float hitX, float hitY, float hitZ)
-    {
-        IBlockState state = world.getBlockState(pos);
-        TileBaseUniversalElectrical.onUseWrenchBlock(state, world, pos, state.getValue(FACING));
-        return true;
-    }
-
-    @Override
     public void onBlockPlacedBy(World worldIn, BlockPos pos, IBlockState state, EntityLivingBase placer, ItemStack stack)
     {
-        final int angle = MathHelper.floor_double(placer.rotationYaw * 4.0F / 360.0F + 0.5D) & 3;
-        int change = EnumFacing.getHorizontal(angle).getOpposite().getHorizontalIndex();
+        final int angle = MathHelper.floor(placer.rotationYaw * 4.0F / 360.0F + 0.5D) & 3;
+//        int change = EnumFacing.getHorizontal(angle).getOpposite().getHorizontalIndex();
+//
+//        if (stack.getItemDamage() >= METADATA_CARGO_UNLOADER)
+//        {
+//            change += METADATA_CARGO_UNLOADER;
+//        }
+//        else if (stack.getItemDamage() >= METADATA_CARGO_LOADER)
+//        {
+//            change += METADATA_CARGO_LOADER;
+//        }
 
-        if (stack.getItemDamage() >= METADATA_CARGO_UNLOADER)
-        {
-            change += METADATA_CARGO_UNLOADER;
-        }
-        else if (stack.getItemDamage() >= METADATA_CARGO_LOADER)
-        {
-            change += METADATA_CARGO_LOADER;
-        }
-
-        worldIn.setBlockState(pos, getStateFromMeta(change), 3);
+        worldIn.setBlockState(pos, state.withProperty(FACING, EnumFacing.getHorizontal(angle).getOpposite()), 3);
         WorldUtil.markAdjacentPadForUpdate(worldIn, pos);
     }
 
@@ -163,7 +153,7 @@ public class BlockCargoLoader extends BlockAdvancedTile implements IShiftDescrip
     @Override
     public int damageDropped(IBlockState state)
     {
-        return ((EnumLoaderType) state.getValue(TYPE)).getMeta();
+        return state.getValue(TYPE).getMeta();
     }
 
     @Override
@@ -197,13 +187,13 @@ public class BlockCargoLoader extends BlockAdvancedTile implements IShiftDescrip
     @Override
     public int getMetaFromState(IBlockState state)
     {
-        return ((EnumFacing) state.getValue(FACING)).getHorizontalIndex() + ((EnumLoaderType) state.getValue(TYPE)).getMeta();
+        return state.getValue(FACING).getHorizontalIndex() + state.getValue(TYPE).getMeta();
     }
 
     @Override
-    protected BlockState createBlockState()
+    protected BlockStateContainer createBlockState()
     {
-        return new BlockState(this, FACING, TYPE);
+        return new BlockStateContainer(this, FACING, TYPE);
     }
 
     @Override

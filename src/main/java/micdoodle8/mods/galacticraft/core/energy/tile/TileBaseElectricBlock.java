@@ -1,9 +1,11 @@
 package micdoodle8.mods.galacticraft.core.energy.tile;
 
 import com.google.common.collect.Lists;
+
 import micdoodle8.mods.galacticraft.api.tile.IDisableableMachine;
 import micdoodle8.mods.galacticraft.api.transmission.NetworkType;
 import micdoodle8.mods.galacticraft.api.transmission.tile.IConnector;
+import micdoodle8.mods.galacticraft.core.util.CompatibilityManager;
 import micdoodle8.mods.galacticraft.core.util.EnumColor;
 import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
 import micdoodle8.mods.galacticraft.core.util.RedstoneUtil;
@@ -14,7 +16,7 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.BlockPos;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
@@ -34,6 +36,11 @@ public abstract class TileBaseElectricBlock extends TileBaseUniversalElectrical 
     @NetworkedField(targetSide = Side.CLIENT)
     public boolean hasEnoughEnergyToRun = false;
     public boolean noRedstoneControl = false;
+
+    public TileBaseElectricBlock(String tileName)
+    {
+        super(tileName);
+    }
 
     public boolean shouldPullEnergy()
     {
@@ -95,14 +102,14 @@ public abstract class TileBaseElectricBlock extends TileBaseUniversalElectrical 
     @Override
     public void update()
     {
-        if (!this.worldObj.isRemote)
+        if (!this.world.isRemote)
         {
             if (this.shouldPullEnergy() && this.getEnergyStoredGC(null) < this.getMaxEnergyStoredGC(null) && this.getBatteryInSlot() != null && this.getElectricInputDirection() != null)
             {
                 this.discharge(this.getBatteryInSlot());
             }
 
-            if (this.getEnergyStoredGC(null) > this.storage.getMaxExtract() && (this.noRedstoneControl || !RedstoneUtil.isBlockReceivingRedstone(this.worldObj, this.getPos())))
+            if (this.getEnergyStoredGC(null) > this.storage.getMaxExtract() && (this.noRedstoneControl || !RedstoneUtil.isBlockReceivingRedstone(this.world, this.getPos())))
             {
                 this.hasEnoughEnergyToRun = true;
                 if (this.shouldUseEnergy())
@@ -123,7 +130,7 @@ public abstract class TileBaseElectricBlock extends TileBaseUniversalElectrical 
 
         super.update();
 
-        if (!this.worldObj.isRemote)
+        if (!this.world.isRemote)
         {
             if (this.disableCooldown > 0)
             {
@@ -141,11 +148,18 @@ public abstract class TileBaseElectricBlock extends TileBaseUniversalElectrical 
     }
 
     @Override
-    public void writeToNBT(NBTTagCompound nbt)
+    public NBTTagCompound writeToNBT(NBTTagCompound nbt)
     {
         super.writeToNBT(nbt);
 
         nbt.setBoolean("isDisabled", this.getDisabled(0));
+        return nbt;
+    }
+
+    @Override
+    public NBTTagCompound getUpdateTag()
+    {
+        return this.writeToNBT(new NBTTagCompound());
     }
 
     @Override
@@ -174,29 +188,29 @@ public abstract class TileBaseElectricBlock extends TileBaseUniversalElectrical 
         return this.disabled;
     }
 
-    @RuntimeInterface(clazz = "ic2.api.tile.IWrenchable", modID = "IC2")
+    @RuntimeInterface(clazz = "ic2.api.tile.IWrenchable", modID = CompatibilityManager.modidIC2)
     public EnumFacing getFacing(World world, BlockPos pos)
     {
         return this.getFront();
     }
 
-    @RuntimeInterface(clazz = "ic2.api.tile.IWrenchable", modID = "IC2")
+    @RuntimeInterface(clazz = "ic2.api.tile.IWrenchable", modID = CompatibilityManager.modidIC2)
     public boolean setFacing(World world, BlockPos pos, EnumFacing newDirection, EntityPlayer player)
     {
         return false;
     }
 
-    @RuntimeInterface(clazz = "ic2.api.tile.IWrenchable", modID = "IC2")
+    @RuntimeInterface(clazz = "ic2.api.tile.IWrenchable", modID = CompatibilityManager.modidIC2)
     public boolean wrenchCanRemove(World world, BlockPos pos, EntityPlayer player)
     {
         return false;
     }
 
-    @RuntimeInterface(clazz = "ic2.api.tile.IWrenchable", modID = "IC2")
+    @RuntimeInterface(clazz = "ic2.api.tile.IWrenchable", modID = CompatibilityManager.modidIC2)
     public List<ItemStack> getWrenchDrops(World world, BlockPos pos, IBlockState state, TileEntity te, EntityPlayer player, int fortune)
     {
         List<ItemStack> drops = Lists.newArrayList();
-        drops.add(this.getBlockType().getPickBlock(null, this.worldObj, this.getPos(), player));
+        drops.add(this.getBlockType().getPickBlock(state, null, this.world, this.getPos(), player));
         return drops;
     }
 
@@ -211,9 +225,9 @@ public abstract class TileBaseElectricBlock extends TileBaseUniversalElectrical 
         return EnumSet.of(this.getElectricInputDirection());
     }
 
-    public boolean isUseableByPlayer(EntityPlayer entityplayer)
+    public boolean isUsableByPlayer(EntityPlayer entityplayer)
     {
-        return this.worldObj.getTileEntity(this.getPos()) == this && entityplayer.getDistanceSq(this.getPos().getX() + 0.5D, this.getPos().getY() + 0.5D, this.getPos().getZ() + 0.5D) <= 64.0D;
+        return this.getWorld().getTileEntity(this.getPos()) == this && entityplayer.getDistanceSq(this.getPos().getX() + 0.5D, this.getPos().getY() + 0.5D, this.getPos().getZ() + 0.5D) <= 64.0D;
     }
 
     @Override
@@ -229,7 +243,7 @@ public abstract class TileBaseElectricBlock extends TileBaseUniversalElectrical 
 
     public String getGUIstatus()
     {
-        if (!this.noRedstoneControl && RedstoneUtil.isBlockReceivingRedstone(this.worldObj, this.getPos()))
+        if (!this.noRedstoneControl && RedstoneUtil.isBlockReceivingRedstone(this.world, this.getPos()))
         {
             return EnumColor.DARK_RED + GCCoreUtil.translate("gui.status.off.name");
         }
@@ -259,7 +273,7 @@ public abstract class TileBaseElectricBlock extends TileBaseUniversalElectrical 
      */
     public String getGUIstatus(String missingInput, String activeString, boolean shorten)
     {
-        if (!this.noRedstoneControl && RedstoneUtil.isBlockReceivingRedstone(this.worldObj, this.getPos()))
+        if (!this.noRedstoneControl && RedstoneUtil.isBlockReceivingRedstone(this.world, this.getPos()))
         {
             return EnumColor.DARK_RED + GCCoreUtil.translate("gui.status.off.name");
         }

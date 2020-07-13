@@ -24,8 +24,6 @@ import net.minecraftforge.fml.client.FMLClientHandler;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-import org.lwjgl.opengl.GL11;
-
 @SideOnly(Side.CLIENT)
 public class LayerFrequencyModule implements LayerRenderer<AbstractClientPlayer>
 {
@@ -72,17 +70,9 @@ public class LayerFrequencyModule implements LayerRenderer<AbstractClientPlayer>
                 if (wearingModule)
                 {
                     this.updateModels();
+                    GlStateManager.enableRescaleNormal();
                     GlStateManager.pushMatrix();
-                    Minecraft.getMinecraft().getTextureManager().bindTexture(TextureMap.locationBlocksTexture);
-
-                    if (Minecraft.isAmbientOcclusionEnabled())
-                    {
-                        GlStateManager.shadeModel(GL11.GL_SMOOTH);
-                    }
-                    else
-                    {
-                        GlStateManager.shadeModel(GL11.GL_FLAT);
-                    }
+                    Minecraft.getMinecraft().getTextureManager().bindTexture(TextureMap.LOCATION_BLOCKS_TEXTURE);
 
                     GlStateManager.rotate(180, 1, 0, 0);
                     GlStateManager.pushMatrix();

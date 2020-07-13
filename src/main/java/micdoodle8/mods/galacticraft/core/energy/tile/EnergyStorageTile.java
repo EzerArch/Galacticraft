@@ -22,6 +22,11 @@ public abstract class EnergyStorageTile extends TileEntityAdvanced implements IE
     @NetworkedField(targetSide = Side.CLIENT)
     public int poweredByTierGC = 1;
 
+    public EnergyStorageTile(String tileName)
+    {
+        super(tileName);
+    }
+
     @Override
     public void readFromNBT(NBTTagCompound nbt)
     {
@@ -31,13 +36,19 @@ public abstract class EnergyStorageTile extends TileEntityAdvanced implements IE
     }
 
     @Override
-    public void writeToNBT(NBTTagCompound nbt)
+    public NBTTagCompound writeToNBT(NBTTagCompound nbt)
     {
-
         super.writeToNBT(nbt);
         this.storage.writeToNBT(nbt);
+        return nbt;
     }
 
+    @Override
+    public NBTTagCompound getUpdateTag()
+    {
+        return this.writeToNBT(new NBTTagCompound());
+    }
+    
     public abstract ReceiverMode getModeFromDirection(EnumFacing direction);
 
     @Override

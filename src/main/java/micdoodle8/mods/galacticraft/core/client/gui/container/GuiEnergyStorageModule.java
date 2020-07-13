@@ -5,7 +5,6 @@ import micdoodle8.mods.galacticraft.core.energy.EnergyDisplayHelper;
 import micdoodle8.mods.galacticraft.core.inventory.ContainerEnergyStorageModule;
 import micdoodle8.mods.galacticraft.core.tile.TileEntityEnergyStorageModule;
 import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
-import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.fml.relauncher.Side;
@@ -13,7 +12,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import org.lwjgl.opengl.GL11;
 
 @SideOnly(Side.CLIENT)
-public class GuiEnergyStorageModule extends GuiContainer
+public class GuiEnergyStorageModule extends GuiContainerGC
 {
     private static final ResourceLocation batteryBoxTexture = new ResourceLocation(Constants.ASSET_PREFIX, "textures/gui/energy_storage_module.png");
 
@@ -32,19 +31,19 @@ public class GuiEnergyStorageModule extends GuiContainer
     @Override
     protected void drawGuiContainerForegroundLayer(int par1, int par2)
     {
-        this.fontRendererObj.drawString(this.tileEntity.getName(), this.xSize / 2 - this.fontRendererObj.getStringWidth(this.tileEntity.getName()) / 2, 6, 4210752);
+        this.fontRenderer.drawString(this.tileEntity.getName(), this.xSize / 2 - this.fontRenderer.getStringWidth(this.tileEntity.getName()) / 2, 6, 4210752);
         float energy = this.tileEntity.getEnergyStoredGC();
         if (energy + 49 > this.tileEntity.getMaxEnergyStoredGC())
         {
             energy = this.tileEntity.getMaxEnergyStoredGC();
         }
         String displayStr = EnergyDisplayHelper.getEnergyDisplayS(energy);
-        this.fontRendererObj.drawString(displayStr, 122 - this.fontRendererObj.getStringWidth(displayStr) / 2, 25, 4210752);
+        this.fontRenderer.drawString(displayStr, 122 - this.fontRenderer.getStringWidth(displayStr) / 2, 25, 4210752);
         displayStr = GCCoreUtil.translate("gui.message.of.name") + " " + EnergyDisplayHelper.getEnergyDisplayS(this.tileEntity.getMaxEnergyStoredGC());
-        this.fontRendererObj.drawString(displayStr, 122 - this.fontRendererObj.getStringWidth(displayStr) / 2, 34, 4210752);
+        this.fontRenderer.drawString(displayStr, 122 - this.fontRenderer.getStringWidth(displayStr) / 2, 34, 4210752);
         displayStr = GCCoreUtil.translate("gui.max_output.desc") + ": " + EnergyDisplayHelper.getEnergyDisplayS(this.tileEntity.storage.getMaxExtract()) + "/t";
-        this.fontRendererObj.drawString(displayStr, 114 - this.fontRendererObj.getStringWidth(displayStr) / 2, 64, 4210752);
-        this.fontRendererObj.drawString(GCCoreUtil.translate("container.inventory"), 8, this.ySize - 96 + 2, 4210752);
+        this.fontRenderer.drawString(displayStr, 114 - this.fontRenderer.getStringWidth(displayStr) / 2, 64, 4210752);
+        this.fontRenderer.drawString(GCCoreUtil.translate("container.inventory"), 8, this.ySize - 96 + 2, 4210752);
     }
 
     /**
